@@ -15,6 +15,12 @@ const observerHarness = vi.hoisted(() => ({
   onStop: vi.fn(),
 }))
 
+const playbackHarness = vi.hoisted(() => ({
+  discoverEpisodes: vi.fn(),
+  pickRandom: vi.fn(),
+  playEpisode: vi.fn(),
+}))
+
 vi.mock('../../src/netflix/observer', () => ({
   clearTitleObservation: observerHarness.clearTitleObservation,
   observeForTitleRoot: observerHarness.observeForTitleRoot,
@@ -26,12 +32,34 @@ vi.mock('../../src/netflix/observer', () => ({
   onStop: observerHarness.onStop,
 }))
 
+vi.mock('../../src/discovery/season-traverser', () => ({
+  discoverEpisodes: playbackHarness.discoverEpisodes,
+}))
+
+vi.mock('../../src/engine/randomizer', () => ({
+  pickRandom: playbackHarness.pickRandom,
+}))
+
+vi.mock('../../src/engine/navigator', () => ({
+  playEpisode: playbackHarness.playEpisode,
+}))
+
 describe('Phase 2 content lifecycle', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
     observerHarness.callback = null
     window.history.replaceState({}, '', '/browse')
+    const selectedEpisode = {
+      seriesId: '12', seasonKey: 'implicit', seasonLabel: 'Episodes',
+      seasonNumber: null, episodeIndex: 0, episodeNumber: 1,
+      title: 'Pilot', discoveredSeasonEpisodeCount: 1,
+    }
+    playbackHarness.discoverEpisodes.mockResolvedValue({
+      id: '12', totalSeasons: 1, episodes: [selectedEpisode], discoveredAt: 1,
+    })
+    playbackHarness.pickRandom.mockReturnValue(selectedEpisode)
+    playbackHarness.playEpisode.mockResolvedValue(undefined)
   })
 
   it('waits for a unique visible validated title root', async () => {
@@ -68,7 +96,55 @@ describe('Phase 2 content lifecycle', () => {
     expect(buttons).toHaveLength(1)
     expect(buttons[0]?.dataset.state).toBe('ready')
     buttons[0]?.click()
-    expect(buttons[0]?.dataset.state).toBe('ready')
+    expect(buttons[0]?.dataset.state).toBe('loading')
+    content.stop()
+  })
+
+  it('runs fresh discovery, selection, and guarded playback on click', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=122')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    const content = await import('../../src/content')
+    await flushPromises()
+    const button = root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')!
+
+    button.click()
+    await flushPromises()
+
+    expect(playbackHarness.discoverEpisodes).toHaveBeenCalledWith(
+      '122', root, expect.any(AbortSignal),
+    )
+    expect(playbackHarness.pickRandom).toHaveBeenCalledOnce()
+    expect(playbackHarness.playEpisode).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Pilot' }),
+      root,
+      expect.any(AbortSignal),
+      expect.any(Function),
+    )
+
+    content.stop()
+  })
+
+  it('returns the current button to ready after a non-abort failure', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=123')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    playbackHarness.discoverEpisodes.mockRejectedValueOnce(new Error('failure'))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const content = await import('../../src/content')
+    await flushPromises()
+    const button = root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')!
+
+    button.click()
+    await flushPromises()
+
+    expect(button.dataset.state).toBe('ready')
+    expect(errorSpy).toHaveBeenCalled()
+
+    button.click()
+    await flushPromises()
+    expect(playbackHarness.discoverEpisodes).toHaveBeenCalledTimes(2)
+    expect(playbackHarness.playEpisode).toHaveBeenCalledOnce()
     content.stop()
   })
 

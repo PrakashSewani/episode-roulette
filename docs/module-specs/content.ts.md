@@ -48,7 +48,7 @@ run detectSeries(context, root)
 
 The URL supplies title identity only. `content.ts` must never activate series behavior because a `/title/<id>` or `jbv` value exists by itself.
 
-**Phase boundary**: Phase 2 implements this lifecycle through scoped series confirmation and cleanup only. Phase 3 adds styles, feedback ownership, and ready-button injection after confirmation. The Phase 3 button has no registered operation handler, so clicking it remains a no-op until Phase 5 wires the discovery/playback flow.
+**Phase boundary**: Phase 2 implements this lifecycle through scoped series confirmation and cleanup only. Phase 3 adds styles, feedback ownership, and ready-button injection after confirmation. Phase 5 registers an uncached click handler that performs fresh complete discovery, independent random selection, and guarded native playback. Phase 6 adds cache ownership, typed user-facing error dispatch, stale-cache rediscovery, and `/watch/` confirmation.
 
 ## Detection Deadline
 
@@ -140,6 +140,12 @@ Every async continuation returns without side effects when `isCurrent(context)` 
 
 ## Cache and Selection Flow
 
+### Phase 5 Uncached Boundary
+
+Before Phase 6 cache integration, each valid button click performs one fresh complete discovery, independently selects from the returned complete catalog, and calls playback resolution. The button changes to `loading` before discovery. Abort and stale-generation failures are silent. Any other failure is logged and returns the current button to `ready` so the user may explicitly retry. Phase 5 does not show an error toast, retain a catalog, invalidate stale metadata, or wait for `/watch/` confirmation.
+
+### Phase 6 Complete Flow
+
 `content.ts` owns:
 
 ```typescript
@@ -178,7 +184,9 @@ series confirmed -> disabled spawn indicator while Play placement is pending
 Play resolved     -> ready operation button beside Play
 spawn timeout     -> indicator removed, no user-facing error
 ready click      -> loading
-loading click success -> remain loading until /watch/
+Phase 5 click success -> remain loading while Netflix handles native playback
+Phase 5 non-abort failure -> ready for explicit retry
+Phase 6 click success -> remain loading until /watch/
 confirmation timeout  -> error + one 5-second toast
 loading failure  -> error + one 5-second toast
 error click      -> dismiss toast -> loading -> fresh attempt

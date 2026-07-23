@@ -27,18 +27,18 @@ Discover all playable episodes across all seasons of the current TV series by tr
 1. Resolve `EPISODE_SELECTOR` within the supplied title root and inspect supported controls inside it
 2. If episode rows exist and no season controls exist:
    a. Create one implicit season descriptor
-   b. Create one absolute deadline five seconds in the future
+    b. Create one absolute deadline 10 seconds in the future
    c. Expand and validate the episode section
    d. Collect the complete rendered episode set
-   e. On failure, re-query and retry once with one new five-second deadline
+    e. On failure, re-query and retry once with one new 10-second deadline
 3. Otherwise, use the Netflix custom-dropdown strategy to enumerate all explicit seasons
 4. For each explicit season:
-   a. Create one absolute deadline five seconds in the future
-   b. Call shared `activateSeason()` with that deadline; it performs no click or content-change requirement when already active
-   c. Call shared `expandAndValidateSeason()` with the same deadline to obtain complete validated rows
+    a. Create one absolute deadline 10 seconds in the future
+    b. Call shared `activateSeason()` with that deadline; it performs no click or content-change requirement when already active, waits for the approved minimum live-row readiness threshold when switching, and returns the current live episode selector
+    c. Call shared `expandAndValidateSeason()` on the returned live selector with the same deadline to obtain complete validated rows
    d. Pass those rows directly to episode-collector
    e. Store results
-   f. If activation, expansion, collection, or count validation fails, re-query controls and retry this season once with one new five-second deadline
+    f. If activation, expansion, collection, or count validation fails, re-query controls and retry this season once with one new 10-second deadline
    g. If the retry fails, discard all accumulated results and fail discovery
 5. Aggregate all episodes into SeriesInfo only after every season succeeds
 6. Return the complete result to `content.ts`
@@ -71,7 +71,7 @@ export function discoverEpisodes(
 
 Enumeration, activation, transition waiting, expansion, and count validation are delegated to `season-controller.ts`. The traverser owns sequencing, absolute attempt deadlines, aggregation, and retry policy.
 
-Initial episode-selector resolution and explicit-season enumeration form one initialization attempt with a five-second deadline. If selector lookup, menu rendering, or enumeration fails for a non-abort reason, re-query from `root` and retry initialization once with a new five-second deadline. A second failure throws `DiscoveryIncompleteError`; `AbortError` is never retried.
+Initial episode-selector resolution and explicit-season enumeration form one initialization attempt with a 10-second deadline. If selector lookup, menu rendering, or enumeration fails for a non-abort reason, re-query from `root` and retry initialization once with a new 10-second deadline. A second failure throws `DiscoveryIncompleteError`; `AbortError` is never retried.
 
 Do not implement native-select, tab, or accordion strategies until that Netflix layout is observed and documented.
 
@@ -80,16 +80,22 @@ Do not implement native-select, tab, or accordion strategies until that Netflix 
 ## Season Switching
 
 ```typescript
-const deadline = performance.now() + 5000
-await activateSeason(titleRoot, episodeSelector, season, deadline, signal)
-const rows = await expandAndValidateSeason(episodeSelector, season, deadline, signal)
+const deadline = performance.now() + 10000
+const liveEpisodeSelector = await activateSeason(
+  titleRoot,
+  episodeSelector,
+  season,
+  deadline,
+  signal,
+)
+const rows = await expandAndValidateSeason(liveEpisodeSelector, season, deadline, signal)
 ```
 
-If the requested season is already active, `season-controller.ts` does not click and does not require content to change. If switching is required, it confirms both requested toggle identity and changed episode content.
+If the requested season is already active, `season-controller.ts` does not click and does not require content to change. If switching is required, it confirms the requested toggle identity, changed episode content, and minimum readiness count: one valid row for unknown or one-episode seasons, otherwise at least two valid rows.
 
 ## Episode Section Expansion
 
-Netflix may initially render only the first 10 episodes even when the selected season contains more. `season-controller.ts` clicks the expand control once, requires disappearance, waits for two stable animation frames, and validates the expected count. Failure applies the traverser's one-retry policy.
+Netflix may temporarily clear the episode list or render one placeholder row while switching, and may initially render only the first 10 episodes even when the selected season contains more. `season-controller.ts` does not begin stability counting until the minimum readiness count is met, clicks the expand control once when present, requires disappearance, waits for two stable animation frames, and validates the expected count. Failure applies the traverser's one-retry policy.
 
 ## Completeness Policy
 

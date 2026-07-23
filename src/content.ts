@@ -16,6 +16,9 @@ import type { ButtonController } from './types'
 import { dismissToast } from './ui/feedback'
 import { injectButton } from './ui/button'
 import { injectStyles, removeStyles } from './ui/styles'
+import { discoverEpisodes } from './discovery/season-traverser'
+import { playEpisode } from './engine/navigator'
+import { pickRandom } from './engine/randomizer'
 
 const DETECTION_TIMEOUT_MS = 5_000
 
@@ -101,6 +104,42 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
+function assertCurrent(context: OperationContext, root: HTMLElement): void {
+  if (!isCurrent(context) || activeRoot !== root) {
+    throw new DOMException('The operation was aborted.', 'AbortError')
+  }
+}
+
+async function runUncachedPlayback(
+  context: OperationContext,
+  root: HTMLElement,
+  controller: ButtonController,
+): Promise<void> {
+  controller.setState('loading')
+  try {
+    const catalog = await discoverEpisodes(
+      context.title.titleId,
+      root,
+      context.controller.signal,
+    )
+    assertCurrent(context, root)
+    const episode = pickRandom(catalog.episodes)
+    assertCurrent(context, root)
+    await playEpisode(
+      episode,
+      root,
+      context.controller.signal,
+      () => assertCurrent(context, root),
+    )
+  } catch (error) {
+    if (isAbortError(error)) return
+    console.error('[Episode Roulette] Random playback failed', error)
+    if (isCurrent(context) && activeRoot === root && buttonController === controller) {
+      controller.setState('ready')
+    }
+  }
+}
+
 async function injectSeriesButton(
   context: OperationContext,
   root: HTMLElement,
@@ -113,6 +152,9 @@ async function injectSeriesButton(
     }
 
     buttonController = controller
+    controller?.onClick(() => {
+      void runUncachedPlayback(context, root, controller)
+    })
   } catch (error) {
     if (!isAbortError(error)) {
       console.error('[Episode Roulette] Failed to inject button', error)

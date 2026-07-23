@@ -115,6 +115,7 @@ No background service worker is registered in Chrome or Safari. All core behavio
 - Episode element parsing per season
 - Aggregation across all seasons
 - One scoped retry for a season that fails to switch or collect
+- DOM-driven season initialization, activation, expansion, and stabilization with a 10-second absolute safety deadline per attempt
 - Atomic completeness policy: no partial randomization or partial cache entries
 - `dom-utils.ts` with `resilientQuery()` helper (tries multiple selectors)
 
@@ -135,7 +136,8 @@ No background service worker is registered in Chrome or Safari. All core behavio
 - Durable episode metadata with no cached DOM references
 - Reactivate selected season, expand it, and uniquely re-resolve the current episode row
 - Native click only after identity validation; no title-URL fallback
-- Button click changes the button to loading and triggers the full flow: cache lookup → discover if needed → select → play
+- Button click changes the button to loading and triggers the Phase 5 uncached flow: fresh complete discovery → select → play
+- Phase 5 logs non-abort failures and returns the button to ready for explicit retry; cache ownership, typed user-facing error dispatch, stale-cache rediscovery, and `/watch/` confirmation remain Phase 6 responsibilities
 
 **Exit criteria**: Clicking "Random Episode" re-resolves and clicks exactly the selected Netflix episode. Ambiguous or inconsistent matches fail without clicking another episode.
 

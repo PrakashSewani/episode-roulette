@@ -129,4 +129,24 @@ describe('season traversal', () => {
     await expect(discoverEpisodes('50', createImplicitFixture(), controller.signal))
       .rejects.toMatchObject({ name: 'AbortError' })
   })
+
+  it('allows episode selector initialization after the former five-second limit', async () => {
+    vi.useFakeTimers()
+    const root = document.createElement('div')
+    document.body.append(root)
+    const operation = discoverEpisodes('60', root, new AbortController().signal)
+
+    window.setTimeout(() => {
+      const selector = document.createElement('div')
+      selector.dataset.uia = 'episode-selector'
+      appendRow(selector, 'Delayed', 1)
+      root.append(selector)
+    }, 6_000)
+    await vi.advanceTimersByTimeAsync(6_000)
+    await vi.runAllTimersAsync()
+
+    await expect(operation).resolves.toMatchObject({
+      id: '60', totalSeasons: 1, episodes: [{ title: 'Delayed' }],
+    })
+  })
 })

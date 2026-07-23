@@ -53,7 +53,7 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 **Condition**: Selected a season from Netflix's custom dropdown but the active season identity or episode content did not update.
 
 **Handling**:
-- Give each season attempt one absolute 5-second budget covering activation, DOM transition, expansion, and stable-row validation
+- Give each season attempt one absolute 10-second safety budget covering activation, DOM transition, expansion, and stable-row validation; DOM readiness completes the operation immediately without waiting for the full timeout
 - If timeout, re-query season controls and retry the same season once
 - If the retry succeeds, continue discovery
 - If the retry fails, fail the entire discovery operation
@@ -203,6 +203,8 @@ function logInfo(message: string, details?: unknown): void {
 
 ## Error Recovery
 
+Phase 5's uncached integration boundary logs non-abort discovery or playback failures and returns the current button to `ready` for explicit retry. It does not yet show typed error states or toasts. The persistent error state, exact user-facing message dispatch, stale-cache invalidation, and `/watch/` timeout handling are added in Phase 6.
+
 The extension automatically retries one failed season once during a discovery operation. If the operation still fails:
 
 1. The button enters a persistent, enabled error state.
@@ -211,15 +213,3 @@ The extension automatically retries one failed season once during a discovery op
 4. No full operation starts automatically in the background.
 
 Users may also refresh Netflix or navigate away and back. Navigation-triggered cancellation remains silent and must not enter the error state.
-
----
-
-## Debugging
-
-Enable verbose logging by setting in browser console:
-
-```javascript
-localStorage.setItem('ep-roulette-debug', 'true')
-```
-
-This logs all selector attempts, DOM queries, and state changes.

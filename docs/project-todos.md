@@ -16,13 +16,13 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: Phase 4, Episode Discovery, is complete. Safari remains the verified live development environment; Chrome live compatibility validation remains deferred to Phase 7.
-- Next implementation phase: Phase 5, Random Selection + Playback.
-- Completed in this session: Reopened and completed Phase 3 for the approved spawn indicator; implemented Phase 4 shared catalog/season/identity/error types, generic query and parent-liveness wait utilities, strict implicit/custom-dropdown season control, deterministic episode identity parsing/resolution, durable collection, and uncached atomic all-season traversal with initialization and per-season retries.
-- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 60 tests across 12 files; `git diff --check` passed; `npm run build` passed; `npm run safari:build` synchronized resources and completed with `BUILD SUCCEEDED`.
-- Blockers or unanswered questions: None.
-- Files changed: Phase 3 UI documentation/code/tests; `src/types.ts`, `src/netflix/dom-utils.ts`, `src/netflix/season-controller.ts`, new `src/netflix/episode-identity.ts`, new discovery modules, and Phase 4 unit/integration tests.
-- Exact next action: Read all Phase 5 specs, review the randomization/playback items for ambiguity, present the Phase 5 plan, and wait for user confirmation before implementation.
+- Current state: Phase 5, Random Selection + Playback, is complete after live Safari confirmation of the minimum-row readiness fix. Chrome live compatibility validation remains deferred to Phase 7.
+- Item currently in progress: None. Phase 6 is the next implementation phase and requires its documented plan and user confirmation before code changes.
+- Completed in this session: Documented and implemented the approved readiness threshold; live Safari playback now works. Removed the temporary structured debug logger and instrumentation. Documented in `README.md` that multi-season dropdown support currently requires `Season <number>` labels and named anime seasons fail safely.
+- Verification completed: After temporary diagnostics removal, `npx tsc --noEmit` passed; `npm test` passed 76 tests across 14 files; `git diff --check` passed; `npm run build` passed; `npm run safari:build` synchronized resources and completed with `BUILD SUCCEEDED`.
+- Blockers or unanswered questions: Named season dropdown entries such as anime arc names, parts, volumes, and specials are intentionally unsupported until a durable identity and action-filtering contract is designed.
+- Files changed: Updated season-controller/traverser/testing docs, `README.md`, and tracker; changed `src/netflix/season-controller.ts`; extended season-controller and navigator regressions; removed temporary debug source/tests/instrumentation.
+- Exact next action: Read all Phase 6 docs, present the Phase 6 implementation plan, and wait for user confirmation.
 - Required docs for the next agent: `AGENTS.md`, Phase 5 of `docs/implementation-plan.md`, `docs/architecture.md`, `docs/data-model.md`, `docs/error-handling.md`, `docs/module-specs/randomizer.ts.md`, `docs/module-specs/navigator.ts.md`, shared season/identity specs, `docs/testing.md`, and this tracker.
 
 ## Phase Tracker
@@ -33,7 +33,7 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 | 2. Netflix SPA Navigation Detection | complete | Preserve the neutral observer, scoped detection, and absolute-deadline contracts. |
 | 3. UI Injection | complete | Preserve spawn feedback, scoped ready placement, states, feedback, and cleanup contracts. |
 | 4. Episode Discovery | complete | Preserve complete uncached traversal, retry, identity, and cancellation contracts. |
-| 5. Random Selection + Playback | not started | Start only after Phase 4 completion. |
+| 5. Random Selection + Playback | complete | Preserve the verified live playback and readiness contracts. |
 | 6. Integration + Polish | not started | Start only after Phase 5 completion. |
 | 7. Chrome Compatibility Validation | not started | Load the completed universal build in Chrome and run the live compatibility checklist. |
 | 8. Testing + Validation | not started | Complete automated, CI, packaging, and final cross-browser release gates. |
@@ -213,20 +213,46 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Phase 5: Random Selection + Playback
 
-**Status**: not started
+**Status**: complete
 
 **Todo checklist**:
 
-- [ ] Read `randomizer.ts.md`, `navigator.ts.md`, shared season/identity specs, architecture, data model, error handling, and testing docs.
-- [ ] Present the Phase 5 plan and receive user confirmation.
-- [ ] Implement uniform independent random selection and empty-input failure.
-- [ ] Reactivate the selected season and expand the complete live list.
-- [ ] Uniquely re-resolve the selected durable episode metadata.
-- [ ] Guard the final synchronous native click against abort, generation, and title changes.
-- [ ] Fail safely on missing, ambiguous, or inconsistent matches without URL fallback.
-- [ ] Wire the documented button-click flow to the Phase 5 boundary.
-- [ ] Add documented unit and fixture tests.
-- [ ] Verify Chrome and Safari builds and Phase 5 exit criteria.
+- [x] Read `randomizer.ts.md`, `navigator.ts.md`, shared season/identity specs, architecture, data model, error handling, and testing docs.
+- [x] Present the Phase 5 plan and receive user confirmation.
+- [x] Implement uniform independent random selection and empty-input failure.
+- [x] Reactivate the selected season and expand the complete live list.
+- [x] Uniquely re-resolve the selected durable episode metadata.
+- [x] Guard the final synchronous native click against abort, generation, and title changes.
+- [x] Fail safely on missing, ambiguous, or inconsistent matches without URL fallback.
+- [x] Wire the documented button-click flow to the Phase 5 boundary.
+- [x] Add documented unit and fixture tests.
+- [x] Verify Chrome and Safari builds and Phase 5 exit criteria.
+- [x] Re-resolve and return the live episode selector when Netflix replaces it during season switching.
+- [x] Add replacement regression coverage and rerun Phase 5 verification.
+- [x] Extend only season DOM-operation safety deadlines to 10 seconds and verify delayed readiness still completes immediately.
+- [x] Require at least two valid rows before accepting readiness for declared multi-episode seasons while preserving one-row seasons.
+- [x] Verify the minimum-row readiness fix on live Safari playback.
+- [x] Remove the temporary structured diagnostics after live confirmation.
+
+**Implemented**:
+
+- Pure `pickRandom()` selection using independent `Math.random()` sampling with explicit empty-input failure and no history.
+- Playback re-resolves exactly one visible scoped episode selector, reactivates and expands the selected season under one absolute deadline, and maps stale-catalog controller reasons separately from structural resolution failures.
+- Final native row click occurs synchronously after abort and active title/root/generation validation, with no URL fallback.
+- Phase 5 button flow performs fresh complete discovery on each user attempt, selects independently, starts native playback, keeps successful playback loading, treats aborts silently, and returns non-abort failures to ready for explicit retry.
+- Season activation observes the stable title root and returns the current live episode selector after either in-place mutation or complete selector-subtree replacement; traversal and playback expand and resolve only against that returned element.
+- Season initialization, switching, expansion, stabilization, and playback resolution complete from DOM readiness immediately, with a 10-second absolute safety deadline per attempt for slow Netflix rendering.
+- Season activation and stabilization ignore transient empty and one-row renders for declared multi-episode seasons, while unknown-count and genuine one-episode seasons retain one-row readiness.
+- The first release supports explicit dropdown labels matching `Season <number>` only; named season labels fail discovery safely and are documented in `README.md`.
+
+**Verification evidence**:
+
+- `npx tsc --noEmit` succeeded.
+- `npm test` succeeded after diagnostics removal: 14 test files, 76 tests.
+- Focused season-controller, traversal, and playback verification succeeded: 3 test files, 24 tests.
+- `git diff --check` succeeded.
+- `npm run build` succeeded and emitted the universal Manifest V3 WebExtension.
+- `npm run safari:build` succeeded after resource synchronization; Xcode reported `BUILD SUCCEEDED`.
 
 ## Phase 6: Integration + Polish
 

@@ -75,9 +75,20 @@ export async function playEpisode(
 ): Promise<void> {
   const episodeSelector = requireEpisodeSelector(root)
   const season = toSeasonDescriptor(episode)
-  const deadline = performance.now() + 5000
-  await activateSeason(root, episodeSelector, season, deadline, signal)
-  const rows = await expandAndValidateSeason(episodeSelector, season, deadline, signal)
+  const deadline = performance.now() + 10000
+  const liveEpisodeSelector = await activateSeason(
+    root,
+    episodeSelector,
+    season,
+    deadline,
+    signal,
+  )
+  const rows = await expandAndValidateSeason(
+    liveEpisodeSelector,
+    season,
+    deadline,
+    signal,
+  )
 
   const row = resolveEpisodeRow(episode, rows)
   if (!row) {
@@ -146,6 +157,7 @@ The core architecture has no URL fallback. Playback succeeds through a uniquely 
 ## Testing
 
 - Unit test: Reactivates the selected season and expands it before matching
+- Unit test: Season switching may replace the episode-selector subtree and playback uses the replacement
 - Unit test: Resolves a unique number-and-title match
 - Unit test: Uses index only with equal complete-season counts and no stronger identity
 - Unit test: Does not click when matching is ambiguous or inconsistent

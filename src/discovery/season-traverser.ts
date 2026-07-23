@@ -14,7 +14,7 @@ import {
 import { EPISODE_SELECTOR } from '../netflix/selectors'
 import { collectEpisodes } from './episode-collector'
 
-const ATTEMPT_TIMEOUT_MS = 5_000
+const ATTEMPT_TIMEOUT_MS = 10_000
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
@@ -79,11 +79,18 @@ async function collectSeason(
     const deadline = performance.now() + ATTEMPT_TIMEOUT_MS
     try {
       const episodeSelector = await resolveEpisodeSelector(root, deadline, signal)
+      let liveEpisodeSelector = episodeSelector
       if (season.key !== 'implicit') {
-        await activateSeason(root, episodeSelector, season, deadline, signal)
+        liveEpisodeSelector = await activateSeason(
+          root,
+          episodeSelector,
+          season,
+          deadline,
+          signal,
+        )
       }
       const rows = await expandAndValidateSeason(
-        episodeSelector,
+        liveEpisodeSelector,
         season,
         deadline,
         signal,

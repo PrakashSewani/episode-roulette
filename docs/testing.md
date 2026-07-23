@@ -63,6 +63,7 @@ npm test
 - Spawn indicator is replaced by the ready button, and timeout/cancellation leaves no indicator
 - User click starts discovery; opening the overlay alone does not
 - Custom-dropdown enumeration, switching, expansion, and exact count validation
+- Switched multi-episode seasons ignore transient zero-row and one-row renders until at least two valid rows exist
 - One season retry followed by success or atomic failure
 - Implicit-season failure uses the same one retry
 - English season/count parser ignores only known actions; unsupported selectable labels and duplicate keys fail safely
@@ -73,6 +74,7 @@ npm test
 - Complete catalog cache reuse and one mismatch-triggered rediscovery
 - Independent random selection with no history
 - Season reactivation, unique row resolution, and final guarded click
+- Phase 5 uncached button flow performs fresh discovery per click and returns to ready after non-abort failure
 - Five-second `/watch/` confirmation after final click
 - Retryable error state and five-second toast behavior
 - Manifest/build contract contains the Netflix content script and no background service worker
@@ -264,6 +266,8 @@ describe('resilientQuery', () => {
 
 ### Random Playback
 - [ ] Clicking button starts playback
+- [ ] Before Phase 6 caching, each Phase 5 click performs fresh complete discovery
+- [ ] Phase 5 non-abort failures log the terminal error and return the current button to ready
 - [ ] Episode is truly random (test multiple times)
 - [ ] Repeat selections are allowed
 - [ ] Selection probability is not affected by prior clicks or playback

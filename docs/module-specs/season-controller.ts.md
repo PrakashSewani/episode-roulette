@@ -44,7 +44,7 @@ export function activateSeason(
   season: SeasonDescriptor,
   deadline: number,
   signal: AbortSignal,
-): Promise<void>
+): Promise<HTMLElement>
 
 export function expandAndValidateSeason(
   episodeSelector: HTMLElement,
@@ -116,7 +116,7 @@ Activation has two branches:
 
 ### Already Active
 
-If `getActiveSeasonKey(episodeSelector) === season.key`, do not click the dropdown. Proceed directly to expansion and completeness validation. Episode content is not required to change in this branch.
+If `getActiveSeasonKey(episodeSelector) === season.key`, do not click the dropdown. Return the supplied connected episode selector and proceed directly to expansion and completeness validation. Episode content is not required to change in this branch.
 
 For `season.key === 'implicit'`, activation succeeds without clicking only when valid episode rows still exist and no supported season control exists. A cached implicit season paired with a live explicit control, or cached explicit season paired with a live implicit layout, is a cache-validation mismatch during playback.
 
@@ -126,8 +126,12 @@ For `season.key === 'implicit'`, activation succeeds without clicking only when 
 2. Open the dropdown.
 3. Re-query the menu and requested item; never retain menu-item elements from enumeration.
 4. Click the uniquely matching item.
-5. Wait until the toggle identifies `season.key`.
-6. Require the episode-content snapshot to differ from the previous season.
+5. Observe `titleRoot` so Netflix may either mutate the supplied episode selector in place or replace the complete `EPISODE_SELECTOR` subtree.
+6. Re-resolve exactly one connected visible `EPISODE_SELECTOR` within `titleRoot`.
+7. Wait until that current live selector's toggle identifies `season.key`.
+8. Require its episode-content snapshot to differ from the previous season.
+9. Require the current live selector to meet the season's minimum readiness count: one valid row when `expectedEpisodeCount` is `null` or `1`, otherwise at least two valid rows. A transient empty or one-row render for a declared multi-episode season does not complete activation.
+10. Return the current live episode selector to the caller. Callers must use this returned element for expansion and collection/resolution rather than retaining the pre-switch selector.
 
 Waiting for any episode row is never sufficient.
 
@@ -135,13 +139,13 @@ Waiting for any episode row is never sufficient.
 
 ## Expansion and Stability
 
-The traverser or navigator supplies one absolute five-second deadline for a complete season attempt. Enumeration has its own initial five-second attempt deadline. For a season, activation and expansion share the same deadline; controller calls do not reset it. A discovery retry receives one new five-second deadline. `AbortError` is immediate and bypasses retry.
+The traverser or navigator supplies one absolute 10-second deadline for a complete season attempt. Enumeration has its own initial 10-second attempt deadline. Completion remains DOM-driven through MutationObserver notifications and stable animation frames; the deadline is only a safety bound when Netflix never reaches a valid state. For a season, activation and expansion share the same deadline; controller calls do not reset it. A discovery retry receives one new 10-second deadline. `AbortError` is immediate and bypasses retry.
 
 For each season attempt:
 
 1. If `SECTION_EXPAND` exists, click it once.
 2. Require the control to disappear.
-3. Observe `episodeSelector` with `{ childList: true, subtree: true, attributes: true }`. A relevant mutation is a child-list change or an attribute change to `class`, `style`, `hidden`, `aria-hidden`, or `role` on the selector subtree. After the latest relevant mutation, require the ordered valid-row snapshot and count to remain unchanged across two consecutive animation frames before the deadline.
+3. Observe `episodeSelector` with `{ childList: true, subtree: true, attributes: true }`. A relevant mutation is a child-list change or an attribute change to `class`, `style`, `hidden`, `aria-hidden`, or `role` on the selector subtree. Before stability counting begins, require the season's minimum readiness count: one valid row when `expectedEpisodeCount` is `null` or `1`, otherwise at least two valid rows. After the latest relevant mutation, require the ordered valid-row snapshot and count to remain unchanged across two consecutive animation frames before the deadline.
 4. If `expectedEpisodeCount` is non-null, require an exact count match.
 5. Return the current live rows, all of which must satisfy the centralized valid-row definition.
 
@@ -158,6 +162,9 @@ Controller failures use `SeasonControllerError` reasons from `types.ts`. During 
 - Unit test: Duplicate season keys fail enumeration
 - Unit test: Already-active season performs no dropdown click
 - Integration test: Switched season requires active-key and content change
+- Integration test: Switched season may replace the episode-selector subtree and returns the current live selector
+- Integration test: Switched multi-episode season ignores transient zero-row and one-row renders until at least two valid rows exist
 - Integration test: Menu queries remain scoped to the title root
 - Integration test: Abort closes waits without further clicks
 - Integration test: Expansion clicks once and requires disappearance plus stable count
+- Integration test: Stability ignores transient zero-row and one-row renders for a declared multi-episode season

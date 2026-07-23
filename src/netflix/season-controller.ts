@@ -2,6 +2,7 @@ import type { SeasonDescriptor } from '../types'
 import { SeasonControllerError } from '../types'
 import { resilientQuery, resilientQueryAll, waitForElement } from './dom-utils'
 import {
+  EPISODE_SELECTOR,
   EPISODE_ROW,
   SEASON_DROPDOWN_ITEM,
   SEASON_DROPDOWN_MENU,
@@ -80,6 +81,21 @@ function snapshotRows(root: ParentNode): string {
     (row.textContent ?? '').normalize('NFKC').trim().replace(/\s+/gu, ' '),
     index,
   ]))
+}
+
+function minimumReadyRowCount(season: SeasonDescriptor): number {
+  return season.expectedEpisodeCount !== null && season.expectedEpisodeCount >= 2 ? 2 : 1
+}
+
+function resolveLiveEpisodeSelector(titleRoot: HTMLElement): HTMLElement | null {
+  const candidates = new Set<HTMLElement>()
+  for (const selector of EPISODE_SELECTOR.selectors) {
+    for (const match of titleRoot.querySelectorAll<HTMLElement>(selector)) {
+      candidates.add(match)
+    }
+  }
+  const valid = [...candidates].filter((element) => element.isConnected && isVisible(element))
+  return valid.length === 1 ? valid[0]! : null
 }
 
 function waitForCondition(
@@ -225,10 +241,12 @@ export async function activateSeason(
   season: SeasonDescriptor,
   deadline: number,
   signal: AbortSignal,
-): Promise<void> {
+): Promise<HTMLElement> {
   assertNotAborted(signal)
   const activeKey = getActiveSeasonKey(episodeSelector)
-  if (activeKey === season.key) return
+  if (activeKey === season.key && episodeSelector.isConnected) {
+    return episodeSelector
+  }
 
   if (season.key === 'implicit' || activeKey === 'implicit') {
     throw new SeasonControllerError('strategy-mismatch', 'Season strategy changed')
@@ -268,18 +286,36 @@ export async function activateSeason(
   }
 
   matchingItems[0]!.click()
+  let liveEpisodeSelector: HTMLElement | null = null
   await waitForCondition(
-    episodeSelector,
+    titleRoot,
     deadline,
     signal,
     'transition-timeout',
-    () => getActiveSeasonKey(episodeSelector) === season.key
-      && snapshotRows(episodeSelector) !== previousSnapshot,
+    () => {
+      const current = resolveLiveEpisodeSelector(titleRoot)
+      if (
+        current === null
+        || getActiveSeasonKey(current) !== season.key
+        || snapshotRows(current) === previousSnapshot
+        || getValidEpisodeRows(current).length < minimumReadyRowCount(season)
+      ) {
+        return false
+      }
+      liveEpisodeSelector = current
+      return true
+    },
   )
+  const resolvedEpisodeSelector = liveEpisodeSelector as HTMLElement | null
+  if (resolvedEpisodeSelector === null) {
+    throw new SeasonControllerError('transition-timeout', 'Season transition did not resolve')
+  }
+  return resolvedEpisodeSelector
 }
 
 function waitForStableRows(
   episodeSelector: HTMLElement,
+  season: SeasonDescriptor,
   deadline: number,
   signal: AbortSignal,
 ): Promise<HTMLElement[]> {
@@ -308,7 +344,9 @@ function waitForStableRows(
       assertNotAborted(signal)
       const rows = getValidEpisodeRows(episodeSelector)
       const snapshot = snapshotRows(episodeSelector)
-      if (!dirty && snapshot === previousSnapshot) {
+      if (rows.length < minimumReadyRowCount(season)) {
+        stableFrames = 0
+      } else if (!dirty && snapshot === previousSnapshot) {
         stableFrames += 1
       } else {
         stableFrames = 0
@@ -365,7 +403,7 @@ export async function expandAndValidateSeason(
     )
   }
 
-  const rows = await waitForStableRows(episodeSelector, deadline, signal)
+  const rows = await waitForStableRows(episodeSelector, season, deadline, signal)
   if (resilientQuery(SECTION_EXPAND.selectors, episodeSelector) !== null) {
     throw new SeasonControllerError('expansion-failed', 'Expand control is still present')
   }

@@ -23,6 +23,12 @@ Stop spending 10 minutes choosing what to rewatch. Click a button, get a random 
 
 First-release support targets Netflix's observed desktop title-detail layouts: implicit single-season lists and the custom English season dropdown. Kids profiles and non-English Netflix UI require separate validation before support is claimed.
 
+### Current Season-Name Limitation
+
+For multi-season series, Episode Roulette currently supports dropdown entries labeled `Season <number>`, such as `Season 1` and `Season 2`. Series that use named dropdown entries instead, which is common for some anime, are not randomized yet. Examples include arc names, subtitles, `Part <number>`, `Volume <number>`, and `Specials`.
+
+Unsupported season labels fail safely instead of being skipped, so Episode Roulette will not randomize from an incomplete subset of the series.
+
 ## Tech Stack
 
 - Manifest V3
