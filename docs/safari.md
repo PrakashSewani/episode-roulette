@@ -36,6 +36,23 @@ Required on macOS:
 
 The converter is invoked once through `npm run safari:init` after `npm run build`. The resulting wrapper is normalized to `safari/EpisodeRoulette.xcodeproj`, scheme `EpisodeRoulette`, and generated resource path `safari/Extension/Resources/`, then committed.
 
+The converter options were verified against Xcode 26.6 build 17F113 on July 23, 2026. Phase 1 uses this non-interactive invocation, where `<temporary-output>` is an empty temporary directory created by `safari:init`:
+
+```bash
+xcrun safari-web-extension-converter \
+  dist/webextension \
+  --project-location <temporary-output> \
+  --app-name EpisodeRoulette \
+  --bundle-identifier com.episoderoulette.EpisodeRoulette \
+  --swift \
+  --macos-only \
+  --copy-resources \
+  --no-open \
+  --no-prompt
+```
+
+Xcode 26.6 reports the converter executable through `xcrun --find safari-web-extension-converter`; the tool does not expose a standalone version flag. The Xcode build number therefore identifies the verified converter release.
+
 `safari:init` must first verify that `xcrun safari-web-extension-converter` is available and that `safari/` contains no entry other than explicitly approved bootstrap documentation or placeholder files. Any project, source, plist, entitlement, asset, configuration, or unknown entry causes a safe failure. It generates into an approved temporary directory, normalizes and validates the complete wrapper, then moves it into place. It never overwrites or merges into an existing wrapper and removes partial temporary output on failure. The exact converter flags must be recorded in this document when the command is verified against the installed Xcode version during Phase 1; agents must not guess them.
 
 Normal builds never rerun the converter. `npm run safari:sync` first runs the production WebExtension build. Only after it succeeds, synchronization creates a sibling temporary resource mirror and verifies all relative regular-file paths and bytes. It then renames any prior destination to a backup, renames the verified mirror to `safari/Extension/Resources/`, and removes the backup. If promotion fails, it restores the backup before exiting. This is failure-safe replacement, not a claim of uninterrupted atomic directory exchange. The contents of `dist/webextension/` are copied directly, so the destination manifest is `safari/Extension/Resources/manifest.json`, not a nested `webextension/manifest.json`; no destination-only files may remain.

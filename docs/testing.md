@@ -94,6 +94,8 @@ Tests use fake timers for polling, debouncing, five-second waits, and toast dism
 
 Manual validation confirms that documented selectors and interaction assumptions still match Netflix. It does not replace automated lifecycle assertions.
 
+The first complete Chrome live run is the dedicated Phase 7 compatibility gate. Phase 8 repeats the required Chrome and Safari smoke checks as part of final release validation after all automated and packaging gates pass.
+
 Live automated browser E2E against Netflix is explicitly out of scope for the first release. Chrome and Safari both require manual authenticated smoke validation.
 
 ---
@@ -320,7 +322,7 @@ When a test fails, document:
 
 Automated unit and fixture integration tests must run non-interactively in CI on every pull request.
 
-CI uses the committed lockfile with `npm ci` and the Node LTS version pinned by `.nvmrc` and `package.json#engines`. The macOS job uses a runner with full Xcode selected and verifies `xcodebuild` availability before Safari packaging validation.
+CI uses Node 24 LTS as pinned by `.nvmrc` and `package.json#engines`, then installs from the committed lockfile with `npm ci`. The macOS job uses a runner with full Xcode selected and verifies `xcodebuild` availability before Safari packaging validation.
 
 Required CI commands:
 

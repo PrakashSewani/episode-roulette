@@ -47,19 +47,40 @@ This file governs all AI agent behavior when working on this project. Every agen
   4. Wait for user confirmation (or ask questions)
 - Only then should code be written.
 
+### 6. Maintain the Persistent Project Tracker
+
+- `docs/project-todos.md` is the persistent status and handoff tracker.
+- `docs/implementation-plan.md` remains authoritative for phase order, scope, deliverables, and exit criteria. The tracker must never redefine or override it.
+- At the start of every implementation session, read `docs/project-todos.md` after this file and identify the first incomplete phase.
+- Before substantial work, update the active phase to `in progress` and record the exact item being started.
+- Update the tracker as meaningful work completes, verification runs, scope changes, or blockers appear. Do not wait until the end to reconstruct progress.
+- Keep exactly one phase `in progress`. Later phases remain `not started` unless the implementation plan and user approval explicitly permit otherwise.
+- Mark a phase `complete` only when every documented exit criterion has been verified. Record the commands, manual checks, and outcomes that support completion.
+- Before ending a session with incomplete work, replace the Current Handoff section with the current phase, completed work, verification, blockers, changed files, and exact next action.
+- Do not put temporary scratch notes, speculative design, or unverified claims in the tracker.
+
+### 7. Use Two Levels of Todos
+
+- Use `docs/project-todos.md` for durable project and phase progress that the next agent must inherit.
+- Use the agent's session todo tool for the current turn's concrete work items.
+- Session todos do not replace the persistent tracker. Keep both synchronized when status changes matter beyond the current turn.
+
 ---
 
 ## Workflow
 
 ```
 1. Read docs/ to understand the current state
-2. Identify what needs to be implemented next
-3. If anything is unclear → ASK THE USER
-4. If user provides new info → UPDATE THE DOCS
-5. Present implementation plan for the next task
-6. Get confirmation from user
-7. Implement strictly per docs
-8. Verify against docs
+2. Read docs/project-todos.md and identify the first incomplete phase
+3. Read every relevant architecture, data-model, module-spec, error-handling, and testing document
+4. If anything is unclear → ASK THE USER
+5. If user provides new info → UPDATE THE DOCS
+6. Present implementation plan for the next task
+7. Get confirmation from user
+8. Mark the phase/item in progress in the persistent tracker and session todos
+9. Implement strictly per docs
+10. Verify against docs and record evidence
+11. Update the persistent tracker and leave an exact handoff if work remains
 ```
 
 ---
@@ -69,6 +90,7 @@ This file governs all AI agent behavior when working on this project. Every agen
 ```
 docs/
 ├── implementation-plan.md   # Overall implementation phases and order
+├── project-todos.md         # Persistent phase status, verification, and agent handoff
 ├── architecture.md          # Module structure and data flow
 ├── module-specs/
 │   ├── observer.ts.md       # SPA navigation detection spec
@@ -103,6 +125,8 @@ docs/
 | A module needs a behavior not in any doc | Stop, describe the gap to the user, get clarification, update docs |
 | You think a better approach exists | Present it to the user as a question, do not just implement it |
 | The user gives you new info mid-task | Update the relevant doc, then continue |
+| You start or finish a phase item | Update `docs/project-todos.md` and the session todo list |
+| You stop before a phase is complete | Leave an exact Current Handoff in `docs/project-todos.md` |
 
 ---
 

@@ -1,0 +1,6 @@
+EPISODE_ROULETTE_APP_BUNDLE_IDENTIFIER = com.episoderoulette.EpisodeRoulette
+EPISODE_ROULETTE_EXTENSION_BUNDLE_IDENTIFIER = com.episoderoulette.EpisodeRoulette.Extension
+ENABLE_USER_SCRIPT_SANDBOXING = NO
+
+#include "GeneratedVersion.xcconfig"
+#include? "LocalSigning.xcconfig"

@@ -12,7 +12,7 @@ This document defines the implementation phases for Episode Roulette. Work must 
 
 **Deliverables**:
 - `package.json` with dependencies (`vite`, `typescript`, `@crxjs/vite-plugin`)
-- Committed package lockfile, `.nvmrc`, and matching `package.json#engines` for the project-selected Node LTS release; CI installs with `npm ci`
+- Committed package lockfile, `.nvmrc`, and matching `package.json#engines` pinned to Node 24 LTS; CI installs with `npm ci`
 - `.gitignore` excludes `dist/`, `safari/Extension/Resources/`, `safari/GeneratedVersion.xcconfig`, Xcode user state, DerivedData, and local signing configuration
 - `tsconfig.json` with strict mode, ES2020 target
 - `vite.config.ts` configured to emit one universal Manifest V3 WebExtension build to `dist/webextension/`
@@ -36,7 +36,7 @@ This document defines the implementation phases for Episode Roulette. Work must 
 
 No background service worker is registered in Chrome or Safari. All core behavior runs in the shared Netflix content script. A background runtime may be added only after a concrete browser-level or cross-tab responsibility is documented and approved.
 
-**Exit criteria**: `npm run build` succeeds, Chrome loads `dist/webextension/`, `npm run safari:sync` produces an exact byte-for-byte resource mirror and synchronized marketing versions, and `npm run safari:build` builds the committed Xcode wrapper. A failed sync leaves either the prior verified resource directory or no generated directory, never a partially copied destination. Tests verify generated resources are ignored/untracked and present at the extension bundle root.
+**Exit criteria**: `npm run build` emits the documented universal Chrome-compatible WebExtension contract, `npm run safari:sync` produces an exact byte-for-byte resource mirror and synchronized marketing versions, and `npm run safari:build` builds the committed Xcode wrapper. A failed sync leaves either the prior verified resource directory or no generated directory, never a partially copied destination. Tests verify generated resources are ignored/untracked and present at the extension bundle root. Manual Chrome loading is deferred to Phase 7 so shared feature implementation can proceed against the verified Safari development environment without creating browser-specific product code.
 
 ---
 
@@ -167,9 +167,26 @@ No background service worker is registered in Chrome or Safari. All core behavio
 
 ---
 
-## Phase 7: Testing + Validation
+## Phase 7: Chrome Compatibility Validation
 
-**Goal**: Verify everything works. Document testing approach.
+**Goal**: Validate the completed shared WebExtension implementation in desktop Chrome without forking browser behavior.
+
+**Deliverables**:
+- Load `dist/webextension/` as an unpacked extension in current stable desktop Chrome
+- Confirm the emitted Manifest V3 extension installs without browser-specific rewriting
+- Confirm Netflix-only host access and no background service worker
+- Run the completed shared feature flow on live Netflix in a logged-in normal profile
+- Validate route detection, series classification, UI injection, complete discovery, random playback, cancellation, cache behavior, and retryable errors
+- Record any Chrome-specific incompatibility before introducing a browser adapter or runtime branch
+- Keep all product logic shared; any required browser-specific runtime behavior needs a documented incompatibility, architecture update, and user approval
+
+**Exit criteria**: The universal `dist/webextension/` build loads directly in desktop Chrome and passes the Chrome live smoke checklist with behavior equivalent to the Safari implementation. Any incompatibility is documented and resolved without an undocumented browser fork.
+
+---
+
+## Phase 8: Testing + Validation
+
+**Goal**: Complete automated, packaging, CI, and cross-browser release validation.
 
 **Modules**:
 - Vitest unit tests for selectors, detector, DOM utilities, parsing, normalization, randomization, and matching
