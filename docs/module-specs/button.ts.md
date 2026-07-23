@@ -10,8 +10,8 @@ Create and inject a "Random Episode" button that matches Netflix's design langua
 
 1. Create button element with correct HTML structure
 2. Insert button next to Netflix's Play button
-3. Handle button state changes (loading, ready, error)
-4. Clean up on navigation away from series page
+3. Start in the ready state and handle state changes (ready, loading, error)
+4. Provide idempotent removal for lifecycle cleanup owned by `content.ts`
 
 ---
 
@@ -28,7 +28,7 @@ Create and inject a "Random Episode" button that matches Netflix's design langua
 
 ## Placement Strategy
 
-1. Find Netflix's Play button using `PLAY_BUTTON` selector
+1. Wait up to 5 seconds for Netflix's Play button within the supplied active title-details root
 2. Get its parent container
 3. Insert our button as a sibling (after Play button)
 4. Ensure button is visible and accessible
@@ -37,7 +37,12 @@ Create and inject a "Random Episode" button that matches Netflix's design langua
 import { resilientQuery } from '../netflix/dom-utils'
 import { PLAY_BUTTON } from '../netflix/selectors'
 
-const playButton = resilientQuery(PLAY_BUTTON.selectors) as HTMLElement
+const playButton = await waitForElement(
+  PLAY_BUTTON.selectors,
+  5000,
+  titleDetailsRoot,
+  signal,
+) as HTMLElement | null
 if (playButton) {
   const container = playButton.parentElement
   container?.insertBefore(createButton(), playButton.nextSibling)
@@ -52,14 +57,17 @@ if (playButton) {
 import { ButtonState } from '../types'
 
 /**
- * Inject the Random Episode button into the page.
- * Returns a controller for managing the button.
+ * Inject the Random Episode button into the active Netflix title-details root.
+ * Returns null when the scoped Play button does not appear within 5 seconds.
  */
-export function injectButton(): ButtonController
+export function injectButton(
+  root: HTMLElement,
+  signal: AbortSignal,
+): Promise<ButtonController | null>
 
 interface ButtonController {
-  /** Update button state */
-  setState(state: ButtonState): void
+  /** Update button state and optional retryable error message. */
+  setState(state: ButtonState, errorMessage?: string): void
 
   /** Set click handler */
   onClick(handler: () => void): void
@@ -73,7 +81,25 @@ interface ButtonController {
 
 ## Button States
 
+### Ready
+
+The button starts in this state immediately after injection. `ready` means the user may request a random episode; it does not imply that episode discovery has already run.
+
+On click, the orchestration layer immediately changes the button to `loading` before beginning discovery or cache lookup.
+
+```css
+.ep-roulette-btn {
+  opacity: 1;
+  cursor: pointer;
+}
+.ep-roulette-btn:hover {
+  filter: brightness(1.2);
+}
+```
+
 ### Loading
+
+`setState('loading')` sets `disabled`, `aria-disabled="true"`, and `data-state="loading"`. The DOM click listener checks the current state and never invokes the registered handler while loading, including programmatic or keyboard-generated clicks. Returning to `ready` or `error` removes `disabled` and sets `aria-disabled="false"`.
 
 ```css
 .ep-roulette-btn {
@@ -86,23 +112,18 @@ interface ButtonController {
 }
 ```
 
-### Ready
-
-```css
-.ep-roulette-btn {
-  opacity: 1;
-  cursor: pointer;
-}
-.ep-roulette-btn:hover {
-  filter: brightness(1.2);
-}
-```
-
 ### Error
+
+The error state remains enabled and clickable. It persists until the user retries, the active title context changes, or the button is removed. Clicking in error state immediately performs `error → loading` and starts a fresh user-requested operation.
+
+`setState('error', message)` sets `data-error` for the hover tooltip. Calling `setState('ready')` or `setState('loading')` removes stale error text.
+
+For assistive technology, `setState('error', message)` also sets the button's `aria-label` to `Random Episode. Error: <message>`. Ready and loading restore `aria-label="Random Episode"`; loading additionally exposes `aria-busy="true"`, which is removed in other states. The CSS tooltip is supplementary and is not the only error communication.
 
 ```css
 .ep-roulette-btn {
   opacity: 0.7;
+  cursor: pointer;
 }
 .ep-roulette-btn::after {
   content: '⚠';
@@ -115,17 +136,15 @@ interface ButtonController {
 ## Cleanup
 
 Button is removed when:
-- User navigates away from series page
-- `series-left` event is emitted
+- The orchestrator invalidates or replaces the active title context
+- The active title-details root is removed
 - `button.remove()` is called
 
 ```typescript
-// Cleanup handler
-observer.onEvent((event) => {
-  if (event.type === 'series-left') {
-    controller.remove()
-  }
-})
+// content.ts owns cleanup
+function cleanupActiveTitle(): void {
+  controller.remove()
+}
 ```
 
 ---
@@ -145,15 +164,28 @@ See `styles.ts.md` for CSS details. Button uses:
 | Case | Behavior |
 |------|----------|
 | Play button not found | Don't inject button, log warning |
-| Button already exists | Don't inject duplicate, return existing |
+| Module-owned button already exists in the same root | Return the existing connected controller |
+| Orphan extension button exists without the module-owned controller | Remove the orphan and create one new controller |
 | Netflix layout changes | Button may need repositioning (documented in selectors) |
 | Multiple series pages quickly | Remove old button, inject new one |
+| Repeated click while loading | Ignore; only one discovery/playback operation may run |
+| Click while in error state | Transition to loading and start a fresh attempt |
+
+`injectButton()` queries only within `root`. Timeout resolves `null`; cancellation propagates `AbortError`. `content.ts` verifies the operation context immediately before retaining the returned controller.
+
+`button.ts` maintains at most one module-owned `{ root, element, controller }` record. It returns that controller only when the element is still connected to the same supplied root. `content.ts` remains the lifecycle owner and calls `remove()` during context cleanup.
 
 ---
 
 ## Testing
 
 - Unit test: Button creation and DOM insertion
+- Unit test: Play-button lookup is scoped to the supplied title root
+- Unit test: Timeout resolves null and abort propagates without injection
+- Unit test: Button is enabled and ready immediately after injection
+- Unit test: Loading state prevents repeated clicks
+- Unit test: Error state remains enabled and retries on click
+- Unit test: Error message is set and cleared with state transitions
 - Manual test: Verify button appears next to Play button
 - Manual test: Verify button styling matches Netflix
 - Manual test: Verify cleanup on navigation

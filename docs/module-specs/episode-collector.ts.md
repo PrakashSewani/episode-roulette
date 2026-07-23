@@ -9,8 +9,8 @@ Parse episode elements from Netflix's DOM into structured `Episode` objects.
 ## Responsibilities
 
 1. Given a rendered season's DOM, extract episode metadata
-2. Find clickable elements for each episode
-3. Extract episode titles, numbers, and URLs
+2. Extract durable season and episode identity metadata
+3. Record each episode's position in the fully expanded season list
 4. Return array of `Episode` objects
 
 ---
@@ -18,19 +18,19 @@ Parse episode elements from Netflix's DOM into structured `Episode` objects.
 ## API
 
 ```typescript
-import { Episode } from '../types'
+import { Episode, SeasonDescriptor } from '../types'
 
 /**
- * Collect all visible episodes from the current DOM.
+ * Collect all episodes from a fully expanded season.
  * @param seriesId - Netflix series ID
- * @param seriesTitle - Display title of the series
- * @param seasonNumber - Current season number
+ * @param season - Active durable season descriptor
+ * @param rows - Complete validated live rows from season-controller.ts
  * @returns Array of Episode objects found in the DOM
  */
 export function collectEpisodes(
   seriesId: string,
-  seriesTitle: string,
-  seasonNumber: number
+  season: SeasonDescriptor,
+  rows: HTMLElement[],
 ): Episode[]
 ```
 
@@ -38,70 +38,51 @@ export function collectEpisodes(
 
 ## Parsing Strategy
 
-### Step 1: Find Episode Container
+### Step 1: Accept Validated Rows
 
-Use `EPISODE_LIST` selector to find the episode container.
+The collector performs no Netflix DOM query. `season-controller.ts` returns the complete, expanded, stable, count-validated rows, and `season-traverser.ts` passes them directly.
 
-```typescript
-import { resilientQuery } from '../netflix/dom-utils'
-import { EPISODE_LIST } from '../netflix/selectors'
-
-const container = resilientQuery(EPISODE_LIST.selectors)
-```
-
-### Step 2: Find Episode Rows
-
-Within the container, find all episode row elements.
-
-```typescript
-import { resilientQueryAll } from '../netflix/dom-utils'
-import { EPISODE_ROW } from '../netflix/selectors'
-
-const rows = resilientQueryAll(EPISODE_ROW.selectors, container)
-```
-
-### Step 3: Parse Each Episode
+### Step 2: Parse Each Episode
 
 For each row, extract:
 
 ```typescript
-function parseEpisode(row: HTMLElement, ...): Episode {
-  const title = getTextContent(EPISODE_TITLE.selectors, row)
-  const link = resilientQuery(EPISODE_LINK.selectors, row) as HTMLAnchorElement
+function parseEpisode(
+  row: HTMLElement,
+  episodeIndex: number,
+  seasonEpisodeCount: number,
+  ...
+): Episode {
+  const identity = parseEpisodeRowIdentity(row, episodeIndex)
 
   return {
     seriesId,
-    seriesTitle,
-    seasonNumber,
-    episodeNumber: extractEpisodeNumber(row, title),
-    title: title || 'Unknown Episode',
-    element: row,
-    url: link?.href || window.location.href
+    seasonKey: season.key,
+    seasonLabel: season.label,
+    seasonNumber: season.seasonNumber,
+    episodeIndex,
+    episodeNumber: identity.episodeNumber,
+    title: identity.title,
+    discoveredSeasonEpisodeCount: seasonEpisodeCount,
   }
 }
 ```
 
-### Step 4: Episode Number Extraction
+On the verified Netflix desktop row, the episode title is available through the row's `aria-label`. All title normalization, source precedence, episode-number parsing, and conflict behavior are delegated to `episode-identity.ts`.
 
-Netflix may display episode numbers in various formats:
-- "E1" or "Ep. 1"
-- "Episode 1"
-- Implicit (order in the list)
+### Step 3: Shared Identity Parsing
 
-```typescript
-function extractEpisodeNumber(row: HTMLElement, title: string | null): number {
-  // Try to find explicit episode number in DOM
-  // Fall back to position in list
-}
-```
+Call `parseEpisodeRowIdentity(row, episodeIndex)` from `episode-identity.ts`. The collector stores its parsed display title and optional episode number. It does not maintain a separate parser.
 
 ---
 
-## Element References
+## Durable Metadata
 
-**Critical**: Store reference to the clickable DOM element (`element` field). This is used later by `navigator.ts` to trigger playback via `.click()`.
+Do not store episode rows. Netflix replaces rows whenever traversal switches seasons, making earlier references stale before discovery finishes.
 
-If the element reference becomes stale (DOM re-rendered), `navigator.ts` falls back to URL navigation.
+Do not use `window.location.href` as an episode URL. The observed Netflix row contains no anchor, and the details URL identifies the series rather than an episode.
+
+The collector and navigator both import `episode-identity.ts`; duplicate parsing or normalization logic is forbidden.
 
 ---
 
@@ -110,10 +91,11 @@ If the element reference becomes stale (DOM re-rendered), `navigator.ts` falls b
 | Case | Behavior |
 |------|----------|
 | Episode title not found | Use "Unknown Episode" |
-| Episode number not found | Use position in list (1-indexed) |
+| Episode number not found | Store `null`; preserve zero-based `episodeIndex` |
 | No episodes in season | Return empty array |
-| Episode element not clickable | Use parent element or link |
-| Episode has no link | Use current page URL as fallback |
+| Supplied validated row has missing title/number metadata | Preserve the row with documented placeholder/null identity |
+
+The collector parses every supplied row and never filters or revalidates rows. `season-controller.ts` owns connected, visible, clickable row validity and complete row counts, and traversal calls the synchronous collector immediately after validation without an asynchronous boundary.
 
 ---
 
@@ -121,4 +103,6 @@ If the element reference becomes stale (DOM re-rendered), `navigator.ts` falls b
 
 - Unit test: Parse mock DOM with known episode structure
 - Unit test: Handle missing title/number gracefully
+- Unit test: Produces no DOM references or title-page URL fallbacks
+- Unit test: Uses complete-season zero-based indexes and row count
 - Manual test: Verify on real Netflix episode list

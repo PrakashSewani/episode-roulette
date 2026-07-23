@@ -8,27 +8,41 @@ This document defines the implementation phases for Episode Roulette. Work must 
 
 ## Phase 1: Project Scaffold
 
-**Goal**: Extension loads in Chrome with an empty content script.
+**Goal**: The shared WebExtension content script builds for Chrome and can be wrapped for macOS Safari.
 
 **Deliverables**:
 - `package.json` with dependencies (`vite`, `typescript`, `@crxjs/vite-plugin`)
+- Committed package lockfile, `.nvmrc`, and matching `package.json#engines` for the project-selected Node LTS release; CI installs with `npm ci`
+- `.gitignore` excludes `dist/`, `safari/Extension/Resources/`, `safari/GeneratedVersion.xcconfig`, Xcode user state, DerivedData, and local signing configuration
 - `tsconfig.json` with strict mode, ES2020 target
-- `vite.config.ts` configured for Manifest V3 content script bundling
-- `public/manifest.json` (Manifest V3) with:
+- `vite.config.ts` configured to emit one universal Manifest V3 WebExtension build to `dist/webextension/`
+- `src/manifest.ts` as the canonical manifest source, with version read from `package.json`, containing:
   - `content_scripts` matching `*://*.netflix.com/*`
   - `host_permissions` for `*://*.netflix.com/*`
-  - Service worker registration
 - `src/content.ts` — minimal entry point, logs "Episode Roulette loaded"
-- `src/background.ts` — minimal service worker
-- Build scripts in `package.json`
+- Build scripts in `package.json`:
+  - `npm run build` → clean and emit `dist/webextension/`
+  - `npm run safari:init` → guarded one-time creation of the Xcode wrapper with `safari-web-extension-converter`; fail if `safari/` contains any entry other than approved bootstrap documentation/placeholders
+  - `npm run safari:sync` → run the production build, stage and verify a complete `dist/webextension/` mirror, then replace `safari/Extension/Resources/` and synchronize native marketing versions from `package.json`
+  - `npm run safari:build` → sync resources, then perform an unsigned Xcode build
+- `safari/EpisodeRoulette.xcodeproj` with shared scheme `EpisodeRoulette`, generated once and committed
+- `safari/Extension/Resources/` as uncommitted generated WebExtension resources referenced by the Safari extension target
+- Every non-generated app/extension source, plist, entitlement, icon, shared-scheme, and configuration file required for the unsigned Xcode build is committed; user-specific state, credentials, signing artifacts, DerivedData, and generated WebExtension resources are excluded
+- The extension target has a committed `Sync WebExtension Resources` build phase that copies the contents of `safari/Extension/Resources/` into `${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/`; no per-generated-file references or project edits occur during synchronization
+- A committed `safari/LocalSigning.xcconfig.example` documents local overrides; developers use ignored `safari/LocalSigning.xcconfig` for team and bundle-identifier overrides
+- Every build configuration uses committed `safari/Base.xcconfig`, which includes ignored `GeneratedVersion.xcconfig` and optionally includes ignored `LocalSigning.xcconfig`; generated version values precede local signing overrides
+- Phase 1 verifies full Xcode installation and records the tested `safari-web-extension-converter` invocation in `docs/safari.md` before creating the wrapper
+- Safari wrapper configuration for the same Netflix host access and content script
 
-**Exit criteria**: `npm run dev` builds successfully. Loading `dist/` in Chrome shows extension active on Netflix.
+No background service worker is registered in Chrome or Safari. All core behavior runs in the shared Netflix content script. A background runtime may be added only after a concrete browser-level or cross-tab responsibility is documented and approved.
+
+**Exit criteria**: `npm run build` succeeds, Chrome loads `dist/webextension/`, `npm run safari:sync` produces an exact byte-for-byte resource mirror and synchronized marketing versions, and `npm run safari:build` builds the committed Xcode wrapper. A failed sync leaves either the prior verified resource directory or no generated directory, never a partially copied destination. Tests verify generated resources are ignored/untracked and present at the extension bundle root.
 
 ---
 
 ## Phase 2: Netflix SPA Navigation Detection
 
-**Goal**: Detect when the user navigates to a TV series page on Netflix.
+**Goal**: Track the active Netflix title context and confirm a series from its rendered episodic UI.
 
 **Modules**:
 - `src/netflix/observer.ts`
@@ -36,14 +50,19 @@ This document defines the implementation phases for Episode Roulette. Work must 
 - `src/netflix/selectors.ts`
 
 **Deliverables**:
-- URL polling (500ms interval) that detects URL changes
-- MutationObserver on `document.body` for large DOM changes
+- URL polling (500ms interval) that detects path and `jbv` changes
+- Neutral route events; observer does not classify movies or series
+- Temporary MutationObserver on `document.body` only while locating the active title-details root
+- Scoped MutationObserver on the active title-details root after it is found
 - `popstate` and `hashchange` event listeners
-- Series page detection via URL pattern (`/title/\d+`) and DOM signals (season selector presence)
+- Candidate title-details detection via `/title/<id>` or a numeric `jbv=<id>` query parameter
+- Series confirmation via rendered episode rows; season controls are supporting but optional
+- Single-season confirmation when episode rows exist without season controls
 - `selectors.ts` as single source of truth for all DOM queries
-- Event system that emits `series-entered` and `series-left` events
+- Series classification scoped to the active title-details root
+- Orchestration that injects UI only after scoped episodic DOM confirmation
 
-**Exit criteria**: Console logs when user navigates to/from a series page. Works with SPA navigation (no page reload needed).
+**Exit criteria**: Title overlay/path changes are detected, movie details do not activate the extension, episodic UI inside the active details root confirms a series, and unrelated browse-page mutations do not affect classification.
 
 ---
 
@@ -60,8 +79,10 @@ This document defines the implementation phases for Episode Roulette. Work must 
 - Button creation and insertion next to Netflix's Play button
 - CSS injection matching Netflix's design language (dark theme, red accent, Netflix font/spacing)
 - Three button states: loading, ready, error
+- Button is injected enabled in ready state; no episode discovery runs on injection
 - Cleanup on navigation away from series page
-- `feedback.ts` for loading spinner and error toast
+- `button.ts` for state rendering and loading animation; `feedback.ts` for error-toast lifecycle
+- `styles.ts` for all extension button, tooltip, animation, and toast CSS
 
 **Exit criteria**: Button appears on series pages, matches Netflix style, disappears when navigating away.
 
@@ -75,17 +96,25 @@ This document defines the implementation phases for Episode Roulette. Work must 
 - `src/discovery/season-traverser.ts`
 - `src/discovery/episode-collector.ts`
 - `src/netflix/dom-utils.ts`
+- `src/netflix/season-controller.ts`
+- `src/netflix/episode-identity.ts`
 
 **Deliverables**:
-- Season enumeration (find all season tabs/options)
-- Programmatic season switching (click each season tab)
+- Strategy-based season enumeration with implicit-season and verified Netflix custom-dropdown strategies
+- Shared abortable season controller used by discovery and playback
+- Shared deterministic episode identity parser and resolver used by collector and navigator
+- Programmatic custom-dropdown switching using toggle, menu, and menu-item selectors
 - DOM update waiting (MutationObserver with timeout)
+- Season transition validation using active toggle identity, with changed episode content required only when switching from a different active season
+- Episode-section expansion and row-count stabilization
+- Exact count validation when Netflix's season menu declares an episode count
 - Episode element parsing per season
 - Aggregation across all seasons
-- In-memory cache keyed by series ID
+- One scoped retry for a season that fails to switch or collect
+- Atomic completeness policy: no partial randomization or partial cache entries
 - `dom-utils.ts` with `resilientQuery()` helper (tries multiple selectors)
 
-**Exit criteria**: For a given series, discovers all episodes across all seasons. Cached per series ID.
+**Exit criteria**: For a given series, returns all episodes across all enumerated seasons, or fails after one retry of the failed season without exposing partial results. Traversal has no cache dependency.
 
 ---
 
@@ -99,11 +128,12 @@ This document defines the implementation phases for Episode Roulette. Work must 
 
 **Deliverables**:
 - Uniform random selection from episode array
-- Click simulation on selected episode's DOM element
-- Fallback to URL navigation if element reference is stale
-- Button click triggers full flow: discover → select → play
+- Durable episode metadata with no cached DOM references
+- Reactivate selected season, expand it, and uniquely re-resolve the current episode row
+- Native click only after identity validation; no title-URL fallback
+- Button click changes the button to loading and triggers the full flow: cache lookup → discover if needed → select → play
 
-**Exit criteria**: Clicking "Random Episode" starts playback of a random episode. Works like manually clicking the episode.
+**Exit criteria**: Clicking "Random Episode" re-resolves and clicks exactly the selected Netflix episode. Ambiguous or inconsistent matches fail without clicking another episode.
 
 ---
 
@@ -112,15 +142,25 @@ This document defines the implementation phases for Episode Roulette. Work must 
 **Goal**: Wire all modules together. Handle edge cases. Production quality.
 
 **Deliverables**:
-- Full flow in `content.ts`: observe → detect → inject → discover → randomize → play
+- Full flow in `content.ts`: observe → detect → inject ready button → user click → discover/cache → randomize → play
 - Error handling for all failure modes (see `docs/error-handling.md`)
 - Loading UX during discovery
-- Cache management (per-series, session-based)
+- Persistent clickable error state with a five-second toast and explicit user retry
+- Complete-catalog cache management per series until tab refresh/close
+- `content.ts` is the sole cache owner and guards every cache write by active generation and title ID
+- No selection history, playback history, repeat prevention, or probability weighting
+- One invalidation and fresh discovery when live playback validation proves cached metadata stale
 - Cleanup on navigation away
+- AbortController cancellation plus monotonically increasing title-context generation
+- Stale-side-effect guards before cache writes, UI updates, randomization, and final playback click
+- Five-second `/watch/` confirmation after native episode click
+- Idempotent content-script `start()`/`stop()` lifecycle with `pagehide` teardown
 - Edge case handling:
   - Movies (no button injected)
   - Single-season series
   - Series with 30+ seasons
+  - Netflix custom season dropdown
+  - Initially truncated episode lists
   - Fast navigation between series
 
 **Exit criteria**: Extension works end-to-end on real Netflix. Handles edge cases gracefully.
@@ -132,16 +172,18 @@ This document defines the implementation phases for Episode Roulette. Work must 
 **Goal**: Verify everything works. Document testing approach.
 
 **Modules**:
-- Unit tests for `randomizer.ts` (pure function)
-- Unit tests for selector logic
-- Manual testing on real Netflix
+- Vitest unit tests for selectors, detector, DOM utilities, parsing, normalization, randomization, and matching
+- jsdom fixture integration tests for orchestration, custom-dropdown traversal, expansion, retries, cancellation, caching, feedback, and playback resolution
+- Reusable Netflix desktop fixture builders for movie, implicit-season, and multi-season detail overlays
+- Manual smoke testing on real Netflix in desktop Chrome and macOS Safari with logged-in normal profiles
+- CI runs `npm test` and `npm run build` on all supported runners; a macOS job also runs `npm run safari:build`
 
-**Exit criteria**: All unit tests pass. Manual testing confirms functionality on desktop Chrome.
+**Exit criteria**: All unit and fixture integration tests pass, the universal build succeeds, the unsigned Safari Xcode wrapper build succeeds on macOS CI, and the live Netflix smoke checklist passes in desktop Chrome and macOS Safari. Kids profiles, iOS/iPadOS Safari, and automated live-Netflix E2E are out of scope.
 
 ---
 
 ## Notes
 
 - **Do not implement stretch goals** (exclude seasons, repeat prevention, keyboard shortcuts, etc.) until core is complete and approved.
-- **Do not add dependencies** not listed in docs.
+- **Approved dependencies/tools**: runtime/build dependencies listed in Phase 1, `vitest` and `jsdom` as development-only test dependencies, and Apple Xcode plus `safari-web-extension-converter` for Safari packaging.
 - **Do not change architecture** without updating `docs/architecture.md` first.

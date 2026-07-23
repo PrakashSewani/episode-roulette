@@ -2,7 +2,9 @@
 
 ## Overview
 
-All Netflix DOM selectors used by Episode Roulette, centralized for easy maintenance.
+This document records dated observations of Netflix's live desktop DOM and evidence used to maintain selector contracts. It is not the implementation source of truth.
+
+The normative selector API and ordered fallback lists are defined in `docs/module-specs/selectors.ts.md` and implemented in `src/netflix/selectors.ts`. If this reference differs from that spec, update the spec through the documentation-first workflow before changing implementation.
 
 Netflix uses dynamic CSS class names (CSS Modules/hashing), so class-based selectors are fragile. We prioritize `data-uia` and `data-testid` attributes as they're more stable.
 
@@ -20,11 +22,22 @@ Netflix uses dynamic CSS class names (CSS Modules/hashing), so class-based selec
 
 ## Selectors
 
+### Active Title Details
+
+| Name | Selectors | Notes |
+|------|-----------|-------|
+| Title Details Root | `[data-uia="modal-motion-container-DETAIL_MODAL"][role="dialog"]`, `[data-uia="title-details"]`, `[data-testid="title-details"]`, validated `[role="dialog"]` fallback | Root for scoped detection; first selector was verified on Netflix desktop |
+| Title Details Metadata | `[data-uia="previewModal--detailsMetadata"]`, `[data-uia="preview-modal-synopsis"]` | Validates a generic dialog as a Netflix title-details surface |
+
+Episode and season selectors used for detection must be queried within the active title-details root. Matches elsewhere on browse, genre, and search pages are ignored.
+
 ### Series Page Detection
 
 | Name | Selectors | Notes |
 |------|-----------|-------|
-| Season Selector | `[data-uia="season-selector"]`, `[data-testid="season-selector"]` | Presence indicates TV series |
+| Episode Selector | `[data-uia="episode-selector"]` | Contains the active season controls and episode rows |
+| Episode Row | `[data-uia="titleCard--container"][role="button"]` within episode selector | Presence confirms episodic UI; row itself is clickable |
+| Season Dropdown Toggle | `[data-uia="dropdown-toggle"][aria-haspopup="true"]` | Optional for confirmation; absent on an implicit single season |
 
 ### Play Button
 
@@ -36,17 +49,20 @@ Netflix uses dynamic CSS class names (CSS Modules/hashing), so class-based selec
 
 | Name | Selectors | Notes |
 |------|-----------|-------|
-| Season Tabs | `[data-uia="season-selector"] button`, `[data-uia="episodes-season-selector"] a`, `[data-testid="season-selector"] button` | Click to switch seasons |
-| Season Dropdown | `[data-uia="season-selector"] select`, `[data-testid="season-selector"] select` | Alternative: dropdown UI |
+| Dropdown Toggle | `[data-uia="dropdown-toggle"][aria-haspopup="true"]` | Custom Netflix control; text identifies current season |
+| Dropdown Menu | `[data-uia="dropdown-menu"][role="menu"]` | Appears after opening the toggle |
+| Dropdown Item | `[data-uia="dropdown-menu-item"][role="menuitem"]` | Season label and optional expected episode count |
+| Expand Section | `[data-uia="section-expand"]` | Loads rows beyond the initial truncated episode set |
 
 ### Episode Display
 
 | Name | Selectors | Notes |
 |------|-----------|-------|
-| Episode List | `[data-uia="episode-list"]`, `[data-testid="episode-list"]`, `[class*="episodeList"]` | Container for episode rows |
-| Episode Row | `[data-uia="episode-row"]`, `[data-testid="episode-row"]`, `[class*="episodeRow"]` | Individual episode element |
+| Episode List | `[data-uia="episode-selector"]` | Container for the active season's episode rows |
+| Episode Row | `[data-uia="titleCard--container"][role="button"]` | Individual clickable episode element |
 | Episode Title | `[data-uia="episode-title"]`, `[data-testid="episode-title"]`, `h4[class*="episodeTitle"]` | Episode name text |
-| Episode Link | `a[data-uia="episode-link"]`, `a[data-testid="episode-link"]`, `[data-uia="episode-row"] a` | Clickable link to episode |
+| Episode Number | `[data-uia="episode-number"]`, `[data-testid="episode-number"]`, scoped `.titleCard-title_index` | Leading index observed in Netflix episode rows |
+| Episode Link | No verified selector | The observed row contained no anchor; durable playback is a separate architecture decision |
 
 ---
 
@@ -58,8 +74,9 @@ When Netflix updates their UI:
 2. **Look for `data-uia` attributes first** — these are the most stable
 3. **Check `data-testid` attributes** as fallback
 4. **Verify across multiple series** — don't use series-specific selectors
-5. **Update `selectors.ts`** — add new selectors, keep old ones as fallbacks
-6. **Test** — verify button injection and episode discovery still work
+5. **Record the evidence here** — include date, page type, and observed structure
+6. **Update the normative selector spec** — approve ordered fallbacks in `module-specs/selectors.ts.md`
+7. **Update `selectors.ts` and test** — verify detection, button injection, discovery, and playback resolution
 
 ---
 
@@ -68,11 +85,11 @@ When Netflix updates their UI:
 Run in browser console to verify selectors work:
 
 ```javascript
-// Check if season selector exists
-document.querySelector('[data-uia="season-selector"]')
+// Check if episode selector exists
+document.querySelector('[data-uia="episode-selector"]')
 
 // Check all episode rows
-document.querySelectorAll('[data-uia="episode-row"]')
+document.querySelectorAll('[data-uia="episode-selector"] [data-uia="titleCard--container"][role="button"]')
 
 // Check play button
 document.querySelector('[data-uia="play-button"]')
@@ -80,16 +97,19 @@ document.querySelector('[data-uia="play-button"]')
 
 ---
 
-## Known Netflix Selectors (as of 2024)
+## Known Netflix Selectors (as of July 2026)
 
 These are documented based on observation. They may change without notice.
 
 | Element | Selector | Notes |
 |---------|----------|-------|
 | Play button | `[data-uia="play-button"]` | Main play button on series page |
-| Season selector | `[data-uia="season-selector"]` | Tab or dropdown for seasons |
-| Episode row | `[data-uia="episode-row"]` | Individual episode in list |
-| Episode title | `[data-uia="episode-title"]` | Episode name |
+| Detail modal | `[data-uia="modal-motion-container-DETAIL_MODAL"][role="dialog"]` | Active title-details overlay |
+| Episode selector | `[data-uia="episode-selector"]` | Season control and episode-list root |
+| Season toggle | `[data-uia="dropdown-toggle"]` | Opens custom season menu |
+| Season menu item | `[data-uia="dropdown-menu-item"][role="menuitem"]` | Selectable season |
+| Episode row | `[data-uia="titleCard--container"][role="button"]` | Clickable row; no anchor observed |
+| Expand section | `[data-uia="section-expand"]` | Reveals episodes after the initial 10 rows |
 | Episode number | `[data-uia="episode-number"]` | "E1", "Ep. 2", etc. |
 
 **Disclaimer**: These selectors are based on observation and may change. The extension is designed to handle this via fallback selectors and easy updates to `selectors.ts`.

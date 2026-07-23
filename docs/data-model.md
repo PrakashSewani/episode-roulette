@@ -12,28 +12,35 @@ Represents a single discoverable episode.
 
 ```typescript
 interface Episode {
-  /** Netflix series ID (from URL) */
+  /** Confirmed Netflix series title ID. */
   seriesId: string
 
-  /** Display title of the series */
-  seriesTitle: string
+  /** Normalized durable key derived from the Netflix season label. */
+  seasonKey: string
 
-  /** Season number (1-indexed) */
-  seasonNumber: number
+  /** Netflix season label as displayed, for example "Season 7". */
+  seasonLabel: string
 
-  /** Episode number within the season (1-indexed) */
-  episodeNumber: number
+  /** Parsed season number when the label is numeric. */
+  seasonNumber: number | null
+
+  /** Zero-based position in the fully expanded season list. */
+  episodeIndex: number
+
+  /** Parsed episode number when Netflix exposes one. */
+  episodeNumber: number | null
 
   /** Episode title (e.g., "The One Where...") */
   title: string
 
-  /** Reference to the clickable DOM element for this episode */
-  element: HTMLElement
-
-  /** Netflix URL for this episode */
-  url: string
+  /** Complete row count observed for the season during discovery. */
+  discoveredSeasonEpisodeCount: number
 }
 ```
+
+`Episode` contains durable metadata only. It must never retain Netflix `HTMLElement` references or invent an episode URL from the current title-details URL.
+
+`seasonKey` is strategy-specific. Explicit English seasons use `season <parsed positive integer>` with no leading zeroes. The implicit single-season strategy always uses key `implicit` and display label `Episodes`.
 
 ---
 
@@ -46,37 +53,125 @@ interface SeriesInfo {
   /** Netflix series ID (from URL) */
   id: string
 
-  /** Display title of the series */
-  title: string
-
   /** Total number of seasons discovered */
   totalSeasons: number
 
   /** All discovered episodes across all seasons */
   episodes: Episode[]
 
-  /** Timestamp when episodes were discovered (for cache expiry) */
+  /** Diagnostic timestamp; cache has no TTL. */
   discoveredAt: number
 }
 ```
+
+`SeriesInfo` is the only cached product data. There is no selected-episode, played-episode, history, repeat-prevention, or weighting type.
+
+### SeasonDescriptor
+
+Shared durable season identity used by discovery, playback, and the season controller.
+
+```typescript
+interface SeasonDescriptor {
+  key: string
+  label: string
+  seasonNumber: number | null
+  expectedEpisodeCount: number | null
+}
+```
+
+### EpisodeRowIdentity
+
+Transient parsed identity for a current Netflix row. It is never cached.
+
+```typescript
+interface EpisodeRowIdentity {
+  title: string
+  normalizedTitle: string | null
+  episodeNumber: number | null
+  episodeNumberConflict: boolean
+  episodeIndex: number
+}
+```
+
+### Controller and Operation Errors
+
+Shared typed errors used by season control, discovery, playback, and orchestration.
+
+```typescript
+class CacheValidationMismatchError extends Error {
+  readonly name = 'CacheValidationMismatchError'
+}
+
+class PlaybackResolutionError extends Error {
+  readonly name = 'PlaybackResolutionError'
+}
+
+type SeasonControllerFailureReason =
+  | 'unsupported-layout'
+  | 'season-missing'
+  | 'strategy-mismatch'
+  | 'active-season-mismatch'
+  | 'count-mismatch'
+  | 'render-timeout'
+  | 'transition-timeout'
+  | 'expansion-failed'
+
+class SeasonControllerError extends Error {
+  readonly name = 'SeasonControllerError'
+  constructor(readonly reason: SeasonControllerFailureReason, message: string) {
+    super(message)
+  }
+}
+
+class DiscoveryIncompleteError extends Error {
+  readonly name = 'DiscoveryIncompleteError'
+}
+
+class NoEpisodesError extends Error {
+  readonly name = 'NoEpisodesError'
+}
+```
+
+Cancellation uses the platform `AbortError`; it is not wrapped in any product error class.
 
 ---
 
 ### NavigationEvent
 
-Events emitted by the SPA observer.
+Neutral events emitted by the SPA observer. These events never classify content.
 
 ```typescript
-type NavigationEventType = 'series-entered' | 'series-left'
+type PageChangeEvent =
+  | { type: 'route-changed'; url: string }
+  | { type: 'title-dom-changed'; url: string; generation: number }
+  | { type: 'title-root-removed'; url: string; generation: number }
+```
 
-interface NavigationEvent {
-  type: NavigationEventType
+`route-changed` events have no generation because they initiate context replacement. `title-dom-changed` and `title-root-removed` carry a generation, and stale generations are suppressed before callback delivery.
 
-  /** Series ID (only present for 'series-entered') */
-  seriesId?: string
+### TitleContext
 
-  /** Full URL at time of event */
+Identity for the active Netflix title details. It does not imply that the title is a series.
+
+```typescript
+interface TitleContext {
+  titleId: string
+  source: 'jbv' | 'title-path'
   url: string
+}
+```
+
+### OperationContext
+
+Owned only by `content.ts`; passed to async flows through its signal and validation closure.
+
+```typescript
+interface OperationContext {
+  title: TitleContext
+  generation: number
+  controller: AbortController
+  /** Absolute performance.now() deadline for title detection. */
+  detectionDeadline: number
 }
 ```
 
@@ -116,17 +211,17 @@ interface SelectorConfig {
 // season-traverser.ts produces this
 const seriesInfo: SeriesInfo = {
   id: '80057281',
-  title: 'Friends',
   totalSeasons: 10,
   episodes: [
     {
       seriesId: '80057281',
-      seriesTitle: 'Friends',
+      seasonKey: 'season 1',
+      seasonLabel: 'Season 1',
       seasonNumber: 1,
+      episodeIndex: 0,
       episodeNumber: 1,
       title: 'The One Where Monica Gets a Roommate',
-      element: document.querySelector('[data-uia="ep-101"]'),
-      url: 'https://www.netflix.com/title/70005281'
+      discoveredSeasonEpisodeCount: 24
     },
     // ... more episodes
   ],
@@ -147,8 +242,12 @@ function pickRandom(episodes: Episode[]): Episode {
 ### Playback Navigation
 
 ```typescript
-// navigator.ts consumes this
-function playEpisode(episode: Episode): void {
-  episode.element.click()
-}
+// navigator.ts consumes durable metadata, resolves the current live row,
+// and clicks only after a unique identity match.
+await playEpisode(
+  episode,
+  titleDetailsRoot,
+  operation.controller.signal,
+  () => assertCurrent(operation),
+)
 ```

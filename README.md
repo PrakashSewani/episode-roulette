@@ -1,6 +1,6 @@
 # Episode Roulette 🎲
 
-A Chrome extension that adds a **Random Episode** button to TV series on Netflix.
+A Chrome and macOS Safari WebExtension that adds a **Random Episode** button to supported TV series on logged-in desktop Netflix normal profiles.
 
 Stop spending 10 minutes choosing what to rewatch. Click a button, get a random episode, start watching.
 
@@ -21,25 +21,32 @@ Stop spending 10 minutes choosing what to rewatch. Click a button, get a random 
 - **No external services** — no APIs, no databases, no accounts
 - **Modular** — easy to maintain and adapt when Netflix changes their UI
 
+First-release support targets Netflix's observed desktop title-detail layouts: implicit single-season lists and the custom English season dropdown. Kids profiles and non-English Netflix UI require separate validation before support is claimed.
+
 ## Tech Stack
 
 - Manifest V3
+- Safari Web Extensions
 - TypeScript
 - Vite
 - Content Scripts
 - MutationObserver
+- Xcode for macOS Safari packaging
 
 ## Project Structure
 
 ```
 src/
+├── manifest.ts              # Canonical cross-browser manifest
 ├── content.ts               # Content script entry point
-├── background.ts            # Service worker
+├── types.ts                 # TypeScript types
 ├── netflix/
 │   ├── observer.ts          # SPA navigation detection
-│   ├── detector.ts          # Series page detection
+│   ├── detector.ts          # Title identity and scoped series detection
 │   ├── selectors.ts         # DOM selector config
-│   └── dom-utils.ts         # Resilient DOM queries
+│   ├── dom-utils.ts         # Resilient DOM queries
+│   ├── season-controller.ts # Shared season interaction
+│   └── episode-identity.ts  # Episode identity parsing
 ├── discovery/
 │   ├── season-traverser.ts  # Season traversal
 │   └── episode-collector.ts # Episode parsing
@@ -50,23 +57,31 @@ src/
 ├── engine/
 │   ├── randomizer.ts        # Random selection
 │   └── navigator.ts         # Playback navigation
-└── types.ts                 # TypeScript types
+safari/                      # macOS Safari Xcode wrapper
 ```
+
+Chrome and Safari share the same content-script implementation. The Safari project only wraps generated WebExtension resources and does not duplicate product logic. Neither browser registers a background service worker.
 
 ## Development
 
 ```bash
 npm install
-npm run dev
+npm run build
 ```
 
-Load the `dist/` folder as an unpacked extension in `chrome://extensions`.
+Load `dist/webextension/` as an unpacked extension in `chrome://extensions`.
+
+For normal macOS Safari packaging, sync the universal build resources and open `safari/EpisodeRoulette.xcodeproj` in Xcode.
 
 ## Build
 
 ```bash
 npm run build
+npm run safari:sync
+npm run safari:build
 ```
+
+Maintainers use `npm run safari:init` only for the initial wrapper bootstrap or an explicitly approved regeneration. It fails rather than overwriting an existing canonical wrapper.
 
 ## Documentation
 

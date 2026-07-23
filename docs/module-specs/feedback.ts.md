@@ -2,21 +2,22 @@
 
 ## Purpose
 
-Provide visual feedback to the user during episode discovery and when errors occur.
+Own error-toast DOM and timer lifecycle. Button states and loading animation are owned by `button.ts`; all CSS is owned by `styles.ts`.
 
 ---
 
 ## Responsibilities
 
-1. Show loading state on button during episode discovery
-2. Show error toast when discovery fails
-3. Provide user-friendly error messages
+1. Show one five-second error toast when a user-requested operation fails
+2. Replace or dismiss existing toast state safely
+3. Clear all toast timers during replacement, retry, navigation, and teardown
+4. Provide user-friendly error messages
 
 ---
 
-## Loading Feedback
+## Button Feedback Boundary
 
-During episode discovery, the button shows a loading state:
+`content.ts` commands button states through `ButtonController`. `feedback.ts` does not set button state or create a loading spinner:
 
 ```typescript
 import { ButtonState } from '../types'
@@ -24,7 +25,7 @@ import { ButtonState } from '../types'
 controller.setState('loading')
 ```
 
-This triggers CSS changes defined in `styles.ts`:
+`button.ts` applies state attributes and `styles.ts` renders:
 - Reduced opacity
 - Spinning/waiting cursor
 - Animated dots after text
@@ -33,21 +34,25 @@ This triggers CSS changes defined in `styles.ts`:
 
 ## Error Feedback
 
-When something goes wrong, show an error state on the button:
+When something goes wrong, `content.ts` updates the button and separately calls this module for the toast:
 
 ```typescript
-controller.setState('error')
-// Button shows warning icon, tooltip on hover explains the issue
+controller.setState('error', message)
+showErrorToast(message)
 ```
 
-### Error Toast (Optional)
+The error button remains clickable. A retry dismisses any existing toast before changing the button to loading.
 
-For more detailed errors, show a temporary toast notification:
+### Error Toast
+
+For more detailed errors, show a temporary toast notification. The required default duration is 5000ms:
 
 ```typescript
 function showErrorToast(message: string, duration = 5000): void {
   const toast = document.createElement('div')
   toast.className = 'ep-roulette-toast'
+  toast.setAttribute('role', 'alert')
+  toast.setAttribute('aria-live', 'assertive')
   toast.textContent = message
   document.body.appendChild(toast)
 
@@ -90,6 +95,8 @@ function showErrorToast(message: string, duration = 5000): void {
 }
 ```
 
+This CSS is implemented and injected by `styles.ts`; it is shown here only to document the visual contract.
+
 ---
 
 ## Error Messages
@@ -98,10 +105,10 @@ Use friendly, non-technical messages:
 
 | Error | Message |
 |-------|---------|
-| No seasons found | "Could not find seasons for this show" |
-| Season click failed | "Could not load season episodes" |
+| Season failed after retry | "Could not load all seasons. Try again." |
 | No episodes found | "No episodes found" |
-| Play button not found | "Could not find play button" |
+| Selected episode cannot be resolved | "Could not open the selected episode. Try again." |
+| Playback did not start | "Could not start playback. Try again." |
 | General failure | "Something went wrong. Try again." |
 
 ---
@@ -122,6 +129,12 @@ export function showErrorToast(message: string, duration?: number): void
 export function dismissToast(): void
 ```
 
+## Timer Ownership
+
+`feedback.ts` owns the current toast element, dismiss timer, exit-animation timer, and monotonically increasing toast token.
+
+Before showing or dismissing a toast, clear all prior timer IDs and invalidate the prior token. Timer callbacks verify their token before mutating DOM, so an older toast cannot remove or alter a newer toast.
+
 ---
 
 ## Edge Cases
@@ -131,6 +144,8 @@ export function dismissToast(): void
 | Multiple errors in quick succession | Only show latest toast |
 | Toast still visible when new error occurs | Replace existing toast |
 | User navigates away | Remove toast |
+| User clicks retry while toast is visible | Dismiss toast immediately, then start loading |
+| Operation is aborted by navigation | Show no toast and do not enter error state |
 
 ---
 
@@ -140,3 +155,7 @@ export function dismissToast(): void
 - Manual test: Error toast shows on failure
 - Manual test: Toast auto-dismisses after timeout
 - Manual test: Toast is styled consistently with Netflix
+- Unit test: Default toast duration is 5000ms
+- Unit test: Retry dismisses an existing toast
+- Unit test: Abort does not show a toast
+- Unit test: Stale timer from a replaced toast cannot remove the current toast

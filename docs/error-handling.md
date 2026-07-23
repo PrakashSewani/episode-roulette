@@ -10,11 +10,11 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 
 ### 1. Not a Series Page
 
-**Condition**: User is on a movie page, browse page, or search results.
+**Condition**: User is on a movie title/detail overlay, or on a browse/search route without confirmed episodic UI.
 
 **Handling**: Button is never injected. No error shown.
 
-**Detection**: `detector.ts` returns `isSeries: false`.
+**Detection**: `getTitleContext()` returns `null`, or `detectSeries()` remains `unconfirmed` through the five-second detection deadline.
 
 ---
 
@@ -27,34 +27,39 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 - If not found, don't inject button
 - Log warning to console
 
-**Detection**: `resilientQuery(PLAY_BUTTON.selectors)` returns null.
+**Detection**: `injectButton(root, signal)` resolves `null` after the scoped five-second wait. `AbortError` is silent cancellation, not a missing-button failure.
 
 ---
 
-### 3. Season Selector Not Found
+### 3. Episodic UI Not Confirmed
 
-**Condition**: Can't find season tabs/dropdown on a series page.
+**Condition**: A Netflix title URL matched, but no episode rows appeared within the detection window.
 
 **Handling**:
-- Wait up to 5 seconds for element to appear
-- If not found, show error state on button
-- Show toast: "Could not find seasons for this show"
+- Keep the page in candidate state while waiting
+- Use one five-second deadline beginning when the title identity becomes current
+- If a unique root and episode rows do not appear before the deadline, classify the page as non-series
+- Do not inject the button and do not show an error; this is the expected movie-page path
 
-**Detection**: `resilientQuery(SEASON_TABS.selectors)` returns null.
+**Detection**: `detector.ts` remains `candidate` until the orchestration detection window ends.
+
+**Single-season exception**: Episode rows without a season control confirm a series. Discovery collects them as one implicit season.
 
 ---
 
 ### 4. Season Click Doesn't Update DOM
 
-**Condition**: Clicked a season tab but episodes didn't load.
+**Condition**: Selected a season from Netflix's custom dropdown but the active season identity or episode content did not update.
 
 **Handling**:
-- Wait up to 5 seconds for DOM update (MutationObserver)
-- If timeout, skip that season
-- Log warning
-- Continue with other seasons
+- Give each season attempt one absolute 5-second budget covering activation, DOM transition, expansion, and stable-row validation
+- If timeout, re-query season controls and retry the same season once
+- If the retry succeeds, continue discovery
+- If the retry fails, fail the entire discovery operation
+- Discard accumulated partial results and do not cache them
+- Show the button error state and a user-facing error
 
-**Detection**: `waitForElement(EPISODE_ROW.selectors, 5000)` returns null.
+**Detection**: The custom dropdown does not identify the requested season, episode content does not change from the previous snapshot, or the transition wait times out.
 
 ---
 
@@ -63,24 +68,26 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 **Condition**: Season exists but has no episode elements in DOM.
 
 **Handling**:
-- Skip that season
-- Don't include in results
-- Log info message
+- Re-query and retry that season once because an empty list may indicate incomplete Netflix rendering
+- If the retry remains empty, fail the entire discovery operation
+- Discard accumulated partial results and do not cache them
 
-**Detection**: `collectEpisodes()` returns empty array.
+**Detection**: The validated row array or collected episode array is empty.
 
 ---
 
-### 6. All Seasons Fail
+### 6. Discovery Is Incomplete
 
-**Condition**: No episodes discovered from any season.
+**Condition**: Any enumerated season still fails after its one retry, or complete discovery produces zero episodes.
 
 **Handling**:
 - Show error state on button
-- Show toast: "No episodes found"
-- Don't enable button click
+- Show an appropriate discovery error toast
+- Do not randomize or start playback
+- Do not cache partial data
+- Keep the button available for a new user-initiated retry
 
-**Detection**: Total episode count is 0 after discovery.
+**Detection**: A season exhausts its retry, or total episode count is 0 after otherwise complete discovery.
 
 ---
 
@@ -89,24 +96,30 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 **Condition**: User clicks button while episodes are still being discovered.
 
 **Handling**:
-- Button is in "loading" state with `pointer-events: none`
+- Button is in `loading`, sets native `disabled` and `aria-disabled="true"`, and also uses `pointer-events: none`
 - Click is ignored
-- Discovery continues in background
+- The user-requested discovery operation continues
 
-**Detection**: Button's `data-state` attribute is "loading".
+**Detection**: Button's `data-state` attribute is `loading`; `button.ts` also checks state before invoking the registered handler, so pointer and keyboard activation are both ignored. Discovery never starts before the first user click.
 
 ---
 
-### 8. Episode Element Stale (Navigation)
+### 8. Selected Episode Cannot Be Re-Resolved
 
-**Condition**: DOM re-rendered after episode discovery, element references are stale.
+**Condition**: Playback cannot reactivate the selected season, fully expand it, or uniquely match the selected episode metadata to one current Netflix row.
 
 **Handling**:
-- `navigator.ts` checks `document.body.contains(episode.element)`
-- If not found, fall back to URL navigation
-- Log info message
+- Do not click any episode row
+- Do not navigate to the current title-details URL as a fallback
+- Show a retryable button error and toast: "Could not open the selected episode. Try again."
+- A new click may run discovery again according to the cache invalidation policy
 
-**Detection**: `document.body.contains(element)` returns false.
+**Detection**: Season activation fails, live row count is inconsistent, or episode resolution returns zero or multiple matches.
+
+**Typed handling**:
+- Changed season identity or complete row count → `CacheValidationMismatchError`, eligible for one automatic catalog refresh
+- Missing/ambiguous match with consistent catalog → `PlaybackResolutionError`, no automatic rediscovery
+- Cancellation/stale generation → `AbortError`, silent
 
 ---
 
@@ -121,6 +134,35 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 - Developer updates `selectors.ts`
 
 **Detection**: Console logs show selector failures.
+
+---
+
+### 10. Playback Click Does Not Start `/watch/`
+
+**Condition**: The verified episode row was clicked, but Netflix remains on the same title-details context for 5 seconds.
+
+**Handling**:
+- Keep the button loading during the confirmation window
+- After timeout, enter retryable error state
+- Show toast: "Could not start playback. Try again."
+
+**Detection**: No route with pathname beginning `/watch/` appears before the five-second deadline, and the same operation context remains current.
+
+---
+
+### 11. Operation Cancelled by Netflix Navigation
+
+**Condition**: The user changes or closes the active title, Netflix replaces the details root, playback starts, or the content script stops while detection, discovery, or playback resolution is running.
+
+**Handling**:
+- Abort the active operation immediately
+- Disconnect operation-owned observers and timers
+- Do not retry the interrupted season
+- Do not write cache data
+- Do not update the old button or show an error toast
+- Let the new title context start independently
+
+**Detection**: The operation's `AbortSignal` is aborted or its generation/title ID is no longer current.
 
 ---
 
@@ -148,9 +190,11 @@ function logInfo(message: string, details?: unknown): void {
 
 | Scenario | Button State | Toast Message |
 |----------|-------------|---------------|
-| Season selector not found | Error | "Could not find seasons for this show" |
-| Season click failed | Error (for that season) | "Could not load some seasons" |
+| Episodic UI not confirmed | Not injected | (none — treated as a non-series title) |
+| Season failed after retry | Error | "Could not load all seasons. Try again." |
 | No episodes found | Error | "No episodes found" |
+| Selected episode cannot be resolved | Error | "Could not open the selected episode. Try again." |
+| Playback did not start | Error | "Could not start playback. Try again." |
 | Play button not found | Not injected | (none — button doesn't appear) |
 | General failure | Error | "Something went wrong. Try again." |
 
@@ -158,10 +202,14 @@ function logInfo(message: string, details?: unknown): void {
 
 ## Error Recovery
 
-The extension doesn't retry automatically. Users can:
-1. Refresh the page
-2. Navigate away and back to the series
-3. Click the button again after a moment
+The extension automatically retries one failed season once during a discovery operation. If the operation still fails:
+
+1. The button enters a persistent, enabled error state.
+2. One error toast is shown for 5 seconds.
+3. Clicking the error-state button dismisses the toast, changes the button to loading, and starts a fresh user-requested attempt.
+4. No full operation starts automatically in the background.
+
+Users may also refresh Netflix or navigate away and back. Navigation-triggered cancellation remains silent and must not enter the error state.
 
 ---
 

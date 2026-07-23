@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Provide DOM query utilities that try multiple selector strategies, making the extension resilient to Netflix UI changes.
+Provide generic DOM query utilities that try caller-supplied selector strategies. This module contains no Netflix-specific selectors or behavior.
 
 ---
 
@@ -10,7 +10,10 @@ Provide DOM query utilities that try multiple selector strategies, making the ex
 
 1. Query DOM with fallback selectors
 2. Wait for elements to appear (async)
-3. Provide typed wrappers for common operations
+3. Make every asynchronous wait abortable
+4. Provide typed wrappers for common operations
+
+`dom-utils.ts` must not import `selectors.ts`. Feature modules choose Netflix selector configurations and pass their arrays and scoped roots into these helpers.
 
 ---
 
@@ -60,12 +63,14 @@ export function resilientQueryAll(
  * @param selectors - Ordered list of CSS selectors to try
  * @param timeout - Max wait time in ms (default: 5000)
  * @param parent - Parent element to observe (default: document.body)
+ * @param signal - Cancels the wait and cleans up immediately
  * @returns Promise resolving to the element, or null on timeout
  */
 export function waitForElement(
   selectors: string[],
   timeout?: number,
-  parent?: Element
+  parent?: Element,
+  signal?: AbortSignal,
 ): Promise<Element | null>
 ```
 
@@ -73,8 +78,10 @@ export function waitForElement(
 - Immediately check if element exists
 - If not, set up MutationObserver on parent
 - Check on each DOM mutation
-- Resolve when found or reject after timeout
-- Clean up observer in both cases
+- Resolve with the element when found
+- Resolve with `null` after timeout
+- Reject with a DOM `AbortError` when the signal is aborted
+- Clean up observer, timer, and abort listener in every case
 
 ### getTextContent
 
@@ -96,8 +103,8 @@ export function getTextContent(
 ## Implementation Notes
 
 - All functions should log selector successes for debugging
-- `waitForElement` must clean up MutationObserver on timeout
-- Never throw errors — return null for not-found cases
+- `waitForElement` must clean up MutationObserver, timeout, and abort listener on success, timeout, and cancellation
+- Synchronous not-found queries return null; asynchronous cancellation is the only expected rejection and uses `AbortError`
 - Use `requestAnimationFrame` for UI-related waits to avoid blocking
 
 ---
@@ -109,7 +116,9 @@ export function getTextContent(
 | All selectors fail | Return null (no error thrown) |
 | Element appears after timeout | Observer cleaned up, null returned |
 | Multiple elements match | Return first match (use `resilientQueryAll` for all) |
-| Parent element removed from DOM | Observer auto-disconnects |
+| Parent element removed from DOM | Resolve null and explicitly disconnect the observer |
+| Signal already aborted | Reject immediately with `AbortError`; do not create an observer |
+| Signal aborts during wait | Reject with `AbortError` and clean up all resources |
 
 ---
 
@@ -117,4 +126,6 @@ export function getTextContent(
 
 - Unit test: `resilientQuery` with mock DOM (jsdom)
 - Unit test: `waitForElement` with async DOM changes
+- Unit test: Timeout resolves null without rejecting
+- Unit test: Abort rejects with `AbortError` and disconnects observer/timer
 - Manual test: Verify selectors work on real Netflix

@@ -49,6 +49,9 @@ export function pickRandom(episodes: Episode[]): Episode {
 - Uses `Math.random()` which is sufficient for this use case
 - Not cryptographically secure (not needed)
 - Uniform distribution across all episodes
+- Each invocation is independent of all previous invocations
+- The module never reads or writes selection history
+- Repeated selection of the same episode is valid pure-random behavior
 
 ---
 

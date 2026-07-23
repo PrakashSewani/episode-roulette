@@ -72,9 +72,12 @@ docs/
 ├── architecture.md          # Module structure and data flow
 ├── module-specs/
 │   ├── observer.ts.md       # SPA navigation detection spec
+│   ├── content.ts.md        # Integration orchestration and title lifecycle spec
 │   ├── detector.ts.md       # Series page detection spec
 │   ├── selectors.ts.md      # DOM selector configuration spec
 │   ├── dom-utils.ts.md      # Resilient DOM query helpers spec
+│   ├── season-controller.ts.md # Shared Netflix season interaction spec
+│   ├── episode-identity.ts.md # Shared episode identity parsing spec
 │   ├── season-traverser.ts.md  # Episode discovery via season traversal spec
 │   ├── episode-collector.ts.md # Episode parsing spec
 │   ├── button.ts.md         # UI button injection spec
@@ -85,7 +88,8 @@ docs/
 ├── data-model.md            # TypeScript types and interfaces
 ├── selectors-reference.md   # All Netflix DOM selectors
 ├── error-handling.md        # Error scenarios and handling
-└── testing.md               # Testing strategy
+├── testing.md               # Testing strategy
+└── safari.md                # macOS Safari packaging and validation
 ```
 
 ---

@@ -8,27 +8,40 @@ Discover all playable episodes across all seasons of the current TV series by tr
 
 ## Responsibilities
 
-1. Find all season tabs/options
-2. Programmatically click each season
-3. Wait for DOM to update with that season's episodes
-4. Delegate episode parsing to `episode-collector.ts`
-5. Aggregate episodes across all seasons
-6. Cache results per series ID
+1. Locate Netflix's episode selector
+2. Select the first supported season-control strategy
+3. For a page without a season control, collect its episode list as one implicit season
+4. Otherwise, enumerate and activate each explicit season through the selected strategy
+5. Wait for DOM to update with that season's episodes
+6. Expand Netflix's truncated episode section until complete
+7. Delegate episode parsing to `episode-collector.ts`
+8. Aggregate episodes across all seasons
+9. Retry any failed season attempt once
+10. Return results only when every enumerated season succeeds
 
 ---
 
 ## Discovery Flow
 
 ```
-1. Find season selector element
-2. Enumerate all season tabs
-3. For each season:
-   a. Click the season tab
-   b. Wait for DOM update (MutationObserver, 5s timeout)
-   c. Call episode-collector to parse visible episodes
-   d. Store results
-4. Aggregate all episodes into SeriesInfo
-5. Cache in memory
+1. Resolve `EPISODE_SELECTOR` within the supplied title root and inspect supported controls inside it
+2. If episode rows exist and no season controls exist:
+   a. Create one implicit season descriptor
+   b. Create one absolute deadline five seconds in the future
+   c. Expand and validate the episode section
+   d. Collect the complete rendered episode set
+   e. On failure, re-query and retry once with one new five-second deadline
+3. Otherwise, use the Netflix custom-dropdown strategy to enumerate all explicit seasons
+4. For each explicit season:
+   a. Create one absolute deadline five seconds in the future
+   b. Call shared `activateSeason()` with that deadline; it performs no click or content-change requirement when already active
+   c. Call shared `expandAndValidateSeason()` with the same deadline to obtain complete validated rows
+   d. Pass those rows directly to episode-collector
+   e. Store results
+   f. If activation, expansion, collection, or count validation fails, re-query controls and retry this season once with one new five-second deadline
+   g. If the retry fails, discard all accumulated results and fail discovery
+5. Aggregate all episodes into SeriesInfo only after every season succeeds
+6. Return the complete result to `content.ts`
 ```
 
 ---
@@ -39,73 +52,64 @@ Discover all playable episodes across all seasons of the current TV series by tr
 import { SeriesInfo, Episode } from '../types'
 
 /**
- * Discover all episodes for the current series.
- * Uses cache if available.
+ * Discover all episodes for the current series without reading or writing cache.
  * @param seriesId - Netflix series ID
+ * @param root - Active Netflix title-details root
+ * @param signal - Cancels traversal immediately
  * @returns Promise resolving to SeriesInfo with all episodes
  */
-export function discoverEpisodes(seriesId: string): Promise<SeriesInfo>
-
-/**
- * Clear the episode cache for a series.
- * @param seriesId - Series to clear cache for (or all if omitted)
- */
-export function clearCache(seriesId?: string): void
+export function discoverEpisodes(
+  seriesId: string,
+  root: HTMLElement,
+  signal: AbortSignal,
+): Promise<SeriesInfo>
 ```
 
 ---
 
-## Season Enumeration
+## Shared Season Control
 
-Find season tabs using selectors from `selectors.ts`:
+Enumeration, activation, transition waiting, expansion, and count validation are delegated to `season-controller.ts`. The traverser owns sequencing, absolute attempt deadlines, aggregation, and retry policy.
 
-```typescript
-import { SEASON_TABS } from '../netflix/selectors'
+Initial episode-selector resolution and explicit-season enumeration form one initialization attempt with a five-second deadline. If selector lookup, menu rendering, or enumeration fails for a non-abort reason, re-query from `root` and retry initialization once with a new five-second deadline. A second failure throws `DiscoveryIncompleteError`; `AbortError` is never retried.
 
-const tabs = resilientQueryAll(SEASON_TABS.selectors)
-const seasonCount = tabs.length
-```
-
-**Handle different UI patterns**:
-- Tab bar (click each tab)
-- Dropdown (select each option)
-- Accordion (click to expand each)
+Do not implement native-select, tab, or accordion strategies until that Netflix layout is observed and documented.
 
 ---
 
 ## Season Switching
 
 ```typescript
-// Click a season tab
-seasonTab.click()
-
-// Wait for DOM update
-await waitForElement(EPISODE_ROW.selectors, 5000)
+const deadline = performance.now() + 5000
+await activateSeason(titleRoot, episodeSelector, season, deadline, signal)
+const rows = await expandAndValidateSeason(episodeSelector, season, deadline, signal)
 ```
 
-**Important**: After clicking a season tab, Netflix lazy-loads that season's episodes. We must wait for the DOM to update before collecting episodes.
+If the requested season is already active, `season-controller.ts` does not click and does not require content to change. If switching is required, it confirms both requested toggle identity and changed episode content.
 
----
+## Episode Section Expansion
 
-## Caching
+Netflix may initially render only the first 10 episodes even when the selected season contains more. `season-controller.ts` clicks the expand control once, requires disappearance, waits for two stable animation frames, and validates the expected count. Failure applies the traverser's one-retry policy.
 
-```typescript
-const cache = new Map<string, SeriesInfo>()
+## Completeness Policy
 
-// Check cache before discovery
-if (cache.has(seriesId)) {
-  return cache.get(seriesId)!
-}
+Discovery is atomic from the caller's perspective: it returns a complete `SeriesInfo` or fails. It never returns a partial episode array.
 
-// After discovery
-cache.set(seriesId, seriesInfo)
-```
+Cancellation is not a discovery failure. Every loop, retry, DOM interaction, and wait checks `signal.aborted`. An `AbortError` propagates immediately without retrying, caching, or converting it into a user-facing discovery error.
 
-**Cache rules**:
-- Key: series ID
-- Value: `SeriesInfo` with timestamp
-- No expiry (session only — lost on page refresh)
-- Clear on `series-left` event
+When a season attempt fails:
+
+1. Discard any transient DOM handle associated with the failed attempt.
+2. Re-query Netflix's season controls because the original element may be stale.
+3. Activate the same season and wait for it again.
+4. If collection succeeds, continue with the remaining seasons.
+5. If it fails again, throw `DiscoveryIncompleteError` and discard all accumulated episodes.
+
+The implicit season uses the same one-attempt-plus-one-retry policy. Its retry re-queries the episode selector and expansion control, then repeats expansion, stability, count validation, and collection without attempting season activation.
+
+The retry does not restart seasons that already succeeded during the same operation. The traverser has no cache dependency and never retains results after returning. `content.ts` is the sole cache owner and writes only a complete returned catalog after generation and title validation.
+
+After all seasons succeed, zero total episodes throws `NoEpisodesError`. An empty individual season that remains empty after retry throws `DiscoveryIncompleteError`, so it maps to the failed-season message rather than the whole-catalog zero message.
 
 ---
 
@@ -113,11 +117,12 @@ cache.set(seriesId, seriesInfo)
 
 | Case | Behavior |
 |------|----------|
-| Only one season | Click the only tab, collect episodes |
-| Season tab click doesn't update DOM | Timeout after 5s, skip that season |
-| Season has no episodes | Skip, don't include in results |
-| Netflix shows loading spinner | Wait for spinner to disappear before collecting |
-| Season tabs load lazily | Wait for all tabs to appear before starting |
+| Episode rows with no season control | Collect once as one implicit season |
+| One explicit dropdown season | Activate it and collect episodes |
+| Dropdown switch doesn't update DOM | Re-query and retry once; fail complete discovery if retry also times out |
+| Enumerated season has no episodes | Retry once; fail complete discovery if it remains empty |
+| Episode section has expand control | Expand and wait for complete stable row count |
+| Menu declares episode count | Validate collected count exactly |
 | 30+ seasons | Process sequentially (don't overwhelm DOM) |
 
 ---
@@ -126,7 +131,7 @@ cache.set(seriesId, seriesInfo)
 
 - Process seasons sequentially (not in parallel) to avoid DOM thrashing
 - Use MutationObserver for DOM updates (not polling)
-- Cache results to avoid re-discovery
+- Return durable metadata so `content.ts` may cache complete catalogs
 - Limit DOM reads to episode container subtree
 
 ---
@@ -134,5 +139,11 @@ cache.set(seriesId, seriesInfo)
 ## Testing
 
 - Unit test: Season enumeration logic (mock DOM)
-- Integration test: Mock Netflix DOM with multiple seasons
+- Unit test: Parse season label and expected count from dropdown menu items
+- Integration test: Mock Netflix custom dropdown with multiple seasons
+- Integration test: Expansion grows 10 visible rows to the declared season count
+- Integration test: Old rows do not satisfy season-change readiness
+- Integration test: Failed season succeeds on its one retry
+- Integration test: Second failure rejects discovery without returning partial results
+- Integration test: Abort during season switching stops traversal without retry or result
 - Manual test: Verify on real Netflix series with multiple seasons

@@ -41,6 +41,7 @@ Netflix exposes these CSS custom properties on `:root`:
 ```css
 /* Button base */
 .ep-roulette-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -99,9 +100,40 @@ Netflix exposes these CSS custom properties on `:root`:
   100% { content: ''; }
 }
 
+/* Error toast */
+.ep-roulette-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: #333;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 9999;
+  animation: ep-roulette-toast-in 0.3s ease;
+}
+
+.ep-roulette-toast-exit {
+  animation: ep-roulette-toast-out 0.3s ease forwards;
+}
+
+@keyframes ep-roulette-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes ep-roulette-toast-out {
+  from { opacity: 1; transform: translateX(-50%) translateY(0); }
+  to { opacity: 0; transform: translateX(-50%) translateY(20px); }
+}
+
 /* Error state */
 .ep-roulette-btn[data-state="error"] {
   opacity: 0.7;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .ep-roulette-btn[data-state="error"]::after {
@@ -147,6 +179,10 @@ export function injectStyles(): void {
   style.textContent = CSS
   document.head.appendChild(style)
 }
+
+export function removeStyles(): void {
+  document.getElementById('ep-roulette-styles')?.remove()
+}
 ```
 
 ---
@@ -155,7 +191,8 @@ export function injectStyles(): void {
 
 - All class names are prefixed with `ep-roulette-` to avoid conflicts
 - No global styles modified
-- Only the button's own styles are injected
+- All extension-owned button, tooltip, loading-animation, and toast styles are injected from this module
+- `removeStyles()` is used by explicit content-script teardown in tests and HMR
 
 ---
 
