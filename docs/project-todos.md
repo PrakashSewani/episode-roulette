@@ -16,19 +16,14 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: Phase 1 is complete. Safari is the verified live development environment; Chrome compatibility validation is explicitly deferred to Phase 7.
-- Next implementation phase: Phase 2, Netflix SPA Navigation Detection.
-- Next agent must first read:
-  - `AGENTS.md`
-  - `docs/implementation-plan.md`, Phase 2
-  - `docs/architecture.md`, especially route identity and scoped DOM observation
-  - `docs/data-model.md`
-  - `docs/module-specs/observer.ts.md`
-  - `docs/module-specs/detector.ts.md`
-  - `docs/module-specs/selectors.ts.md`
-  - `docs/module-specs/content.ts.md` for the Phase 2 orchestration boundary
-  - `docs/testing.md` for Phase 2 unit and fixture expectations
-- Before writing Phase 2 code, the next agent must present a brief implementation plan and receive user confirmation as required by `AGENTS.md`.
+- Current state: Phase 3, UI Injection, is complete. Safari remains the verified live development environment; Chrome live compatibility validation remains deferred to Phase 7.
+- Next implementation phase: Phase 4, Episode Discovery.
+- Completed in this session: Documented the approved Phase 3 boundaries; implemented minimal DOM query/wait utilities, scoped ready-button injection and state handling, centralized styles, stale-safe toast feedback, orchestration injection/cleanup, and Phase 3 unit/integration tests.
+- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 39 tests across 9 test files; `git diff --check` passed; `npm run build` passed; `npm run safari:build` synchronized resources and completed with `BUILD SUCCEEDED`.
+- Blockers or unanswered questions: None.
+- Files changed: Phase 2 and Phase 3 docs/tracker; test configuration and dependencies; `src/content.ts`, shared types, Netflix observer/detector/selectors/row validation/minimal DOM utilities, `src/ui/button.ts`, `src/ui/styles.ts`, `src/ui/feedback.ts`; fixtures and tests under `tests/`.
+- Exact next action: Read all Phase 4 discovery specs, check for ambiguity, present a brief Phase 4 plan, and wait for user confirmation before implementation.
+- Required docs for the next agent: `AGENTS.md`, Phase 3 of `docs/implementation-plan.md`, `docs/architecture.md`, `docs/data-model.md`, `docs/error-handling.md`, `docs/module-specs/button.ts.md`, `docs/module-specs/styles.ts.md`, `docs/module-specs/feedback.ts.md`, `docs/module-specs/selectors.ts.md`, `docs/module-specs/content.ts.md`, and `docs/testing.md`.
 - Do not begin Phase 3 UI work until Phase 2 exit criteria are met.
 
 ## Phase Tracker
@@ -36,8 +31,8 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 | Phase | Status | Next Action |
 |---|---|---|
 | 1. Project Scaffold | complete | Preserve the universal build and Safari packaging contracts. |
-| 2. Netflix SPA Navigation Detection | not started | Read the Phase 2 specs, resolve ambiguities, propose a plan, and wait for confirmation. |
-| 3. UI Injection | not started | Start only after Phase 2 completion. |
+| 2. Netflix SPA Navigation Detection | complete | Preserve the neutral observer, scoped detection, and absolute-deadline contracts. |
+| 3. UI Injection | complete | Preserve scoped injection, ready-state, feedback, and cleanup contracts. |
 | 4. Episode Discovery | not started | Start only after Phase 3 completion. |
 | 5. Random Selection + Playback | not started | Start only after Phase 4 completion. |
 | 6. Integration + Polish | not started | Start only after Phase 5 completion. |
@@ -83,37 +78,58 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Phase 2: Netflix SPA Navigation Detection
 
-**Status**: not started
+**Status**: complete
 
 **Modules**:
 
 - `src/netflix/observer.ts`
 - `src/netflix/detector.ts`
 - `src/netflix/selectors.ts`
+- `src/netflix/season-controller.ts` (Phase 2 structural row validation only)
 - Phase-limited orchestration in `src/content.ts`
 - Shared Phase 2 types in `src/types.ts`
 
 **Todo checklist**:
 
-- [ ] Read all Phase 2 documents listed in Current Handoff.
-- [ ] Check the documents for ambiguity or contradiction and ask the user before guessing.
-- [ ] Present a brief Phase 2 implementation plan and receive user confirmation.
-- [ ] Add the documented shared types required by observer, detector, and orchestration.
-- [ ] Centralize every Phase 2 Netflix selector in `src/netflix/selectors.ts`.
-- [ ] Implement neutral route-change reporting with 500 ms URL polling.
-- [ ] Detect path and `jbv` changes and listen for `popstate` and `hashchange`.
-- [ ] Implement temporary, debounced `document.body` observation only while locating the active title-details root.
-- [ ] Implement scoped observation after a unique active root is resolved.
-- [ ] Report root removal and suppress stale-generation callbacks.
-- [ ] Extract title context with numeric `jbv` precedence over `/title/<id>`.
-- [ ] Resolve only a unique connected, visible, structurally valid details root.
-- [ ] Confirm a series only from valid episode rows inside the supplied root.
-- [ ] Support episode-row confirmation without a season control.
-- [ ] Enforce the one absolute five-second detection deadline per title identity.
-- [ ] Update `src/content.ts` only to the Phase 2 orchestration boundary; do not implement Phase 3 button UI.
-- [ ] Add the documented Phase 2 unit and fixture tests.
-- [ ] Run type checking, tests, and both Chrome/Safari builds.
-- [ ] Verify Phase 2 exit criteria, update this tracker with evidence, and mark the phase complete only then.
+- [x] Read all Phase 2 documents listed in Current Handoff.
+- [x] Check the documents for ambiguity or contradiction and ask the user before guessing.
+- [x] Present a brief Phase 2 implementation plan and receive user confirmation.
+- [x] Add the documented shared types required by observer, detector, and orchestration.
+- [x] Centralize every Phase 2 Netflix selector in `src/netflix/selectors.ts`.
+- [x] Implement neutral route-change reporting with 500 ms URL polling.
+- [x] Detect path and `jbv` changes and listen for `popstate` and `hashchange`.
+- [x] Implement temporary, debounced `document.body` observation only while locating the active title-details root.
+- [x] Use the approved 50 ms trailing debounce for DOM notifications.
+- [x] Implement scoped observation after a unique active root is resolved.
+- [x] Report root removal and suppress stale-generation callbacks.
+- [x] Extract title context with numeric `jbv` precedence over `/title/<id>`.
+- [x] Resolve only a unique connected, visible, structurally valid details root.
+- [x] Confirm a series only from valid episode rows inside the supplied root.
+- [x] Implement only `season-controller.ts#getValidEpisodeRows()` in Phase 2; defer all season interaction to Phase 4.
+- [x] Support episode-row confirmation without a season control.
+- [x] Enforce the one absolute five-second detection deadline per title identity.
+- [x] Update `src/content.ts` only through scoped series confirmation and cleanup; retain no extension DOM marker and do not implement Phase 3 button UI.
+- [x] Add the documented Phase 2 unit and fixture tests.
+- [x] Run type checking, tests, and both Chrome/Safari builds.
+- [x] Verify Phase 2 exit criteria, update this tracker with evidence, and mark the phase complete only then.
+
+**Implemented**:
+
+- Neutral route observation emits initial, polling, `popstate`, and `hashchange` events without classifying content.
+- Temporary body observation and scoped root observation use the approved 50 ms trailing debounce; liveness checks detect direct removal, ancestor removal, and parent changes.
+- Title identity uses numeric `jbv` precedence, falls back to `/title/<id>`, and excludes `/watch/`.
+- Root resolution aggregates all centralized fallbacks and requires exactly one connected, visible, structurally valid candidate.
+- Series confirmation is scoped to structurally valid episode rows, including layouts without season controls.
+- Orchestration enforces one absolute five-second deadline, preserves it across same-title root replacement, suppresses stale generations, and implements idempotent start/stop and `pagehide` cleanup without creating Phase 3 UI.
+
+**Verification evidence**:
+
+- `npx tsc --noEmit` succeeded.
+- `npm test` succeeded: 5 test files, 22 tests.
+- `git diff --check` succeeded.
+- `npm run build` succeeded and emitted the universal Manifest V3 WebExtension.
+- `npm run safari:build` succeeded after resource synchronization; Xcode reported `BUILD SUCCEEDED`.
+- The user confirmed the `Random Episode` button appears on a live Netflix series in Safari.
 
 **Exit criteria summary**:
 
@@ -125,19 +141,38 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Phase 3: UI Injection
 
-**Status**: not started
+**Status**: complete
 
 **Todo checklist**:
 
-- [ ] Read `docs/module-specs/button.ts.md`, `styles.ts.md`, `feedback.ts.md`, relevant selectors, architecture, data model, error handling, and testing docs.
-- [ ] Present the Phase 3 plan and receive user confirmation.
-- [ ] Implement button creation and scoped insertion next to Netflix's Play button.
-- [ ] Implement ready, loading, and error rendering without running discovery on injection.
-- [ ] Implement all extension UI CSS through `styles.ts`.
-- [ ] Implement error-toast lifecycle through `feedback.ts`.
-- [ ] Remove UI and feedback on navigation cleanup.
-- [ ] Add documented unit and fixture tests.
-- [ ] Verify Chrome and Safari builds and Phase 3 exit criteria.
+- [x] Read `docs/module-specs/button.ts.md`, `styles.ts.md`, `feedback.ts.md`, relevant selectors, architecture, data model, error handling, and testing docs.
+- [x] Present the Phase 3 plan and receive user confirmation.
+- [x] Implement button creation and scoped insertion next to Netflix's Play button.
+- [x] Implement only `dom-utils.ts#resilientQuery()` and abortable `waitForElement()` in Phase 3; defer remaining DOM waits to Phase 4.
+- [x] Implement ready, loading, and error rendering without running discovery on injection.
+- [x] Leave the Phase 3 ready button without an operation handler so clicks remain ready no-ops until Phase 5.
+- [x] Implement all extension UI CSS through `styles.ts`.
+- [x] Implement error-toast lifecycle through `feedback.ts`.
+- [x] Remove UI and feedback on navigation cleanup.
+- [x] Add documented unit and fixture tests.
+- [x] Verify Chrome and Safari builds and Phase 3 exit criteria.
+
+**Implemented**:
+
+- `dom-utils.ts` supplies ordered scoped lookup and abortable MutationObserver-based element waiting with timeout cleanup.
+- `button.ts` inserts one accessible ready button immediately after the scoped Netflix Play button, owns ready/loading/error rendering, removes orphan UI, and suppresses stale pending-root injection.
+- The Phase 3 ready button is enabled but has no operation handler, so clicks remain ready no-ops until Phase 5.
+- `styles.ts` owns all prefixed button, loading, error tooltip, and toast CSS with idempotent injection/removal.
+- `feedback.ts` owns one accessible error toast, replacement, five-second dismissal, exit animation, timer cleanup, and stale-token protection.
+- `content.ts` injects styles at start, injects the button only after scoped series confirmation, and removes button/toast state on title/root invalidation and styles on stop.
+
+**Verification evidence**:
+
+- `npx tsc --noEmit` succeeded.
+- `npm test` succeeded: 9 test files, 39 tests.
+- `git diff --check` succeeded.
+- `npm run build` succeeded and emitted the universal Manifest V3 WebExtension.
+- `npm run safari:build` succeeded after resource synchronization; Xcode reported `BUILD SUCCEEDED`.
 
 ## Phase 4: Episode Discovery
 

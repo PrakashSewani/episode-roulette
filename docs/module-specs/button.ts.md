@@ -13,6 +13,8 @@ Create and inject a "Random Episode" button that matches Netflix's design langua
 3. Start in the ready state and handle state changes (ready, loading, error)
 4. Provide idempotent removal for lifecycle cleanup owned by `content.ts`
 
+Phase 3 injects the enabled ready button without registering an operation handler. Clicking it therefore leaves it ready and performs no product operation until the discovery/playback flow is wired in Phase 5. State-transition behavior remains fully implemented and unit-tested for later orchestration.
+
 ---
 
 ## Button Structure
@@ -48,6 +50,8 @@ if (playButton) {
   container?.insertBefore(createButton(), playButton.nextSibling)
 }
 ```
+
+Phase 3 introduces only `resilientQuery()` and abortable `waitForElement()` in `dom-utils.ts` to support this scoped lookup. Other generic DOM waits remain Phase 4 work.
 
 ---
 

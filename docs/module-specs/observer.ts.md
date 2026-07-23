@@ -16,6 +16,8 @@ Report Netflix SPA route and DOM changes without deciding whether the active tit
 6. Associate DOM notifications with the orchestrator's active generation
 7. Debounce DOM notifications and clean up every observer
 
+DOM notifications use a 50 ms trailing debounce. Each new relevant mutation replaces the pending timer for the current observation generation.
+
 ---
 
 ## Detection Strategies
@@ -31,12 +33,14 @@ Report Netflix SPA route and DOM changes without deciding whether the active tit
 
 - Observe `document.body` only while an active title identity exists and its details root has not been found
 - Notify the orchestrator of debounced DOM changes so it can retry `TITLE_DETAILS_ROOT`
+- Debounce notifications by 50 ms
 - Disconnect immediately after the root is found, the title context closes, or the observer stops
 
 ### 3. Scoped Title Observer
 
 - Observe the supplied title-details root with `{ childList: true, subtree: true }`
 - Emit debounced `title-dom-changed` notifications
+- Debounce notifications by 50 ms
 - Never classify the title or query episode selectors
 - Record the root's current parent as `expectedParent`
 - Separately observe `document.body` with `{ childList: true, subtree: true }` for liveness only

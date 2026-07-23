@@ -48,6 +48,7 @@ No background service worker is registered in Chrome or Safari. All core behavio
 - `src/netflix/observer.ts`
 - `src/netflix/detector.ts`
 - `src/netflix/selectors.ts`
+- `src/netflix/season-controller.ts` (Phase 2 implements only the shared `getValidEpisodeRows()` structural-validation API; Phase 4 adds season interaction)
 
 **Deliverables**:
 - URL polling (500ms interval) that detects path and `jbv` changes
@@ -60,7 +61,7 @@ No background service worker is registered in Chrome or Safari. All core behavio
 - Single-season confirmation when episode rows exist without season controls
 - `selectors.ts` as single source of truth for all DOM queries
 - Series classification scoped to the active title-details root
-- Orchestration that injects UI only after scoped episodic DOM confirmation
+- Phase-limited orchestration that records scoped episodic DOM confirmation but defers all UI injection to Phase 3
 
 **Exit criteria**: Title overlay/path changes are detected, movie details do not activate the extension, episodic UI inside the active details root confirms a series, and unrelated browse-page mutations do not affect classification.
 
@@ -74,12 +75,14 @@ No background service worker is registered in Chrome or Safari. All core behavio
 - `src/ui/button.ts`
 - `src/ui/styles.ts`
 - `src/ui/feedback.ts`
+- `src/netflix/dom-utils.ts` (Phase 3 implements only `resilientQuery()` and abortable `waitForElement()`; Phase 4 adds the remaining DOM wait utilities)
 
 **Deliverables**:
 - Button creation and insertion next to Netflix's Play button
 - CSS injection matching Netflix's design language (dark theme, red accent, Netflix font/spacing)
 - Three button states: loading, ready, error
 - Button is injected enabled in ready state; no episode discovery runs on injection
+- Until the discovery/playback flow is wired in Phase 5, the ready button has no registered operation handler and remains ready when clicked
 - Cleanup on navigation away from series page
 - `button.ts` for state rendering and loading animation; `feedback.ts` for error-toast lifecycle
 - `styles.ts` for all extension button, tooltip, animation, and toast CSS

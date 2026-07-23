@@ -35,6 +35,7 @@ Examples:
 
 - Queries are scoped to the active title-details root supplied by `content.ts`
 - Resolve `EPISODE_SELECTOR` within that root and call `getValidEpisodeRows(episodeSelector)` from `season-controller.ts`
+- Phase 2 introduces only this shared structural-validation API in `season-controller.ts`; season enumeration, activation, transition, and expansion remain Phase 4 work
 - Presence of one or more returned rows confirms a series
 - Presence of the verified Netflix custom season dropdown supports multi-season traversal but is not required
 - An episode selector with rows but without a supported season control confirms a single-season series with one implicit season

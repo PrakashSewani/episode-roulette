@@ -8,13 +8,16 @@
   },
   "scripts": {
     "build": "vite build",
+    "test": "vitest run",
     "safari:init": "npm run build && node scripts/safari-init.mjs",
     "safari:sync": "npm run build && node scripts/safari-sync.mjs",
     "safari:build": "npm run safari:sync && node scripts/safari-build.mjs"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "2.7.1",
+    "jsdom": "^29.1.1",
     "typescript": "7.0.2",
-    "vite": "8.1.5"
+    "vite": "8.1.5",
+    "vitest": "^4.1.10"
   }
 }

@@ -43,10 +43,12 @@ run detectSeries(context, root)
     |
     +-- unconfirmed --> re-run on scoped DOM changes until detection window ends
     |
-    +-- series --> inject one ready Random Episode button
+    +-- series --> record confirmation; Phase 3 injects the ready Random Episode button
 ```
 
-The URL supplies title identity only. `content.ts` must never inject the button because a `/title/<id>` or `jbv` value exists by itself.
+The URL supplies title identity only. `content.ts` must never activate series behavior because a `/title/<id>` or `jbv` value exists by itself.
+
+**Phase boundary**: Phase 2 implements this lifecycle through scoped series confirmation and cleanup only. Phase 3 adds styles, feedback ownership, and ready-button injection after confirmation. The Phase 3 button has no registered operation handler, so clicking it remains a no-op until Phase 5 wires the discovery/playback flow.
 
 ## Detection Deadline
 
