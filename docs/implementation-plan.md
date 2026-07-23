@@ -79,6 +79,7 @@ No background service worker is registered in Chrome or Safari. All core behavio
 
 **Deliverables**:
 - Button creation and insertion next to Netflix's Play button
+- While waiting up to five seconds for Netflix's Play button after series confirmation, show a disabled `Loading Episode Roulette...` indicator over the lower-left of the active title-details root; replace it with the ready button when placement becomes available, and remove it silently on timeout or cancellation
 - CSS injection matching Netflix's design language (dark theme, red accent, Netflix font/spacing)
 - Three button states: loading, ready, error
 - Button is injected enabled in ready state; no episode discovery runs on injection
@@ -87,7 +88,7 @@ No background service worker is registered in Chrome or Safari. All core behavio
 - `button.ts` for state rendering and loading animation; `feedback.ts` for error-toast lifecycle
 - `styles.ts` for all extension button, tooltip, animation, and toast CSS
 
-**Exit criteria**: Button appears on series pages, matches Netflix style, disappears when navigating away.
+**Exit criteria**: Confirmed series show immediate disabled spawn feedback while Play-button placement is pending; the ready button appears next to Play when available, matches Netflix style, and all extension UI disappears on timeout, cancellation, or navigation away.
 
 ---
 

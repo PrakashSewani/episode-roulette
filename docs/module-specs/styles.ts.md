@@ -12,6 +12,7 @@ Inject CSS that makes the Random Episode button look like a native Netflix featu
 2. Define styles for the button and its states
 3. Use Netflix's own CSS variables where possible
 4. Match Netflix's design language (dark theme, red accent)
+5. Position the temporary spawn indicator without relying on Netflix-owned layout selectors
 
 ---
 
@@ -90,6 +91,13 @@ Netflix exposes these CSS custom properties on `:root`:
   display: inline-block;
   width: 12px;
   animation: ep-roulette-dots 1.5s steps(4, end) infinite;
+}
+
+.ep-roulette-btn[data-phase="spawn"] {
+  position: absolute;
+  left: 4%;
+  bottom: 8%;
+  z-index: 2;
 }
 
 @keyframes ep-roulette-dots {
@@ -192,6 +200,7 @@ export function removeStyles(): void {
 - All class names are prefixed with `ep-roulette-` to avoid conflicts
 - No global styles modified
 - All extension-owned button, tooltip, loading-animation, and toast styles are injected from this module
+- The temporary spawn indicator is a lower-left overlay inside the active title-details root and uses only extension-prefixed classes and attributes
 - `removeStyles()` is used by explicit content-script teardown in tests and HMR
 
 ---

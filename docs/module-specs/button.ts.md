@@ -10,8 +10,9 @@ Create and inject a "Random Episode" button that matches Netflix's design langua
 
 1. Create button element with correct HTML structure
 2. Insert button next to Netflix's Play button
-3. Start in the ready state and handle state changes (ready, loading, error)
-4. Provide idempotent removal for lifecycle cleanup owned by `content.ts`
+3. Show immediate disabled spawn feedback while waiting for Netflix's Play button
+4. Start the placed operation button in the ready state and handle state changes (ready, loading, error)
+5. Provide idempotent removal for lifecycle cleanup owned by `content.ts`
 
 Phase 3 injects the enabled ready button without registering an operation handler. Clicking it therefore leaves it ready and performs no product operation until the discovery/playback flow is wired in Phase 5. State-transition behavior remains fully implemented and unit-tested for later orchestration.
 
@@ -30,10 +31,13 @@ Phase 3 injects the enabled ready button without registering an operation handle
 
 ## Placement Strategy
 
-1. Wait up to 5 seconds for Netflix's Play button within the supplied active title-details root
-2. Get its parent container
-3. Insert our button as a sibling (after Play button)
-4. Ensure button is visible and accessible
+1. Append a disabled `Loading Episode Roulette...` indicator to the supplied active title-details root immediately
+2. Position the indicator as a lower-left overlay owned entirely by the extension; do not require an unverified Netflix action-container selector
+3. Wait up to 5 seconds for Netflix's Play button within the supplied active title-details root
+4. Get its parent container
+5. Remove the temporary indicator and insert the ready operation button as a sibling after Play
+6. If lookup times out, cancellation occurs, or placement is invalid, remove the temporary indicator without showing an error
+7. Ensure both forms are visible and accessible
 
 ```typescript
 import { resilientQuery } from '../netflix/dom-utils'
@@ -50,6 +54,8 @@ if (playButton) {
   container?.insertBefore(createButton(), playButton.nextSibling)
 }
 ```
+
+The temporary indicator uses the same `data-uia="random-episode-btn"` ownership marker and `loading` visual state as the operation button, plus `data-phase="spawn"`. It is disabled, has `aria-disabled="true"`, `aria-busy="true"`, and `aria-label="Loading Episode Roulette"`, and never has a click handler. The placed operation button removes `data-phase` and starts in `ready`.
 
 Phase 3 introduces only `resilientQuery()` and abortable `waitForElement()` in `dom-utils.ts` to support this scoped lookup. Other generic DOM waits remain Phase 4 work.
 
@@ -168,6 +174,8 @@ See `styles.ts.md` for CSS details. Button uses:
 | Case | Behavior |
 |------|----------|
 | Play button not found | Don't inject button, log warning |
+| Play button still rendering | Show one disabled lower-left spawn indicator inside the active title root |
+| Spawn wait times out or aborts | Remove the indicator silently; timeout logs the existing warning |
 | Module-owned button already exists in the same root | Return the existing connected controller |
 | Orphan extension button exists without the module-owned controller | Remove the orphan and create one new controller |
 | Netflix layout changes | Button may need repositioning (documented in selectors) |
@@ -185,6 +193,9 @@ See `styles.ts.md` for CSS details. Button uses:
 
 - Unit test: Button creation and DOM insertion
 - Unit test: Play-button lookup is scoped to the supplied title root
+- Unit test: A disabled spawn indicator appears immediately while Play is pending
+- Unit test: The spawn indicator is replaced by one ready button beside Play
+- Unit test: Timeout and abort remove the spawn indicator
 - Unit test: Timeout resolves null and abort propagates without injection
 - Unit test: Button is enabled and ready immediately after injection
 - Unit test: Loading state prevents repeated clicks

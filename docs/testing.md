@@ -59,6 +59,8 @@ npm test
 - Movie overlay never injects the button
 - Five-second detection expiry stops observation without an error
 - Series overlay injects one ready button
+- Confirmed series shows one disabled spawn indicator while scoped Play-button placement is pending
+- Spawn indicator is replaced by the ready button, and timeout/cancellation leaves no indicator
 - User click starts discovery; opening the overlay alone does not
 - Custom-dropdown enumeration, switching, expansion, and exact count validation
 - One season retry followed by success or atomic failure
@@ -227,6 +229,8 @@ describe('resilientQuery', () => {
 
 ### Button Injection
 - [ ] Button is positioned next to Play button
+- [ ] A confirmed series shows disabled `Loading Episode Roulette...` feedback while Play-button placement is pending
+- [ ] The temporary indicator disappears on timeout, cancellation, or ready-button placement
 - [ ] Button styling matches Netflix design
 - [ ] Button is enabled and ready before discovery has run
 - [ ] Opening a confirmed series does not switch seasons in the background

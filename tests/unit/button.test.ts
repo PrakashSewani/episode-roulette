@@ -7,6 +7,11 @@ function getButton(root: ParentNode): HTMLButtonElement {
   return root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')!
 }
 
+async function flushMutations(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
 describe('button UI', () => {
   afterEach(() => {
     document.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.remove()
@@ -43,6 +48,35 @@ describe('button UI', () => {
     expect(second).toBe(first)
     expect(root.querySelectorAll('[data-uia="random-episode-btn"]')).toHaveLength(1)
     first?.remove()
+  })
+
+  it('shows disabled spawn feedback until the scoped Play button appears', async () => {
+    const root = createTitleDetails({ metadata: true })
+    document.body.append(root)
+    const pending = injectButton(root, new AbortController().signal)
+    const indicator = getButton(root)
+
+    expect(indicator.dataset.phase).toBe('spawn')
+    expect(indicator.dataset.state).toBe('loading')
+    expect(indicator.disabled).toBe(true)
+    expect(indicator.getAttribute('aria-label')).toBe('Loading Episode Roulette')
+    expect(indicator.textContent).toContain('Loading Episode Roulette')
+
+    const container = document.createElement('div')
+    const playButton = document.createElement('button')
+    playButton.dataset.uia = 'play-button'
+    container.append(playButton)
+    root.append(container)
+    await flushMutations()
+
+    const controller = await pending
+    const readyButton = getButton(root)
+    expect(controller).not.toBeNull()
+    expect(playButton.nextElementSibling).toBe(readyButton)
+    expect(readyButton).not.toBe(indicator)
+    expect(readyButton.dataset.phase).toBeUndefined()
+    expect(readyButton.dataset.state).toBe('ready')
+    controller?.remove()
   })
 
   it('ignores clicks without a handler and while loading', async () => {
@@ -91,13 +125,17 @@ describe('button UI', () => {
     const root = document.createElement('div')
     document.body.append(root)
     const missing = injectButton(root, new AbortController().signal)
+    expect(getButton(root).dataset.phase).toBe('spawn')
     vi.advanceTimersByTime(5_000)
     await expect(missing).resolves.toBeNull()
+    expect(root.querySelector('[data-uia="random-episode-btn"]')).toBeNull()
 
     const abortController = new AbortController()
     const aborted = injectButton(root, abortController.signal)
+    expect(getButton(root).dataset.phase).toBe('spawn')
     abortController.abort()
     await expect(aborted).rejects.toMatchObject({ name: 'AbortError' })
+    expect(root.querySelector('[data-uia="random-episode-btn"]')).toBeNull()
   })
 
   it('does not let an older pending root replace a newer owned button', async () => {

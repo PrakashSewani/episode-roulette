@@ -43,7 +43,7 @@ run detectSeries(context, root)
     |
     +-- unconfirmed --> re-run on scoped DOM changes until detection window ends
     |
-    +-- series --> record confirmation; Phase 3 injects the ready Random Episode button
+    +-- series --> record confirmation; Phase 3 immediately shows disabled spawn feedback, then places the ready Random Episode button beside Play
 ```
 
 The URL supplies title identity only. `content.ts` must never activate series behavior because a `/title/<id>` or `jbv` value exists by itself.
@@ -174,7 +174,9 @@ No selected episode, playback result, or repeat-prevention state is retained aft
 ## Button State Machine
 
 ```text
-series confirmed -> ready
+series confirmed -> disabled spawn indicator while Play placement is pending
+Play resolved     -> ready operation button beside Play
+spawn timeout     -> indicator removed, no user-facing error
 ready click      -> loading
 loading click success -> remain loading until /watch/
 confirmation timeout  -> error + one 5-second toast
@@ -207,9 +209,9 @@ Cleanup first aborts and increments the generation, then calls `observer.clearTi
 
 ## Detection Outcome
 
-If episodic UI is confirmed, inject the button in ready state. If the five-second detection deadline ends without episodic UI, treat the title as non-series and do not show an error. Only a new title identity may begin a fresh cycle.
+If episodic UI is confirmed, immediately show the disabled spawn indicator and begin scoped Play-button lookup. Replace it with the ready operation button when placement succeeds. If the five-second detection deadline ends without episodic UI, treat the title as non-series and do not show an error. Only a new title identity may begin a fresh cycle.
 
-Button injection calls `injectButton(titleRoot, context.controller.signal)`. A `null` result means the scoped Netflix Play button did not appear within 5 seconds and no UI is retained. An `AbortError` exits silently. Before storing the returned controller, `content.ts` calls `assertCurrent(context)`.
+Button injection calls `injectButton(titleRoot, context.controller.signal)`. The function owns the temporary spawn indicator during its wait. A `null` result means the scoped Netflix Play button did not appear within 5 seconds and no UI is retained. An `AbortError` exits silently after indicator cleanup. Before storing the returned controller, `content.ts` calls `assertCurrent(context)`.
 
 Discovery and playback receive the active context's `AbortSignal`. Their returned values are ignored unless the context is still current.
 
@@ -219,6 +221,7 @@ Discovery and playback receive the active context's `AbortSignal`. Their returne
 
 - Integration test: Movie `jbv` context never injects the button
 - Integration test: Series `jbv` context injects after scoped episodic UI appears
+- Integration test: Confirmed series shows disabled spawn feedback until the scoped Play button appears
 - Integration test: Episode-like browse content outside the details root is ignored
 - Integration test: Hidden and disconnected dialog candidates are ignored
 - Integration test: Multiple visible validated roots remain unresolved

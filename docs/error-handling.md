@@ -23,11 +23,12 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 **Condition**: Netflix's Play button element can't be located.
 
 **Handling**: 
+- Show the disabled `Loading Episode Roulette...` spawn indicator while waiting
 - Wait up to 5 seconds for element to appear
-- If not found, don't inject button
+- If not found, remove the indicator and don't retain a button
 - Log warning to console
 
-**Detection**: `injectButton(root, signal)` resolves `null` after the scoped five-second wait. `AbortError` is silent cancellation, not a missing-button failure.
+**Detection**: `injectButton(root, signal)` resolves `null` after the scoped five-second wait. `AbortError` removes the indicator and remains silent cancellation, not a missing-button failure.
 
 ---
 

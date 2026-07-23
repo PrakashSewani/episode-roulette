@@ -72,6 +72,35 @@ describe('Phase 2 content lifecycle', () => {
     content.stop()
   })
 
+  it('shows spawn feedback while the scoped Play button is pending', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=120')
+    const root = createTitleDetails({ episodic: true, metadata: true })
+    document.body.append(root)
+    const content = await import('../../src/content')
+
+    const indicator = root.querySelector<HTMLButtonElement>(
+      '[data-uia="random-episode-btn"]',
+    )
+    expect(indicator?.dataset.phase).toBe('spawn')
+    expect(indicator?.dataset.state).toBe('loading')
+    expect(indicator?.disabled).toBe(true)
+
+    const container = document.createElement('div')
+    const playButton = document.createElement('button')
+    playButton.dataset.uia = 'play-button'
+    container.append(playButton)
+    root.append(container)
+    await flushPromises()
+
+    const readyButton = root.querySelector<HTMLButtonElement>(
+      '[data-uia="random-episode-btn"]',
+    )
+    expect(playButton.nextElementSibling).toBe(readyButton)
+    expect(readyButton?.dataset.phase).toBeUndefined()
+    expect(readyButton?.dataset.state).toBe('ready')
+    content.stop()
+  })
+
   it('does not inject a button for an unconfirmed movie root', async () => {
     window.history.replaceState({}, '', '/browse?jbv=121')
     document.body.append(createTitleDetails())

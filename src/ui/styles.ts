@@ -50,6 +50,13 @@ const CSS = `
   animation: ep-roulette-dots 1.5s steps(4, end) infinite;
 }
 
+.ep-roulette-btn[data-phase="spawn"] {
+  position: absolute;
+  left: 4%;
+  bottom: 8%;
+  z-index: 2;
+}
+
 @keyframes ep-roulette-dots {
   0% { content: ''; }
   25% { content: '.'; }

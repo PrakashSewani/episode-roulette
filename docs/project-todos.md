@@ -16,15 +16,14 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: Phase 3, UI Injection, is complete. Safari remains the verified live development environment; Chrome live compatibility validation remains deferred to Phase 7.
-- Next implementation phase: Phase 4, Episode Discovery.
-- Completed in this session: Documented the approved Phase 3 boundaries; implemented minimal DOM query/wait utilities, scoped ready-button injection and state handling, centralized styles, stale-safe toast feedback, orchestration injection/cleanup, and Phase 3 unit/integration tests.
-- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 39 tests across 9 test files; `git diff --check` passed; `npm run build` passed; `npm run safari:build` synchronized resources and completed with `BUILD SUCCEEDED`.
+- Current state: Phase 4, Episode Discovery, is complete. Safari remains the verified live development environment; Chrome live compatibility validation remains deferred to Phase 7.
+- Next implementation phase: Phase 5, Random Selection + Playback.
+- Completed in this session: Reopened and completed Phase 3 for the approved spawn indicator; implemented Phase 4 shared catalog/season/identity/error types, generic query and parent-liveness wait utilities, strict implicit/custom-dropdown season control, deterministic episode identity parsing/resolution, durable collection, and uncached atomic all-season traversal with initialization and per-season retries.
+- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 60 tests across 12 files; `git diff --check` passed; `npm run build` passed; `npm run safari:build` synchronized resources and completed with `BUILD SUCCEEDED`.
 - Blockers or unanswered questions: None.
-- Files changed: Phase 2 and Phase 3 docs/tracker; test configuration and dependencies; `src/content.ts`, shared types, Netflix observer/detector/selectors/row validation/minimal DOM utilities, `src/ui/button.ts`, `src/ui/styles.ts`, `src/ui/feedback.ts`; fixtures and tests under `tests/`.
-- Exact next action: Read all Phase 4 discovery specs, check for ambiguity, present a brief Phase 4 plan, and wait for user confirmation before implementation.
-- Required docs for the next agent: `AGENTS.md`, Phase 3 of `docs/implementation-plan.md`, `docs/architecture.md`, `docs/data-model.md`, `docs/error-handling.md`, `docs/module-specs/button.ts.md`, `docs/module-specs/styles.ts.md`, `docs/module-specs/feedback.ts.md`, `docs/module-specs/selectors.ts.md`, `docs/module-specs/content.ts.md`, and `docs/testing.md`.
-- Do not begin Phase 3 UI work until Phase 2 exit criteria are met.
+- Files changed: Phase 3 UI documentation/code/tests; `src/types.ts`, `src/netflix/dom-utils.ts`, `src/netflix/season-controller.ts`, new `src/netflix/episode-identity.ts`, new discovery modules, and Phase 4 unit/integration tests.
+- Exact next action: Read all Phase 5 specs, review the randomization/playback items for ambiguity, present the Phase 5 plan, and wait for user confirmation before implementation.
+- Required docs for the next agent: `AGENTS.md`, Phase 5 of `docs/implementation-plan.md`, `docs/architecture.md`, `docs/data-model.md`, `docs/error-handling.md`, `docs/module-specs/randomizer.ts.md`, `docs/module-specs/navigator.ts.md`, shared season/identity specs, `docs/testing.md`, and this tracker.
 
 ## Phase Tracker
 
@@ -32,8 +31,8 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 |---|---|---|
 | 1. Project Scaffold | complete | Preserve the universal build and Safari packaging contracts. |
 | 2. Netflix SPA Navigation Detection | complete | Preserve the neutral observer, scoped detection, and absolute-deadline contracts. |
-| 3. UI Injection | complete | Preserve scoped injection, ready-state, feedback, and cleanup contracts. |
-| 4. Episode Discovery | not started | Start only after Phase 3 completion. |
+| 3. UI Injection | complete | Preserve spawn feedback, scoped ready placement, states, feedback, and cleanup contracts. |
+| 4. Episode Discovery | complete | Preserve complete uncached traversal, retry, identity, and cancellation contracts. |
 | 5. Random Selection + Playback | not started | Start only after Phase 4 completion. |
 | 6. Integration + Polish | not started | Start only after Phase 5 completion. |
 | 7. Chrome Compatibility Validation | not started | Load the completed universal build in Chrome and run the live compatibility checklist. |
@@ -156,6 +155,9 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 - [x] Remove UI and feedback on navigation cleanup.
 - [x] Add documented unit and fixture tests.
 - [x] Verify Chrome and Safari builds and Phase 3 exit criteria.
+- [x] Show a disabled spawn indicator immediately after series confirmation while Play placement is pending.
+- [x] Replace the indicator with the ready button and remove it on timeout or cancellation.
+- [x] Add indicator lifecycle tests and re-run Phase 3 verification.
 
 **Implemented**:
 
@@ -176,22 +178,38 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Phase 4: Episode Discovery
 
-**Status**: not started
+**Status**: complete
 
 **Todo checklist**:
 
-- [ ] Read all Phase 4 module specs, architecture, data model, selector reference, error handling, and testing docs.
-- [ ] Present the Phase 4 plan and receive user confirmation.
-- [ ] Implement Netflix-agnostic resilient query and abortable wait utilities.
-- [ ] Implement shared season control for implicit seasons and the verified custom dropdown.
-- [ ] Implement deterministic episode identity parsing and live-row resolution primitives.
-- [ ] Implement expansion and stabilized complete-row collection.
-- [ ] Implement exact declared-count validation where available.
-- [ ] Implement durable episode collection with no DOM references.
-- [ ] Implement all-season traversal with one scoped retry per failed season.
-- [ ] Enforce atomic completeness and discard partial results.
-- [ ] Add documented unit and fixture tests.
-- [ ] Verify Chrome and Safari builds and Phase 4 exit criteria.
+- [x] Read all Phase 4 module specs, architecture, data model, selector reference, error handling, and testing docs.
+- [x] Present the Phase 4 plan and receive user confirmation.
+- [x] Implement Netflix-agnostic resilient query and abortable wait utilities.
+- [x] Implement shared season control for implicit seasons and the verified custom dropdown.
+- [x] Implement deterministic episode identity parsing and live-row resolution primitives.
+- [x] Implement expansion and stabilized complete-row collection.
+- [x] Implement exact declared-count validation where available.
+- [x] Implement durable episode collection with no DOM references.
+- [x] Implement all-season traversal with one scoped retry per failed season.
+- [x] Enforce atomic completeness and discard partial results.
+- [x] Add documented unit and fixture tests.
+- [x] Verify Chrome and Safari builds and Phase 4 exit criteria.
+
+**Implemented**:
+
+- Shared durable `Episode`, `SeriesInfo`, `SeasonDescriptor`, row identity, and typed error contracts.
+- Generic first-success query-all/text helpers and abortable element waits with parent-removal detection and complete resource cleanup.
+- Implicit and strict English custom-dropdown season enumeration, scoped menu interaction, active identity validation, expansion, two-frame stabilization, and exact declared-count checks.
+- Shared deterministic title/number parsing, conflict handling, unique live-row resolution, and synchronous durable collection without DOM references.
+- Sequential uncached traversal with separate initialization retry, one retry per failed season, immediate abort propagation, and complete-result-only aggregation.
+
+**Verification evidence**:
+
+- `npx tsc --noEmit` succeeded.
+- `npm test` succeeded: 12 test files, 60 tests.
+- `git diff --check` succeeded.
+- `npm run build` succeeded and emitted the universal Manifest V3 WebExtension.
+- `npm run safari:build` succeeded after resource synchronization; Xcode reported `BUILD SUCCEEDED`.
 
 ## Phase 5: Random Selection + Playback
 

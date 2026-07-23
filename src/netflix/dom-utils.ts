@@ -12,17 +12,39 @@ export function resilientQuery<T extends Element = HTMLElement>(
   return null
 }
 
+export function resilientQueryAll<T extends Element = HTMLElement>(
+  selectors: string[],
+  root: ParentNode = document,
+): T[] {
+  for (const selector of selectors) {
+    const matches = [...root.querySelectorAll<T>(selector)]
+    if (matches.length > 0) {
+      return matches
+    }
+  }
+
+  return []
+}
+
+export function getTextContent(
+  selectors: string[],
+  root: ParentNode,
+): string | null {
+  const text = resilientQuery(selectors, root)?.textContent?.trim()
+  return text ? text : null
+}
+
 function createAbortError(): DOMException {
   return new DOMException('The operation was aborted.', 'AbortError')
 }
 
 export function waitForElement<T extends Element = HTMLElement>(
   selectors: string[],
-  timeoutMs: number,
-  root: ParentNode,
-  signal: AbortSignal,
+  timeoutMs = 5_000,
+  root: Element = document.body,
+  signal?: AbortSignal,
 ): Promise<T | null> {
-  if (signal.aborted) {
+  if (signal?.aborted) {
     return Promise.reject(createAbortError())
   }
 
@@ -38,6 +60,7 @@ export function waitForElement<T extends Element = HTMLElement>(
         settle(() => resolve(match))
       }
     })
+    let livenessObserver: MutationObserver | null = null
     let timeoutId: number | null = window.setTimeout(() => {
       settle(() => resolve(null))
     }, timeoutMs)
@@ -53,11 +76,24 @@ export function waitForElement<T extends Element = HTMLElement>(
         window.clearTimeout(timeoutId)
         timeoutId = null
       }
-      signal.removeEventListener('abort', handleAbort)
+      livenessObserver?.disconnect()
+      livenessObserver = null
+      signal?.removeEventListener('abort', handleAbort)
       complete()
     }
 
     observer.observe(root as Node, { childList: true, subtree: true })
-    signal.addEventListener('abort', handleAbort, { once: true })
+    if (root !== document.body && root.ownerDocument?.documentElement !== null) {
+      livenessObserver = new MutationObserver(() => {
+        if (!root.isConnected) {
+          settle(() => resolve(null))
+        }
+      })
+      livenessObserver.observe(root.ownerDocument.documentElement, {
+        childList: true,
+        subtree: true,
+      })
+    }
+    signal?.addEventListener('abort', handleAbort, { once: true })
   })
 }

@@ -11,7 +11,14 @@ interface OwnedButton {
   controller: ButtonController
 }
 
+interface PendingButton {
+  root: HTMLElement
+  element: HTMLButtonElement
+  promise: Promise<ButtonController | null>
+}
+
 let ownedButton: OwnedButton | null = null
+let pendingButton: PendingButton | null = null
 
 function createButton(): HTMLButtonElement {
   const button = document.createElement('button')
@@ -29,6 +36,19 @@ function createButton(): HTMLButtonElement {
   text.textContent = 'Random Episode'
 
   button.append(icon, text)
+  return button
+}
+
+function createSpawnIndicator(): HTMLButtonElement {
+  const button = createButton()
+  const text = button.querySelector<HTMLElement>('.ep-roulette-text')
+
+  button.dataset.phase = 'spawn'
+  if (text !== null) {
+    text.textContent = 'Loading Episode Roulette'
+  }
+  applyState(button, 'loading')
+  button.setAttribute('aria-label', 'Loading Episode Roulette')
   return button
 }
 
@@ -111,52 +131,83 @@ export async function injectButton(
     return ownedButton.controller
   }
 
+  if (pendingButton?.root === root && pendingButton.element.isConnected) {
+    return pendingButton.promise
+  }
+
   if (ownedButton !== null) {
     if (ownedButton.element.isConnected) {
       return null
     }
     ownedButton.controller.remove()
   }
+  pendingButton?.element.remove()
+  pendingButton = null
   for (const orphan of root.querySelectorAll(BUTTON_SELECTOR)) {
     orphan.remove()
   }
 
-  const playButton = await waitForElement<HTMLElement>(
-    PLAY_BUTTON.selectors,
-    PLAY_BUTTON_TIMEOUT_MS,
+  const indicator = createSpawnIndicator()
+  root.append(indicator)
+
+  const pending: PendingButton = {
     root,
-    signal,
-  )
-  if (playButton === null) {
-    console.warn('[Episode Roulette] Netflix Play button not found')
-    return null
+    element: indicator,
+    promise: Promise.resolve(null),
   }
+  const promise = (async (): Promise<ButtonController | null> => {
+    try {
+      const playButton = await waitForElement<HTMLElement>(
+        PLAY_BUTTON.selectors,
+        PLAY_BUTTON_TIMEOUT_MS,
+        root,
+        signal,
+      )
+      if (pendingButton !== pending) {
+        return null
+      }
+      if (playButton === null) {
+        console.warn('[Episode Roulette] Netflix Play button not found')
+        return null
+      }
 
-  if (signal.aborted) {
-    throw new DOMException('The operation was aborted.', 'AbortError')
-  }
+      if (signal.aborted) {
+        throw new DOMException('The operation was aborted.', 'AbortError')
+      }
 
-  if (ownedButton !== null) {
-    if (
-      ownedButton.root === root
-      && ownedButton.element.isConnected
-      && root.contains(ownedButton.element)
-    ) {
-      return ownedButton.controller
+      if (ownedButton !== null) {
+        if (
+          ownedButton.root === root
+          && ownedButton.element.isConnected
+          && root.contains(ownedButton.element)
+        ) {
+          return ownedButton.controller
+        }
+        if (ownedButton.element.isConnected) {
+          return null
+        }
+        ownedButton.controller.remove()
+      }
+
+      const container = playButton.parentElement
+      if (container === null) {
+        console.warn('[Episode Roulette] Netflix Play button has no parent container')
+        return null
+      }
+
+      indicator.remove()
+      const button = createButton()
+      container.insertBefore(button, playButton.nextSibling)
+      return createController(root, button)
+    } finally {
+      indicator.remove()
+      if (pendingButton === pending) {
+        pendingButton = null
+      }
     }
-    if (ownedButton.element.isConnected) {
-      return null
-    }
-    ownedButton.controller.remove()
-  }
+  })()
 
-  const container = playButton.parentElement
-  if (container === null) {
-    console.warn('[Episode Roulette] Netflix Play button has no parent container')
-    return null
-  }
-
-  const button = createButton()
-  container.insertBefore(button, playButton.nextSibling)
-  return createController(root, button)
+  pending.promise = promise
+  pendingButton = pending
+  return promise
 }
