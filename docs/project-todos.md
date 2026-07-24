@@ -17,12 +17,12 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 ## Current Handoff
 
 - Current state: Phase 7 is blocked only on the user's authenticated Chrome checklist. Under the approved sequencing exception, every local automated Phase 8 gate passes; Phase 8 remains in progress for remote CI execution and the final live Chrome and signed Safari checks.
-- Item currently in progress: Complete the remaining manual and remote release gates without changing the shared implementation unless a documented live incompatibility is found.
-- Completed in this session: Added the Chrome execution checklist, filled the documented lifecycle/observer/season-controller/traversal test gaps, added WebExtension and Safari package assertions, added Ubuntu and macOS GitHub Actions jobs, and corrected built-Safari-resource validation to use the scheme's DerivedData product path.
+- Item currently in progress: Complete the remaining remote CI and manual Chrome/Safari release gates.
+- Completed in this session: Committed and pushed the automated release-gate work as `6c1c78a`. Added the root `knowledge-transfer/` onboarding package covering the current runtime, module ownership, build/testing/release workflow, maintenance procedures, task-specific reading paths, and an evidence-first Amazon Prime Video expansion playbook. Updated `AGENTS.md` to require both normative docs and knowledge-transfer context while preserving `docs/` authority.
 - Verification completed: `npx tsc --noEmit` passed; `npm test` passed 96 tests across 14 files; `npm run build` and `npm run assert:webextension` passed; `npm run safari:build` reported `BUILD SUCCEEDED`; `npm run assert:safari` validated synchronized and built `.appex` resources; `git diff --check` passed.
-- Blockers or unanswered questions: Phase 7 and final release readiness require the user's authenticated Chrome result. Phase 8 also requires a locally signed Safari smoke test and the first GitHub Actions run after these uncommitted workflow changes are pushed.
-- Files changed: Added `.github/workflows/ci.yml`, `CHROME-VALIDATION.md`, and `scripts/assert-packaging.mjs`; updated `package.json`, `README.md`, implementation/tracker docs, and lifecycle, observer, season-controller, and traversal tests.
-- Exact next action: Commit and push the release-gate changes when requested, confirm both CI jobs pass, then record the user's Chrome and signed Safari smoke-test results.
+- Blockers or unanswered questions: Phase 7 and final release readiness still require the user's authenticated Chrome result. Phase 8 also requires a locally signed Safari smoke test and confirmation that the pushed GitHub Actions jobs pass.
+- Files changed: Added seven files under `knowledge-transfer/`; updated `AGENTS.md` and this tracker.
+- Exact next action: Confirm both GitHub Actions jobs pass, then record the user's Chrome and signed Safari smoke-test results.
 - Required docs for the next agent: `AGENTS.md`, Phases 7 and 8 of `docs/implementation-plan.md`, `docs/testing.md`, `docs/safari.md`, `CHROME-VALIDATION.md`, and this tracker.
 
 ## Phase Tracker

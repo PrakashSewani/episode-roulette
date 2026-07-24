@@ -13,6 +13,9 @@ This file governs all AI agent behavior when working on this project. Every agen
 - **All design decisions, architecture, module specs, and implementation plans live in the `docs/` folder.**
 - Before writing ANY code, the agent **must** read and understand the relevant docs.
 - Code must strictly follow what is documented. No shortcuts, no "I know better" deviations.
+- The root `knowledge-transfer/` folder is the required implementation-orientation layer. It explains the current code topology, operational workflows, maintenance risks, and future-provider planning, but it does not override `docs/`.
+- Before substantial work, agents must read both the relevant normative documents and the relevant knowledge-transfer material.
+- If `knowledge-transfer/`, code, and `docs/` disagree, stop and resolve the discrepancy through the authoritative docs and user clarification before implementation.
 
 ### 2. Never Deviate From the Design
 
@@ -65,22 +68,32 @@ This file governs all AI agent behavior when working on this project. Every agen
 - Use the agent's session todo tool for the current turn's concrete work items.
 - Session todos do not replace the persistent tracker. Keep both synchronized when status changes matter beyond the current turn.
 
+### 8. Maintain Knowledge Transfer
+
+- `knowledge-transfer/` is required onboarding and implementation context for every new agent.
+- Update authoritative `docs/` first whenever approved behavior or architecture changes, then update `knowledge-transfer/` so it accurately explains the resulting implementation.
+- Update the knowledge-transfer material when module topology, state ownership, dependency direction, build/release workflow, debugging procedure, or approved provider strategy changes.
+- Do not place normative requirements only in `knowledge-transfer/`; behavioral and architectural decisions belong in `docs/`.
+- Future-provider guides in `knowledge-transfer/` are planning aids only. They do not authorize implementation without an approved implementation-plan phase and normative provider specifications.
+
 ---
 
 ## Workflow
 
 ```
-1. Read docs/ to understand the current state
-2. Read docs/project-todos.md and identify the first incomplete phase
-3. Read every relevant architecture, data-model, module-spec, error-handling, and testing document
-4. If anything is unclear → ASK THE USER
-5. If user provides new info → UPDATE THE DOCS
-6. Present implementation plan for the next task
-7. Get confirmation from user
-8. Mark the phase/item in progress in the persistent tracker and session todos
-9. Implement strictly per docs
-10. Verify against docs and record evidence
-11. Update the persistent tracker and leave an exact handoff if work remains
+1. Read AGENTS.md, docs/project-todos.md, and knowledge-transfer/README.md
+2. Identify the first incomplete phase and the exact current handoff
+3. Read every relevant architecture, data-model, module-spec, error-handling, testing, and knowledge-transfer document
+4. Inspect the current implementation and tests without assuming they override docs
+5. If anything is unclear → ASK THE USER
+6. If user provides new info → UPDATE THE AUTHORITATIVE DOCS
+7. Present implementation plan for the next task
+8. Get confirmation from user
+9. Mark the phase/item in progress in the persistent tracker and session todos
+10. Implement strictly per docs
+11. Verify against docs and record evidence
+12. Update knowledge-transfer material when implementation context changed
+13. Update the persistent tracker and leave an exact handoff if work remains
 ```
 
 ---
@@ -114,6 +127,19 @@ docs/
 └── safari.md                # macOS Safari packaging and validation
 ```
 
+## Knowledge Transfer Structure
+
+```
+knowledge-transfer/
+├── README.md                  # Entry point, authority, and reading order
+├── current-system.md         # Runtime lifecycle, state ownership, and invariants
+├── module-map.md             # File responsibilities, dependencies, and change impact
+├── build-testing-release.md  # Build, CI, Safari packaging, and release workflows
+├── maintenance-playbook.md   # Debugging and safe-change procedures
+├── provider-expansion.md     # Future provider planning; not implementation approval
+└── new-agent-checklist.md    # Task reading paths and session checklist
+```
+
 ---
 
 ## What This Means in Practice
@@ -127,6 +153,9 @@ docs/
 | The user gives you new info mid-task | Update the relevant doc, then continue |
 | You start or finish a phase item | Update `docs/project-todos.md` and the session todo list |
 | You stop before a phase is complete | Leave an exact Current Handoff in `docs/project-todos.md` |
+| You need to understand how current code realizes the specs | Read the relevant file in `knowledge-transfer/`, then inspect source and tests |
+| A change alters module topology or operational workflow | Update authoritative docs if needed, then update `knowledge-transfer/` |
+| You are asked to add Amazon Prime Video | Read `knowledge-transfer/provider-expansion.md`, then require approved normative docs and phase scope before coding |
 
 ---
 
@@ -137,6 +166,8 @@ docs/
 - Skipping a module's spec and just winging it
 - Adding dependencies not listed in docs
 - Changing the project structure without updating `architecture.md`
+- Treating `knowledge-transfer/` as authority over `docs/`
+- Implementing a future-provider proposal from `knowledge-transfer/` without approved normative specs
 - Implementing stretch goals before core is complete (unless explicitly told to)
 
 ---
