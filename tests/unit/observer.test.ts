@@ -84,7 +84,7 @@ describe('SPA observer', () => {
     }])
   })
 
-  it('detects direct and ancestor root removal', async () => {
+  it.each(['direct', 'ancestor'] as const)('detects %s root removal', async (kind) => {
     const events: PageChangeEvent[] = []
     const parent = document.createElement('div')
     const root = document.createElement('div')
@@ -94,7 +94,8 @@ describe('SPA observer', () => {
     events.length = 0
 
     observeTitleRoot(root, 8)
-    parent.remove()
+    if (kind === 'direct') root.remove()
+    else parent.remove()
     await flushMutations()
 
     expect(events).toEqual([{

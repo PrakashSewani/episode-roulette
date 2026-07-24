@@ -196,6 +196,8 @@ No background service worker is registered in Chrome or Safari. All core behavio
 
 **Goal**: Complete automated, packaging, CI, and cross-browser release validation.
 
+**Approved sequencing exception**: Phase 8 automated tests, package assertions, and CI may be implemented while Phase 7 is blocked only on the user's authenticated Chrome smoke test. This does not waive or satisfy Phase 7. Phase 8 and release readiness remain incomplete until the pending live Chrome and final signed Safari checks are reported.
+
 **Modules**:
 - Vitest unit tests for selectors, detector, DOM utilities, parsing, normalization, randomization, and matching
 - jsdom fixture integration tests for orchestration, custom-dropdown traversal, expansion, retries, cancellation, caching, feedback, and playback resolution

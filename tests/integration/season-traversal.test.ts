@@ -22,7 +22,10 @@ function createImplicitFixture(): HTMLElement {
   return root
 }
 
-function createDropdownFixture({ seasonTwoMenuFailures = 0 } = {}): HTMLElement {
+function createDropdownFixture({
+  expandSeasonTwo = false,
+  seasonTwoMenuFailures = 0,
+} = {}): HTMLElement {
   const root = document.createElement('div')
   const selector = document.createElement('div')
   selector.dataset.uia = 'episode-selector'
@@ -46,7 +49,7 @@ function createDropdownFixture({ seasonTwoMenuFailures = 0 } = {}): HTMLElement 
     menusOpened += 1
     menu.dataset.uia = 'dropdown-menu'
     menu.setAttribute('role', 'menu')
-    for (const [season, count] of [[1, 1], [2, 2]]) {
+    for (const [season, count] of [[1, 1], [2, expandSeasonTwo ? 3 : 2]]) {
       if (season === 2 && menusOpened > 1 && seasonTwoMenuFailures > 0) {
         seasonTwoMenuFailures -= 1
         continue
@@ -62,7 +65,18 @@ function createDropdownFixture({ seasonTwoMenuFailures = 0 } = {}): HTMLElement 
           row.remove()
         }
         appendRow(selector, `S${season} A`, 1)
-        if (season === 2) appendRow(selector, 'S2 B', 2)
+        if (season === 2 && expandSeasonTwo) {
+          appendRow(selector, 'S2 B', 2)
+          const expand = document.createElement('button')
+          expand.dataset.uia = 'section-expand'
+          expand.addEventListener('click', () => {
+            expand.remove()
+            appendRow(selector, 'S2 C', 3)
+          })
+          selector.append(expand)
+        } else if (season === 2) {
+          appendRow(selector, 'S2 B', 2)
+        }
       })
       menu.append(item)
     }
@@ -153,6 +167,16 @@ describe('season traversal', () => {
     ])
   })
 
+  it('expands a dropdown season and validates its declared count', async () => {
+    const root = createDropdownFixture({ expandSeasonTwo: true })
+    const result = await discoverEpisodes('201', root, new AbortController().signal)
+
+    expect(result.episodes.map((episode) => episode.title)).toEqual([
+      'S1 A', 'S2 A', 'S2 B', 'S2 C',
+    ])
+    expect(root.querySelector('[data-uia="section-expand"]')).toBeNull()
+  })
+
   it('collects name-only seasons with durable normalized identity', async () => {
     const result = await discoverEpisodes(
       '21',
@@ -184,6 +208,36 @@ describe('season traversal', () => {
     const root = createDropdownFixture({ seasonTwoMenuFailures: 2 })
     await expect(discoverEpisodes('40', root, new AbortController().signal))
       .rejects.toMatchObject({ name: 'DiscoveryIncompleteError' })
+  })
+
+  it('re-queries and retries an implicit season once', async () => {
+    vi.useFakeTimers()
+    const root = document.createElement('div')
+    const selector = document.createElement('div')
+    selector.dataset.uia = 'episode-selector'
+    appendRow(selector, 'Pilot', 1)
+    const expand = document.createElement('button')
+    expand.dataset.uia = 'section-expand'
+    let clicks = 0
+    expand.addEventListener('click', () => {
+      clicks += 1
+      if (clicks === 2) {
+        expand.remove()
+        appendRow(selector, 'Second', 2)
+      }
+    })
+    selector.append(expand)
+    root.append(selector)
+    document.body.append(root)
+
+    const operation = discoverEpisodes('41', root, new AbortController().signal)
+    await vi.advanceTimersByTimeAsync(10_000)
+    await vi.runAllTimersAsync()
+
+    await expect(operation).resolves.toMatchObject({
+      episodes: [{ title: 'Pilot' }, { title: 'Second' }],
+    })
+    expect(clicks).toBe(2)
   })
 
   it('propagates abort immediately without retrying', async () => {

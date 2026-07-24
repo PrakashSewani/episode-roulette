@@ -12,6 +12,7 @@ const observerHarness = vi.hoisted(() => ({
   clearTitleObservation: vi.fn(),
   observeForTitleRoot: vi.fn(),
   observeTitleRoot: vi.fn(),
+  onStart: vi.fn(),
   onStop: vi.fn(),
 }))
 
@@ -25,7 +26,7 @@ vi.mock('../../src/netflix/observer', () => ({
   clearTitleObservation: observerHarness.clearTitleObservation,
   observeForTitleRoot: observerHarness.observeForTitleRoot,
   observeTitleRoot: observerHarness.observeTitleRoot,
-  onStart: vi.fn((callback: typeof observerHarness.callback) => {
+  onStart: observerHarness.onStart.mockImplementation((callback: typeof observerHarness.callback) => {
     observerHarness.callback = callback
     callback?.({ type: 'route-changed', url: window.location.href })
   }),
@@ -95,6 +96,7 @@ describe('Phase 2 content lifecycle', () => {
     )
     expect(buttons).toHaveLength(1)
     expect(buttons[0]?.dataset.state).toBe('ready')
+    expect(playbackHarness.discoverEpisodes).not.toHaveBeenCalled()
     buttons[0]?.click()
     expect(buttons[0]?.dataset.state).toBe('loading')
     content.stop()
@@ -242,6 +244,64 @@ describe('Phase 2 content lifecycle', () => {
     content.stop()
   })
 
+  it('stops after one stale-catalog refresh', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=1261')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    const content = await import('../../src/content')
+    const { CacheValidationMismatchError } = await import('../../src/types')
+    playbackHarness.playEpisode
+      .mockRejectedValueOnce(new CacheValidationMismatchError('stale once'))
+      .mockRejectedValueOnce(new CacheValidationMismatchError('stale twice'))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await flushPromises()
+
+    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
+    await vi.waitFor(() => {
+      expect(root.querySelector<HTMLButtonElement>(
+        '[data-uia="random-episode-btn"]',
+      )?.dataset.state).toBe('error')
+    })
+
+    expect(playbackHarness.discoverEpisodes).toHaveBeenCalledTimes(2)
+    expect(playbackHarness.playEpisode).toHaveBeenCalledTimes(2)
+    expect(document.querySelector('.ep-roulette-toast')?.textContent)
+      .toBe('Could not open the selected episode. Try again.')
+    expect(errorSpy).toHaveBeenCalled()
+    content.stop()
+  })
+
+  it('preserves a complete catalog when an overlay closes and reopens', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=1262')
+    let root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    playbackHarness.playEpisode.mockRejectedValue(new Error('keep overlay open'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const content = await import('../../src/content')
+    await flushPromises()
+
+    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
+    await vi.waitFor(() => expect(playbackHarness.pickRandom).toHaveBeenCalledOnce())
+    window.history.replaceState({}, '', '/browse')
+    observerHarness.callback?.({ type: 'route-changed', url: window.location.href })
+    root.remove()
+
+    window.history.replaceState({}, '', '/browse?jbv=1262')
+    root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    observerHarness.callback?.({ type: 'route-changed', url: window.location.href })
+    await vi.waitFor(() => {
+      expect(root.querySelector<HTMLElement>(
+        '[data-uia="random-episode-btn"]',
+      )?.dataset.state).toBe('ready')
+    })
+    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')!.click()
+    await vi.waitFor(() => expect(playbackHarness.pickRandom).toHaveBeenCalledTimes(2))
+
+    expect(playbackHarness.discoverEpisodes).toHaveBeenCalledOnce()
+    content.stop()
+  })
+
   it('turns a missing watch transition into a playback error toast', async () => {
     vi.useFakeTimers()
     window.history.replaceState({}, '', '/browse?jbv=127')
@@ -385,6 +445,44 @@ describe('Phase 2 content lifecycle', () => {
     content.stop()
   })
 
+  it('aborts title A and suppresses its late discovery result after navigating to B', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=141')
+    const rootA = createTitleDetails({ episodic: true })
+    document.body.append(rootA)
+    let resolveA!: (value: Awaited<ReturnType<typeof playbackHarness.discoverEpisodes>>) => void
+    const delayedA = new Promise((resolve) => { resolveA = resolve })
+    playbackHarness.discoverEpisodes.mockReturnValueOnce(delayedA)
+    const content = await import('../../src/content')
+    await flushPromises()
+    rootA.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
+    const signalA = playbackHarness.discoverEpisodes.mock.calls[0]?.[2] as AbortSignal
+
+    rootA.remove()
+    const rootB = createTitleDetails({ episodic: true })
+    document.body.append(rootB)
+    window.history.replaceState({}, '', '/browse?jbv=142')
+    observerHarness.callback?.({ type: 'route-changed', url: window.location.href })
+    await flushPromises()
+    expect(signalA.aborted).toBe(true)
+
+    resolveA({
+      id: '141', totalSeasons: 1,
+      episodes: [{
+        seriesId: '141', seasonKey: 'implicit', seasonLabel: 'Episodes',
+        seasonNumber: null, episodeIndex: 0, episodeNumber: 1,
+        title: 'Late A', discoveredSeasonEpisodeCount: 1,
+      }],
+      discoveredAt: 1,
+    })
+    await flushPromises()
+
+    expect(playbackHarness.pickRandom).not.toHaveBeenCalled()
+    expect(playbackHarness.playEpisode).not.toHaveBeenCalled()
+    expect(rootB.querySelector('[data-uia="random-episode-btn"]')).not.toBeNull()
+    expect(document.querySelector('.ep-roulette-toast')).toBeNull()
+    content.stop()
+  })
+
   it('reattaches scoped observation for a same-title URL change', async () => {
     window.history.replaceState({}, '', '/browse?jbv=16')
     const root = createTitleDetails({ episodic: true })
@@ -424,5 +522,35 @@ describe('Phase 2 content lifecycle', () => {
     expect(document.querySelectorAll('#ep-roulette-styles')).toHaveLength(1)
     content.stop()
     expect(document.getElementById('ep-roulette-styles')).toBeNull()
+  })
+
+  it('handles repeated start/stop and pagehide teardown while clearing cache', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=18')
+    let root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    playbackHarness.playEpisode.mockRejectedValue(new Error('retain cache'))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const content = await import('../../src/content')
+    await flushPromises()
+    content.start()
+    expect(observerHarness.onStart).toHaveBeenCalledOnce()
+
+    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
+    await vi.waitFor(() => expect(playbackHarness.discoverEpisodes).toHaveBeenCalledOnce())
+    window.dispatchEvent(new PageTransitionEvent('pagehide'))
+    expect(observerHarness.onStop).toHaveBeenCalled()
+    expect(document.getElementById('ep-roulette-styles')).toBeNull()
+    expect(document.querySelector('[data-uia="random-episode-btn"]')).toBeNull()
+    expect(document.querySelector('.ep-roulette-toast')).toBeNull()
+    content.stop()
+
+    root.remove()
+    root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    content.start()
+    await flushPromises()
+    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
+    await vi.waitFor(() => expect(playbackHarness.discoverEpisodes).toHaveBeenCalledTimes(2))
+    content.stop()
   })
 })

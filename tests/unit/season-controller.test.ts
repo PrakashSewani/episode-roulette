@@ -126,6 +126,87 @@ describe('season control', () => {
     expect(root.querySelector('[data-uia="dropdown-menu"]')).toBeNull()
   })
 
+  it('parses numeric and named labels with and without counts', async () => {
+    const { root, episodeSelector, toggle } = createDropdownFixture()
+    toggle.click()
+    const menu = root.querySelector('[data-uia="dropdown-menu"]')!
+    menu.replaceChildren()
+    for (const text of [
+      'Season 3',
+      'Season 4\n(4 Episodes)',
+      'Phantom Blood',
+      'Battle Tendency\n(17 Episodes)',
+    ]) {
+      const item = document.createElement('button')
+      item.dataset.uia = 'dropdown-menu-item'
+      item.setAttribute('role', 'menuitem')
+      item.textContent = text
+      menu.append(item)
+    }
+
+    await expect(enumerateSeasons(
+      root, episodeSelector, performance.now() + 5_000,
+      new AbortController().signal,
+    )).resolves.toEqual([
+      { key: 'season 3', label: 'Season 3', seasonNumber: 3, expectedEpisodeCount: null },
+      { key: 'season 4', label: 'Season 4', seasonNumber: 4, expectedEpisodeCount: 4 },
+      {
+        key: 'label:phantom blood', label: 'Phantom Blood', seasonNumber: null,
+        expectedEpisodeCount: null,
+      },
+      {
+        key: 'label:battle tendency', label: 'Battle Tendency', seasonNumber: null,
+        expectedEpisodeCount: 17,
+      },
+    ])
+  })
+
+  it('ignores a matching dropdown menu outside the title root', async () => {
+    const { root, episodeSelector, toggle } = createDropdownFixture()
+    const decoy = document.createElement('div')
+    decoy.dataset.uia = 'dropdown-menu'
+    decoy.setAttribute('role', 'menu')
+    const decoyItem = document.createElement('button')
+    decoyItem.dataset.uia = 'dropdown-menu-item'
+    decoyItem.setAttribute('role', 'menuitem')
+    decoyItem.textContent = 'Wrong Season\n(99 Episodes)'
+    decoy.append(decoyItem)
+    document.body.prepend(decoy)
+
+    const seasons = await enumerateSeasons(
+      root, episodeSelector, performance.now() + 5_000,
+      new AbortController().signal,
+    )
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(seasons.map((season) => season.label)).toEqual(['Season 1', 'Season 2'])
+  })
+
+  it('aborts while waiting for the scoped season menu', async () => {
+    const root = document.createElement('div')
+    const episodeSelector = document.createElement('div')
+    episodeSelector.dataset.uia = 'episode-selector'
+    const toggle = document.createElement('button')
+    toggle.dataset.uia = 'dropdown-toggle'
+    toggle.setAttribute('aria-haspopup', 'true')
+    toggle.textContent = 'Season 1'
+    episodeSelector.append(toggle)
+    appendRow(episodeSelector, 'One')
+    root.append(episodeSelector)
+    document.body.append(root)
+    const clickSpy = vi.spyOn(toggle, 'click')
+    const controller = new AbortController()
+
+    const operation = enumerateSeasons(
+      root, episodeSelector, performance.now() + 5_000, controller.signal,
+    )
+    controller.abort()
+
+    await expect(operation).rejects.toMatchObject({ name: 'AbortError' })
+    expect(clickSpy).toHaveBeenCalledOnce()
+    expect(root.querySelector('[data-uia="dropdown-menu-item"]')).toBeNull()
+  })
+
   it('enumerates name-only seasons and rejects duplicate normalized keys', async () => {
     const { root, episodeSelector, toggle } = createDropdownFixture()
     toggle.click()

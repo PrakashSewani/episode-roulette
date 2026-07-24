@@ -93,6 +93,8 @@ Maintainers use `npm run safari:init` only for the initial wrapper bootstrap or 
 
 Full design docs live in `docs/`. Start with `docs/implementation-plan.md`.
 
+Use `CHROME-VALIDATION.md` for the root-level Chrome installation and live Netflix checklist.
+
 Agent instructions are in `AGENTS.md`.
 
 ## License

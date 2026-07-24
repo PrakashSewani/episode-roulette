@@ -16,14 +16,14 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: Phase 6, Integration + Polish, is complete after live Safari validation of named-season traversal and playback. Phase 7 Chrome Compatibility Validation is next.
-- Item currently in progress: None.
-- Completed in this session: Added numeric and arbitrary named-season identity, including JoJo-style name-only labels; generalized feedback to polite selection and assertive error toasts; implemented complete-catalog caching, one stale-cache refresh, persistent retryable errors, and five-second `/watch/` confirmation. Revised stability to depend only on episode-row identity snapshots so continuous thumbnail/layout mutations cannot block complete collection.
-- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 86 tests across 14 files; `git diff --check` passed; `npm run build` passed; `npm run safari:build` synchronized resources and completed with `BUILD SUCCEEDED`. The user confirmed the rebuilt Safari extension successfully traverses and plays JoJo's Bizarre Adventure with named seasons, including the previously failing `Diamond Is Unbreakable` path.
-- Blockers or unanswered questions: None for Phase 6. Chrome live compatibility remains intentionally deferred to Phase 7.
-- Files changed: Updated source-of-truth docs and README; changed `src/content.ts`, `src/netflix/season-controller.ts`, `src/ui/feedback.ts`, and `src/ui/styles.ts`; extended season, navigator, feedback, traversal, and content lifecycle tests.
-- Exact next action: Run the documented Phase 7 Chrome compatibility checklist against the unchanged universal build.
-- Required docs for the next agent: `AGENTS.md`, Phase 7 of `docs/implementation-plan.md`, `docs/architecture.md`, `docs/testing.md`, `docs/safari.md`, and this tracker.
+- Current state: Phase 7 is blocked only on the user's authenticated Chrome checklist. Under the approved sequencing exception, every local automated Phase 8 gate passes; Phase 8 remains in progress for remote CI execution and the final live Chrome and signed Safari checks.
+- Item currently in progress: Complete the remaining manual and remote release gates without changing the shared implementation unless a documented live incompatibility is found.
+- Completed in this session: Added the Chrome execution checklist, filled the documented lifecycle/observer/season-controller/traversal test gaps, added WebExtension and Safari package assertions, added Ubuntu and macOS GitHub Actions jobs, and corrected built-Safari-resource validation to use the scheme's DerivedData product path.
+- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 96 tests across 14 files; `npm run build` and `npm run assert:webextension` passed; `npm run safari:build` reported `BUILD SUCCEEDED`; `npm run assert:safari` validated synchronized and built `.appex` resources; `git diff --check` passed.
+- Blockers or unanswered questions: Phase 7 and final release readiness require the user's authenticated Chrome result. Phase 8 also requires a locally signed Safari smoke test and the first GitHub Actions run after these uncommitted workflow changes are pushed.
+- Files changed: Added `.github/workflows/ci.yml`, `CHROME-VALIDATION.md`, and `scripts/assert-packaging.mjs`; updated `package.json`, `README.md`, implementation/tracker docs, and lifecycle, observer, season-controller, and traversal tests.
+- Exact next action: Commit and push the release-gate changes when requested, confirm both CI jobs pass, then record the user's Chrome and signed Safari smoke-test results.
+- Required docs for the next agent: `AGENTS.md`, Phases 7 and 8 of `docs/implementation-plan.md`, `docs/testing.md`, `docs/safari.md`, `CHROME-VALIDATION.md`, and this tracker.
 
 ## Phase Tracker
 
@@ -35,8 +35,8 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 | 4. Episode Discovery | complete | Preserve complete uncached traversal, retry, identity, and cancellation contracts. |
 | 5. Random Selection + Playback | complete | Preserve the verified live playback and readiness contracts. |
 | 6. Integration + Polish | complete | Preserve named-season identity, row-snapshot stability, cache, feedback, and playback-confirmation contracts. |
-| 7. Chrome Compatibility Validation | not started | Load the completed universal build in Chrome and run the live compatibility checklist. |
-| 8. Testing + Validation | not started | Complete automated, CI, packaging, and final cross-browser release gates. |
+| 7. Chrome Compatibility Validation | blocked | User runs the pending live Chrome checklist in `CHROME-VALIDATION.md`. |
+| 8. Testing + Validation | in progress | Run CI and complete the live Chrome and locally signed Safari smoke checks. |
 
 ## Phase 1: Project Scaffold
 
@@ -278,14 +278,14 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Phase 7: Chrome Compatibility Validation
 
-**Status**: not started
+**Status**: blocked
 
 **Todo checklist**:
 
-- [ ] Complete Phases 2 through 6 before beginning Chrome compatibility validation.
-- [ ] Run the production universal build.
+- [x] Complete Phases 2 through 6 before beginning Chrome compatibility validation.
+- [x] Run the production universal build.
 - [ ] Load `dist/webextension/` unchanged through `chrome://extensions` as an unpacked extension.
-- [ ] Confirm the manifest installs with Netflix-only access and no background service worker.
+- [ ] Confirm the manifest installs in Chrome with Netflix-only access and no background service worker. Automated manifest inspection passed; live installation remains pending.
 - [ ] Confirm the content script loads on Netflix in a logged-in normal profile.
 - [ ] Run route detection and movie/series classification checks.
 - [ ] Run button injection, cleanup, ready/loading/error state, and toast checks.
@@ -297,16 +297,17 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Phase 8: Testing + Validation
 
-**Status**: not started
+**Status**: in progress
 
 **Todo checklist**:
 
-- [ ] Complete all required Vitest unit tests.
-- [ ] Complete reusable jsdom Netflix fixture builders.
-- [ ] Complete all required fixture integration scenarios.
-- [ ] Add CI using Node 24, `npm ci`, `npm test`, and `npm run build`.
-- [ ] Add the macOS CI unsigned `npm run safari:build` job.
-- [ ] Verify manifest and Safari package assertions automatically.
+- [x] Complete all required Vitest unit tests.
+- [x] Complete reusable jsdom Netflix fixture builders.
+- [x] Complete all required fixture integration scenarios.
+- [x] Add CI using Node 24, `npm ci`, `npm test`, and `npm run build`.
+- [x] Add the macOS CI unsigned `npm run safari:build` job.
+- [x] Verify manifest and Safari package assertions automatically.
+- [ ] Confirm the WebExtension and Safari jobs pass in GitHub Actions.
 - [ ] Run the full manual Chrome smoke checklist on live Netflix.
 - [ ] Run the full locally signed macOS Safari smoke checklist on live Netflix.
 - [ ] Record failures and current selector evidence if live Netflix behavior differs from the docs.

@@ -7,6 +7,8 @@
     "node": "^24.0.0"
   },
   "scripts": {
+    "assert:safari": "node scripts/assert-packaging.mjs safari",
+    "assert:webextension": "node scripts/assert-packaging.mjs webextension",
     "build": "vite build",
     "test": "vitest run",
     "safari:init": "npm run build && node scripts/safari-init.mjs",

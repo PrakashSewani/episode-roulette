@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  webextension:
+    name: WebExtension / Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit and fixture integration tests
+        run: npm test
+
+      - name: Build universal WebExtension
+        run: npm run build
+
+      - name: Assert WebExtension package
+        run: npm run assert:webextension
+
+  safari:
+    name: Safari / macOS
+    runs-on: macos-latest
+    env:
+      EPISODE_ROULETTE_BUILD_NUMBER: ${{ github.run_number }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit and fixture integration tests
+        run: npm test
+
+      - name: Build universal WebExtension
+        run: npm run build
+
+      - name: Assert WebExtension package
+        run: npm run assert:webextension
+
+      - name: Verify selected Xcode
+        run: |
+          xcode-select -p
+          xcodebuild -version
+
+      - name: Build unsigned Safari wrapper
+        run: npm run safari:build
+
+      - name: Assert Safari package
+        run: npm run assert:safari
