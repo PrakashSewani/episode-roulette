@@ -160,9 +160,10 @@ On each valid button click:
 2. If absent, run complete discovery.
 3. Verify the operation generation, active title ID, and abort state immediately before storing the complete returned catalog.
 4. Call `pickRandom()` independently over the entire episode array.
-5. Attempt live playback resolution.
-6. If playback reports a cache-validation mismatch, clear only this series entry, run one fresh complete discovery, generation-guard its cache write, independently select again from the refreshed complete catalog, and retry playback once.
-7. If the refreshed attempt fails, show the normal retryable error.
+5. Verify the operation is current and show a five-second selection status containing season label, episode number or one-based position, and title when available.
+6. Attempt live playback resolution.
+7. If playback reports a cache-validation mismatch, clear only this series entry, run one fresh complete discovery, generation-guard its cache write, independently select again from the refreshed complete catalog, replace the prior selection toast with the refreshed selection, and retry playback once.
+8. If the refreshed attempt fails, replace the selection toast with the normal retryable error.
 
 Error dispatch is exact:
 
@@ -176,6 +177,8 @@ Error dispatch is exact:
 The selected episode from the stale catalog is not preserved across rediscovery because it may no longer exist. A fresh independent selection maintains uniform randomness over the refreshed catalog.
 
 No selected episode, playback result, or repeat-prevention state is retained after the operation.
+
+Selection feedback reports what was chosen, not that playback has succeeded. It appears immediately after the guarded random selection so the user can see the result while Netflix switches seasons. `/watch/` confirmation remains the success criterion for the operation lifecycle.
 
 ## Button State Machine
 

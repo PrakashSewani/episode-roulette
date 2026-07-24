@@ -6,6 +6,8 @@ let dismissTimer: number | null = null
 let exitTimer: number | null = null
 let toastToken = 0
 
+type ToastKind = 'error' | 'status'
+
 function clearTimers(): void {
   if (dismissTimer !== null) {
     window.clearTimeout(dismissTimer)
@@ -24,16 +26,18 @@ export function dismissToast(): void {
   currentToast = null
 }
 
-export function showErrorToast(
+function showToast(
   message: string,
+  kind: ToastKind,
   duration = DEFAULT_DURATION_MS,
 ): void {
   dismissToast()
   const token = toastToken
   const toast = document.createElement('div')
   toast.className = 'ep-roulette-toast'
-  toast.setAttribute('role', 'alert')
-  toast.setAttribute('aria-live', 'assertive')
+  toast.dataset.kind = kind
+  toast.setAttribute('role', kind === 'error' ? 'alert' : 'status')
+  toast.setAttribute('aria-live', kind === 'error' ? 'assertive' : 'polite')
   toast.textContent = message
   document.body.append(toast)
   currentToast = toast
@@ -55,4 +59,18 @@ export function showErrorToast(
       currentToast = null
     }, EXIT_DURATION_MS)
   }, duration)
+}
+
+export function showErrorToast(
+  message: string,
+  duration = DEFAULT_DURATION_MS,
+): void {
+  showToast(message, 'error', duration)
+}
+
+export function showStatusToast(
+  message: string,
+  duration = DEFAULT_DURATION_MS,
+): void {
+  showToast(message, 'status', duration)
 }

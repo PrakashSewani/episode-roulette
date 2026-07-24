@@ -2,16 +2,17 @@
 
 ## Purpose
 
-Own error-toast DOM and timer lifecycle. Button states and loading animation are owned by `button.ts`; all CSS is owned by `styles.ts`.
+Own status/error toast DOM and timer lifecycle. Button states and loading animation are owned by `button.ts`; all CSS is owned by `styles.ts`.
 
 ---
 
 ## Responsibilities
 
-1. Show one five-second error toast when a user-requested operation fails
-2. Replace or dismiss existing toast state safely
-3. Clear all toast timers during replacement, retry, navigation, and teardown
-4. Provide user-friendly error messages
+1. Show one five-second status toast immediately after a random episode is selected
+2. Show one five-second error toast when a user-requested operation fails
+3. Replace or dismiss existing toast state safely
+4. Clear all toast timers during replacement, retry, navigation, and teardown
+5. Provide user-friendly messages
 
 ---
 
@@ -42,6 +43,16 @@ showErrorToast(message)
 ```
 
 The error button remains clickable. A retry dismisses any existing toast before changing the button to loading.
+
+## Selection Feedback
+
+Immediately after `pickRandom()` and the final current-context guard, `content.ts` shows a polite status toast before season reactivation begins. The message includes durable selection information:
+
+```text
+Selected Season 2, Episode 5: The Episode Title
+```
+
+For named seasons, use the season label directly. If `episodeNumber` is unavailable, use the one-based discovered position (`episodeIndex + 1`) and prefix it with `Episode`. If the title is `Unknown Episode`, omit the title suffix. A later playback or discovery failure replaces this toast with the exact error toast.
 
 ### Error Toast
 
@@ -123,6 +134,9 @@ Use friendly, non-technical messages:
  */
 export function showErrorToast(message: string, duration?: number): void
 
+/** Show a polite selection/status toast notification. */
+export function showStatusToast(message: string, duration?: number): void
+
 /**
  * Remove any existing toast.
  */
@@ -142,6 +156,7 @@ Before showing or dismissing a toast, clear all prior timer IDs and invalidate t
 | Case | Behavior |
 |------|----------|
 | Multiple errors in quick succession | Only show latest toast |
+| Selection followed by playback failure | Replace selection status with the failure toast |
 | Toast still visible when new error occurs | Replace existing toast |
 | User navigates away | Remove toast |
 | User clicks retry while toast is visible | Dismiss toast immediately, then start loading |

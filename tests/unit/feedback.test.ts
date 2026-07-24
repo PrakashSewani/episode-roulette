@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { dismissToast, showErrorToast } from '../../src/ui/feedback'
+import { dismissToast, showErrorToast, showStatusToast } from '../../src/ui/feedback'
 
 describe('error feedback', () => {
   afterEach(() => dismissToast())
@@ -39,5 +39,21 @@ describe('error feedback', () => {
     expect(document.querySelector('.ep-roulette-toast')).toBeNull()
     vi.runAllTimers()
     expect(document.querySelector('.ep-roulette-toast')).toBeNull()
+  })
+
+  it('shows polite status feedback and lets an error replace it', () => {
+    vi.useFakeTimers()
+    showStatusToast('Selected Phantom Blood, Episode 3: Youth with Dio')
+    const status = document.querySelector('.ep-roulette-toast')!
+    expect(status.getAttribute('role')).toBe('status')
+    expect(status.getAttribute('aria-live')).toBe('polite')
+    expect((status as HTMLElement).dataset.kind).toBe('status')
+
+    showErrorToast('Could not open the selected episode. Try again.')
+    const error = document.querySelector('.ep-roulette-toast')!
+    expect(error).not.toBe(status)
+    expect(error.getAttribute('role')).toBe('alert')
+    expect(error.getAttribute('aria-live')).toBe('assertive')
+    expect((error as HTMLElement).dataset.kind).toBe('error')
   })
 })

@@ -40,21 +40,42 @@ function normalizeLines(element: Element): string[] {
     .filter(Boolean)
 }
 
+function parseSeasonIdentity(label: string): Pick<SeasonDescriptor, 'key' | 'label' | 'seasonNumber'> {
+  const normalizedLabel = label.normalize('NFKC').trim().replace(/\s+/gu, ' ')
+  if (normalizedLabel === '') {
+    throw new SeasonControllerError('unsupported-layout', 'Season label is empty')
+  }
+
+  const seasonMatch = normalizedLabel.match(/^season (\d+)$/iu)
+  const seasonNumber = seasonMatch?.[1] === undefined
+    ? null
+    : Number(seasonMatch[1])
+  if (seasonNumber !== null) {
+    if (!Number.isSafeInteger(seasonNumber) || seasonNumber <= 0) {
+      throw new SeasonControllerError(
+        'unsupported-layout',
+        `Unsupported season option: ${normalizedLabel}`,
+      )
+    }
+    return {
+      key: `season ${seasonNumber}`,
+      label: normalizedLabel,
+      seasonNumber,
+    }
+  }
+
+  return {
+    key: `label:${normalizedLabel.toLocaleLowerCase('en-US')}`,
+    label: normalizedLabel,
+    seasonNumber: null,
+  }
+}
+
 function parseSeasonElement(element: Element): SeasonDescriptor | null {
   const lines = normalizeLines(element)
   const firstLine = lines[0] ?? ''
   if (/^see all episodes$/iu.test(firstLine)) return null
-
-  const seasonMatch = firstLine.match(/^season (\d+)$/iu)
-  const seasonNumber = seasonMatch?.[1] === undefined
-    ? Number.NaN
-    : Number(seasonMatch[1])
-  if (!Number.isSafeInteger(seasonNumber) || seasonNumber <= 0) {
-    throw new SeasonControllerError(
-      'unsupported-layout',
-      `Unsupported season option: ${firstLine || '(empty)'}`,
-    )
-  }
+  const identity = parseSeasonIdentity(firstLine)
 
   let expectedEpisodeCount: number | null = null
   for (const line of lines.slice(1)) {
@@ -68,9 +89,7 @@ function parseSeasonElement(element: Element): SeasonDescriptor | null {
   }
 
   return {
-    key: `season ${seasonNumber}`,
-    label: firstLine,
-    seasonNumber,
+    ...identity,
     expectedEpisodeCount,
   }
 }
@@ -327,7 +346,6 @@ function waitForStableRows(
     let timer: number | null = null
     let previousSnapshot: string | null = null
     let stableFrames = 0
-    let dirty = true
 
     const cleanup = (): void => {
       observer?.disconnect()
@@ -346,12 +364,11 @@ function waitForStableRows(
       const snapshot = snapshotRows(episodeSelector)
       if (rows.length < minimumReadyRowCount(season)) {
         stableFrames = 0
-      } else if (!dirty && snapshot === previousSnapshot) {
+      } else if (snapshot === previousSnapshot) {
         stableFrames += 1
       } else {
         stableFrames = 0
       }
-      dirty = false
       previousSnapshot = snapshot
       if (stableFrames >= 2) {
         cleanup()
@@ -361,14 +378,7 @@ function waitForStableRows(
       frameId = window.requestAnimationFrame(check)
     }
 
-    observer = new MutationObserver((mutations) => {
-      if (mutations.some((mutation) => mutation.type === 'childList'
-        || (mutation.type === 'attributes' && [
-          'class', 'style', 'hidden', 'aria-hidden', 'role',
-        ].includes(mutation.attributeName ?? '')))) {
-        dirty = true
-      }
-    })
+    observer = new MutationObserver(() => {})
     observer.observe(episodeSelector, {
       childList: true,
       subtree: true,

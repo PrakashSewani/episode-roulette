@@ -226,12 +226,14 @@ Native `<select>`, tab bars, and accordions are not core-release requirements un
 - Toggle: `[data-uia="dropdown-toggle"][aria-haspopup="true"]`
 - Menu: `[data-uia="dropdown-menu"][role="menu"]`
 - Season item: `[data-uia="dropdown-menu-item"][role="menuitem"]`
-- Current season identity: normalized toggle text, such as `Season 7`
+- Current season identity: normalized toggle text, such as `Season 7` or `Phantom Blood`
 - Menu item metadata may include an expected count, such as `(24 Episodes)`
 
 These selectors were verified on Netflix desktop in July 2026 and remain centralized fallbacks rather than permanent assumptions.
 
-**Language scope**: First-release season-label and expected-count parsing supports English Netflix UI only. Unsupported labels or locales fail safely and require separate live observation before support is claimed.
+**Season identity scope**: Numeric labels retain canonical keys such as `season 7`. Any other non-empty dropdown label is supported as a named season; its canonical key is `label:<normalized label>` and `seasonNumber` is `null`. The active toggle is matched through the same normalized label identity. Known actions such as `See All Episodes` are ignored through an explicit denylist; newly observed action labels must be documented before being added. Duplicate normalized season identities fail safely.
+
+**Language scope**: Season names are identity text and need not contain English numbering. Optional expected-count parsing and the documented action denylist remain English Netflix UI contracts; additional locales require separate validation.
 
 ### 10. Expand Truncated Episode Sections
 

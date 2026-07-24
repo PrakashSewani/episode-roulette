@@ -64,9 +64,10 @@ npm test
 - User click starts discovery; opening the overlay alone does not
 - Custom-dropdown enumeration, switching, expansion, and exact count validation
 - Switched multi-episode seasons ignore transient zero-row and one-row renders until at least two valid rows exist
+- Continuous thumbnail/layout mutations inside unchanged episode rows do not prevent stable collection
 - One season retry followed by success or atomic failure
 - Implicit-season failure uses the same one retry
-- English season/count parser ignores only known actions; unsupported selectable labels and duplicate keys fail safely
+- Season/count parser supports numeric and named labels with or without counts; it ignores documented actions and fails duplicate keys safely
 - A-to-B route cancellation and stale-generation suppression
 - Liveness-observer direct/ancestor root-removal detection while route watching remains active
 - Idempotent start/stop and pagehide teardown
@@ -77,6 +78,7 @@ npm test
 - Phase 5 uncached button flow performs fresh discovery per click and returns to ready after non-abort failure
 - Five-second `/watch/` confirmation after final click
 - Retryable error state and five-second toast behavior
+- Selection status includes named/numeric season and episode information and is replaced by later failure feedback
 - Manifest/build contract contains the Netflix content script and no background service worker
 
 Tests use fake timers for polling, debouncing, five-second waits, and toast dismissal. Every test restores timers, DOM, observers, and module state.
@@ -253,6 +255,8 @@ describe('resilientQuery', () => {
 - [ ] Handles series with many episodes per season
 - [ ] Enumerates all seasons from Netflix's custom dropdown menu
 - [ ] Ignores non-season dropdown entries such as "See All Episodes"
+- [ ] Supports named entries such as arcs, parts, volumes, and specials with or without a declared episode count
+- [ ] Ignores only documented action labels and fails duplicate named identities safely
 - [ ] Confirms the requested season from dropdown toggle text and changed episode content
 - [ ] Expands an initially truncated 10-row episode section
 - [ ] Matches the final row count to Netflix's declared season count when available

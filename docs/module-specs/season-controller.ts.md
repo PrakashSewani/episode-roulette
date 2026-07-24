@@ -91,22 +91,24 @@ Enumeration is asynchronous because opening and rendering the menu are Netflix D
 
 The first release supports a fully rendered menu. If a future Netflix layout virtualizes or incrementally loads season menu items, enumeration must fail safely until that layout is observed and documented.
 
-### English Label Parsing
+### Label Parsing
 
-First-release traversal supports English Netflix UI only.
+First-release episode-count parsing supports English Netflix UI only.
 
 - Read item `innerText` when available, otherwise `textContent`, Unicode-normalize with `NFKC`, split on line breaks, trim each line, collapse Unicode whitespace runs to one ASCII space, and discard blank lines.
-- A season item is accepted when its first normalized line matches `Season <positive integer>` case-insensitively.
-- The key is `season <integer>` and the display label preserves the trimmed first line.
-- `seasonNumber` is the parsed positive integer.
+- Parse one shared label identity from the first normalized line. Its normalized identity is NFKC, trimmed, whitespace-collapsed, and lowercased with `toLocaleLowerCase('en-US')`.
+- A numeric label matching `Season <positive integer>` case-insensitively uses key `season <integer>` and stores the parsed positive `seasonNumber`.
+- Any other non-empty label is a named-season candidate. It uses key `label:<normalized identity>` and stores `seasonNumber: null`.
 - `expectedEpisodeCount` is optional and parsed only from a later complete normalized line matching `(<positive integer> Episode)` or `(<positive integer> Episodes)` case-insensitively. A combined line such as `Season 7 (24 Episodes)` is unsupported and fails enumeration.
 - `See All Episodes` is ignored as the only currently documented non-season action.
-- Duplicate keys fail enumeration.
-- Any other selectable item that does not match the supported season form fails enumeration as an unsupported layout. Labels such as specials, volumes, and parts must never be silently ignored because that could produce a partial catalog.
+- Numeric seasons remain valid when the count is absent, preserving verified Netflix behavior.
+- Named seasons do not require an episode count. Name-only arc names, subtitles, parts, volumes, and specials are valid season identities; when no count is declared, completeness uses expansion disappearance and stable rendered rows.
+- Duplicate canonical keys fail enumeration.
+- Every non-empty item not present in the documented action denylist is treated as a season. Newly observed Netflix actions must be documented and added to the denylist before support is claimed.
 
 If no valid season descriptors remain after filtering, enumeration fails. Unsupported Netflix UI languages are outside first-release scope.
 
-Toggle identity uses the same text extraction and first-line normalization. A toggle matches an explicit descriptor only when its parsed canonical key equals `season.key`.
+Toggle identity uses the same shared first-line identity parser but does not require an episode count. A toggle matches an explicit descriptor only when its parsed canonical key equals `season.key`.
 
 ---
 
@@ -145,7 +147,7 @@ For each season attempt:
 
 1. If `SECTION_EXPAND` exists, click it once.
 2. Require the control to disappear.
-3. Observe `episodeSelector` with `{ childList: true, subtree: true, attributes: true }`. A relevant mutation is a child-list change or an attribute change to `class`, `style`, `hidden`, `aria-hidden`, or `role` on the selector subtree. Before stability counting begins, require the season's minimum readiness count: one valid row when `expectedEpisodeCount` is `null` or `1`, otherwise at least two valid rows. After the latest relevant mutation, require the ordered valid-row snapshot and count to remain unchanged across two consecutive animation frames before the deadline.
+3. Observe `episodeSelector` with `{ childList: true, subtree: true, attributes: true }` so readiness checks react promptly to Netflix rendering. Before stability counting begins, require the season's minimum readiness count: one valid row when `expectedEpisodeCount` is `null` or `1`, otherwise at least two valid rows. Stability is determined only by the ordered valid-row identity snapshot and count. Reset stability when that snapshot changes; unrelated subtree mutations such as image, thumbnail, progress, or layout updates inside otherwise unchanged episode rows do not reset it. Require the snapshot to remain unchanged across two consecutive animation frames before the deadline.
 4. If `expectedEpisodeCount` is non-null, require an exact count match.
 5. Return the current live rows, all of which must satisfy the centralized valid-row definition.
 
@@ -159,6 +161,8 @@ Controller failures use `SeasonControllerError` reasons from `types.ts`. During 
 
 - Unit test: Implicit-season descriptor
 - Unit test: Async dropdown enumeration filters non-season actions
+- Unit test: Count-backed and name-only labels enumerate with `seasonNumber: null`
+- Unit test: Documented action labels are ignored
 - Unit test: Duplicate season keys fail enumeration
 - Unit test: Already-active season performs no dropdown click
 - Integration test: Switched season requires active-key and content change
@@ -168,3 +172,4 @@ Controller failures use `SeasonControllerError` reasons from `types.ts`. During 
 - Integration test: Abort closes waits without further clicks
 - Integration test: Expansion clicks once and requires disappearance plus stable count
 - Integration test: Stability ignores transient zero-row and one-row renders for a declared multi-episode season
+- Integration test: Continuous unrelated subtree mutations do not prevent an unchanged complete row snapshot from stabilizing

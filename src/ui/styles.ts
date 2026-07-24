@@ -80,6 +80,14 @@ const CSS = `
   animation: ep-roulette-toast-in 0.3s ease;
 }
 
+.ep-roulette-toast[data-kind="status"] {
+  border-left: 4px solid #46d369;
+}
+
+.ep-roulette-toast[data-kind="error"] {
+  border-left: 4px solid #e50914;
+}
+
 .ep-roulette-toast-exit {
   animation: ep-roulette-toast-out 0.3s ease forwards;
 }

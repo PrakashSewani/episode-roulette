@@ -126,20 +126,58 @@ describe('season control', () => {
     expect(root.querySelector('[data-uia="dropdown-menu"]')).toBeNull()
   })
 
-  it('rejects unsupported selectable labels and duplicate keys', async () => {
+  it('enumerates name-only seasons and rejects duplicate normalized keys', async () => {
     const { root, episodeSelector, toggle } = createDropdownFixture()
     toggle.click()
     const menu = root.querySelector('[data-uia="dropdown-menu"]')!
-    const unsupported = document.createElement('button')
-    unsupported.dataset.uia = 'dropdown-menu-item'
-    unsupported.setAttribute('role', 'menuitem')
-    unsupported.textContent = 'Specials'
-    menu.append(unsupported)
+    const named = document.createElement('button')
+    named.dataset.uia = 'dropdown-menu-item'
+    named.setAttribute('role', 'menuitem')
+    named.textContent = 'Phantom Blood'
+    menu.append(named)
+
+    await expect(enumerateSeasons(
+      root, episodeSelector, performance.now() + 5_000,
+      new AbortController().signal,
+    )).resolves.toContainEqual({
+      key: 'label:phantom blood',
+      label: 'Phantom Blood',
+      seasonNumber: null,
+      expectedEpisodeCount: null,
+    })
+
+    toggle.click()
+    const duplicateMenu = root.querySelector('[data-uia="dropdown-menu"]')!
+    const duplicate = document.createElement('button')
+    duplicate.dataset.uia = 'dropdown-menu-item'
+    duplicate.setAttribute('role', 'menuitem')
+    duplicate.textContent = '  PHANTOM   BLOOD  '
+    duplicateMenu.append(named.cloneNode(true), duplicate)
 
     await expect(enumerateSeasons(
       root, episodeSelector, performance.now() + 5_000,
       new AbortController().signal,
     )).rejects.toMatchObject({ reason: 'unsupported-layout' })
+  })
+
+  it('activates a named season through normalized toggle identity', async () => {
+    const { root, episodeSelector, toggle } = createDropdownFixture()
+    toggle.textContent = 'Phantom Blood'
+    appendRow(episodeSelector, 'Named Episode')
+
+    await expect(activateSeason(
+      root,
+      episodeSelector,
+      {
+        key: 'label:phantom blood',
+        label: 'Phantom Blood',
+        seasonNumber: null,
+        expectedEpisodeCount: null,
+      },
+      performance.now() + 5_000,
+      new AbortController().signal,
+    )).resolves.toBe(episodeSelector)
+    expect(getActiveSeasonKey(episodeSelector)).toBe('label:phantom blood')
   })
 
   it('does not click an already-active season and verifies switched content', async () => {
@@ -336,5 +374,36 @@ describe('season control', () => {
       performance.now() + 5_000,
       new AbortController().signal,
     )).resolves.toHaveLength(1)
+  })
+
+  it('stabilizes unchanged rows despite continuous unrelated subtree mutations', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => (
+      window.setTimeout(() => callback(performance.now()), 16)
+    ))
+    const episodeSelector = document.createElement('div')
+    document.body.append(episodeSelector)
+    const row = appendRow(episodeSelector, 'Diamond Is Unbreakable')
+    const thumbnail = document.createElement('span')
+    row.append(thumbnail)
+    const mutationTimer = window.setInterval(() => {
+      thumbnail.classList.toggle('loaded')
+    }, 1)
+
+    const operation = expandAndValidateSeason(
+      episodeSelector,
+      {
+        key: 'label:diamond is unbreakable',
+        label: 'Diamond Is Unbreakable',
+        seasonNumber: null,
+        expectedEpisodeCount: 1,
+      },
+      performance.now() + 5_000,
+      new AbortController().signal,
+    )
+    await vi.advanceTimersByTimeAsync(64)
+    window.clearInterval(mutationTimer)
+
+    await expect(operation).resolves.toHaveLength(1)
   })
 })

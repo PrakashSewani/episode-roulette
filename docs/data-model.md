@@ -40,7 +40,7 @@ interface Episode {
 
 `Episode` contains durable metadata only. It must never retain Netflix `HTMLElement` references or invent an episode URL from the current title-details URL.
 
-`seasonKey` is strategy-specific. Explicit English seasons use `season <parsed positive integer>` with no leading zeroes. The implicit single-season strategy always uses key `implicit` and display label `Episodes`.
+`seasonKey` is strategy-specific. Explicit numeric seasons use `season <parsed positive integer>` with no leading zeroes. Named seasons use `label:<normalized label>`, where normalization is NFKC, trimmed, whitespace-collapsed, and lowercased with `en-US`. Named seasons store `seasonNumber: null`; an episode count is optional. The implicit single-season strategy always uses key `implicit` and display label `Episodes`.
 
 ---
 

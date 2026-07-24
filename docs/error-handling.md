@@ -62,6 +62,8 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 
 **Detection**: The custom dropdown does not identify the requested season, episode content does not change from the previous snapshot, or the transition wait times out.
 
+**Named-season safety**: Non-empty named labels are valid seasons even without a declared count. Only explicitly documented action labels such as `See All Episodes` are ignored. Duplicate normalized labels or empty labels fail complete discovery.
+
 ---
 
 ### 5. No Episodes Found in Season
@@ -198,6 +200,8 @@ function logInfo(message: string, details?: unknown): void {
 | Playback did not start | Error | "Could not start playback. Try again." |
 | Play button not found | Not injected | (none — button doesn't appear) |
 | General failure | Error | "Something went wrong. Try again." |
+
+Immediately after a guarded random selection, show a polite five-second status toast with the selected season, episode number or one-based position, and title when available. Any later failure replaces that status with the corresponding assertive error toast.
 
 ---
 

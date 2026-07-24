@@ -112,4 +112,8 @@ These are documented based on observation. They may change without notice.
 | Expand section | `[data-uia="section-expand"]` | Reveals episodes after the initial 10 rows |
 | Episode number | `[data-uia="episode-number"]` | "E1", "Ep. 2", etc. |
 
+### Named Season Observation — July 24, 2026
+
+Live Safari inspection of Netflix title `80179831` (JoJo's Bizarre Adventure) confirmed the custom dropdown uses the existing documented selectors and exposes named labels with optional count text, including `Phantom Blood/Battle Tendency (26 Episodes)`, `Stardust Crusaders (48 Episodes)`, `Diamond Is Unbreakable (39 Episodes)`, and `Golden Wind (39 Episodes)`. The closed toggle displays the selected named label without the count. Traversal successfully identifies and switches these entries. Continuous episode-card rendering mutations were observed after the complete rows appeared, so row completeness/stability is based on the valid-row identity snapshot rather than arbitrary subtree quietness.
+
 **Disclaimer**: These selectors are based on observation and may change. The extension is designed to handle this via fallback selectors and easy updates to `selectors.ts`.

@@ -125,7 +125,7 @@ describe('Phase 2 content lifecycle', () => {
     content.stop()
   })
 
-  it('returns the current button to ready after a non-abort failure', async () => {
+  it('shows a retryable error and toast after a non-abort failure', async () => {
     window.history.replaceState({}, '', '/browse?jbv=123')
     const root = createTitleDetails({ episodic: true })
     document.body.append(root)
@@ -138,13 +138,144 @@ describe('Phase 2 content lifecycle', () => {
     button.click()
     await flushPromises()
 
-    expect(button.dataset.state).toBe('ready')
+    expect(button.dataset.state).toBe('error')
+    expect(button.dataset.error).toBe('Something went wrong. Try again.')
+    expect(document.querySelector('.ep-roulette-toast')?.textContent)
+      .toBe('Something went wrong. Try again.')
     expect(errorSpy).toHaveBeenCalled()
 
     button.click()
     await flushPromises()
     expect(playbackHarness.discoverEpisodes).toHaveBeenCalledTimes(2)
     expect(playbackHarness.playEpisode).toHaveBeenCalledOnce()
+    content.stop()
+  })
+
+  it('shows the selected season, episode number, and title', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=124')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    playbackHarness.pickRandom.mockReturnValueOnce({
+      seriesId: '124',
+      seasonKey: 'label:phantom blood',
+      seasonLabel: 'Phantom Blood',
+      seasonNumber: null,
+      episodeIndex: 2,
+      episodeNumber: 3,
+      title: 'Youth with Dio',
+      discoveredSeasonEpisodeCount: 9,
+    })
+    const content = await import('../../src/content')
+    await flushPromises()
+
+    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
+    await flushPromises()
+
+    const toast = document.querySelector<HTMLElement>('.ep-roulette-toast')
+    expect(toast?.dataset.kind).toBe('status')
+    expect(toast?.textContent)
+      .toBe('Selected Phantom Blood, Episode 3: Youth with Dio')
+    content.stop()
+  })
+
+  it('reuses a complete catalog on retry instead of rediscovering', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=125')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    playbackHarness.playEpisode
+      .mockRejectedValueOnce(new Error('first playback failure'))
+      .mockResolvedValueOnce(undefined)
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const content = await import('../../src/content')
+    await flushPromises()
+    const button = root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')!
+
+    button.click()
+    await vi.waitFor(() => expect(button.dataset.state).toBe('error'))
+    button.click()
+    await vi.waitFor(() => expect(playbackHarness.pickRandom).toHaveBeenCalledTimes(2))
+
+    expect(playbackHarness.discoverEpisodes).toHaveBeenCalledOnce()
+    expect(playbackHarness.pickRandom).toHaveBeenCalledTimes(2)
+    expect(errorSpy).toHaveBeenCalled()
+    content.stop()
+  })
+
+  it('invalidates a stale catalog once and announces the refreshed selection', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=126')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    const staleEpisode = {
+      seriesId: '126', seasonKey: 'season 1', seasonLabel: 'Season 1',
+      seasonNumber: 1, episodeIndex: 0, episodeNumber: 1,
+      title: 'Stale', discoveredSeasonEpisodeCount: 1,
+    }
+    const refreshedEpisode = {
+      seriesId: '126', seasonKey: 'season 2', seasonLabel: 'Season 2',
+      seasonNumber: 2, episodeIndex: 4, episodeNumber: 5,
+      title: 'Refreshed', discoveredSeasonEpisodeCount: 8,
+    }
+    playbackHarness.discoverEpisodes
+      .mockResolvedValueOnce({
+        id: '126', totalSeasons: 1, episodes: [staleEpisode],
+        discoveredAt: 1,
+      })
+      .mockResolvedValueOnce({
+        id: '126', totalSeasons: 2, episodes: [refreshedEpisode], discoveredAt: 2,
+      })
+    playbackHarness.pickRandom
+      .mockReturnValueOnce(staleEpisode)
+      .mockReturnValueOnce(refreshedEpisode)
+    const content = await import('../../src/content')
+    const { CacheValidationMismatchError } = await import('../../src/types')
+    playbackHarness.playEpisode
+      .mockRejectedValueOnce(new CacheValidationMismatchError('stale'))
+      .mockResolvedValueOnce(undefined)
+    await flushPromises()
+
+    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
+    await vi.waitFor(() => expect(playbackHarness.playEpisode).toHaveBeenCalledTimes(2))
+
+    expect(playbackHarness.discoverEpisodes).toHaveBeenCalledTimes(2)
+    expect(document.querySelector('.ep-roulette-toast')?.textContent)
+      .toBe('Selected Season 2, Episode 5: Refreshed')
+    content.stop()
+  })
+
+  it('turns a missing watch transition into a playback error toast', async () => {
+    vi.useFakeTimers()
+    window.history.replaceState({}, '', '/browse?jbv=127')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    const content = await import('../../src/content')
+    await flushPromises()
+    const button = root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')!
+
+    button.click()
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(5_000)
+
+    expect(button.dataset.state).toBe('error')
+    expect(document.querySelector('.ep-roulette-toast')?.textContent)
+      .toBe('Could not start playback. Try again.')
+    content.stop()
+  })
+
+  it('accepts a watch route as playback confirmation', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=128')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    const content = await import('../../src/content')
+    await flushPromises()
+    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
+    await flushPromises()
+
+    window.history.replaceState({}, '', '/watch/999')
+    observerHarness.callback?.({ type: 'route-changed', url: window.location.href })
+    await flushPromises()
+
+    expect(document.querySelector('[data-uia="random-episode-btn"]')).toBeNull()
+    expect(document.querySelector('.ep-roulette-toast')).toBeNull()
     content.stop()
   })
 

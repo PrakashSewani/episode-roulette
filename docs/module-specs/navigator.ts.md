@@ -53,6 +53,8 @@ The promise rejects with:
 }
 ```
 
+Named seasons use the same durable `seasonKey` and `seasonLabel` captured during discovery, with `seasonNumber: null`. Playback reopens and validates them through the shared label identity parser; it never depends on a numeric season value.
+
 `season-controller.ts` reports typed `SeasonControllerError` reasons. Error mapping is exact:
 
 - `season-missing`, `strategy-mismatch`, `active-season-mismatch`, or `count-mismatch` → `CacheValidationMismatchError`

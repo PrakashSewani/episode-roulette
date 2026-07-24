@@ -16,14 +16,14 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: Phase 5, Random Selection + Playback, is complete after live Safari confirmation of the minimum-row readiness fix. Chrome live compatibility validation remains deferred to Phase 7.
-- Item currently in progress: None. Phase 6 is the next implementation phase and requires its documented plan and user confirmation before code changes.
-- Completed in this session: Documented and implemented the approved readiness threshold; live Safari playback now works. Removed the temporary structured debug logger and instrumentation. Documented in `README.md` that multi-season dropdown support currently requires `Season <number>` labels and named anime seasons fail safely.
-- Verification completed: After temporary diagnostics removal, `npx tsc --noEmit` passed; `npm test` passed 76 tests across 14 files; `git diff --check` passed; `npm run build` passed; `npm run safari:build` synchronized resources and completed with `BUILD SUCCEEDED`.
-- Blockers or unanswered questions: Named season dropdown entries such as anime arc names, parts, volumes, and specials are intentionally unsupported until a durable identity and action-filtering contract is designed.
-- Files changed: Updated season-controller/traverser/testing docs, `README.md`, and tracker; changed `src/netflix/season-controller.ts`; extended season-controller and navigator regressions; removed temporary debug source/tests/instrumentation.
-- Exact next action: Read all Phase 6 docs, present the Phase 6 implementation plan, and wait for user confirmation.
-- Required docs for the next agent: `AGENTS.md`, Phase 5 of `docs/implementation-plan.md`, `docs/architecture.md`, `docs/data-model.md`, `docs/error-handling.md`, `docs/module-specs/randomizer.ts.md`, `docs/module-specs/navigator.ts.md`, shared season/identity specs, `docs/testing.md`, and this tracker.
+- Current state: Phase 6, Integration + Polish, is complete after live Safari validation of named-season traversal and playback. Phase 7 Chrome Compatibility Validation is next.
+- Item currently in progress: None.
+- Completed in this session: Added numeric and arbitrary named-season identity, including JoJo-style name-only labels; generalized feedback to polite selection and assertive error toasts; implemented complete-catalog caching, one stale-cache refresh, persistent retryable errors, and five-second `/watch/` confirmation. Revised stability to depend only on episode-row identity snapshots so continuous thumbnail/layout mutations cannot block complete collection.
+- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 86 tests across 14 files; `git diff --check` passed; `npm run build` passed; `npm run safari:build` synchronized resources and completed with `BUILD SUCCEEDED`. The user confirmed the rebuilt Safari extension successfully traverses and plays JoJo's Bizarre Adventure with named seasons, including the previously failing `Diamond Is Unbreakable` path.
+- Blockers or unanswered questions: None for Phase 6. Chrome live compatibility remains intentionally deferred to Phase 7.
+- Files changed: Updated source-of-truth docs and README; changed `src/content.ts`, `src/netflix/season-controller.ts`, `src/ui/feedback.ts`, and `src/ui/styles.ts`; extended season, navigator, feedback, traversal, and content lifecycle tests.
+- Exact next action: Run the documented Phase 7 Chrome compatibility checklist against the unchanged universal build.
+- Required docs for the next agent: `AGENTS.md`, Phase 7 of `docs/implementation-plan.md`, `docs/architecture.md`, `docs/testing.md`, `docs/safari.md`, and this tracker.
 
 ## Phase Tracker
 
@@ -34,7 +34,7 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 | 3. UI Injection | complete | Preserve spawn feedback, scoped ready placement, states, feedback, and cleanup contracts. |
 | 4. Episode Discovery | complete | Preserve complete uncached traversal, retry, identity, and cancellation contracts. |
 | 5. Random Selection + Playback | complete | Preserve the verified live playback and readiness contracts. |
-| 6. Integration + Polish | not started | Start only after Phase 5 completion. |
+| 6. Integration + Polish | complete | Preserve named-season identity, row-snapshot stability, cache, feedback, and playback-confirmation contracts. |
 | 7. Chrome Compatibility Validation | not started | Load the completed universal build in Chrome and run the live compatibility checklist. |
 | 8. Testing + Validation | not started | Complete automated, CI, packaging, and final cross-browser release gates. |
 
@@ -256,23 +256,25 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Phase 6: Integration + Polish
 
-**Status**: not started
+**Status**: complete
 
 **Todo checklist**:
 
-- [ ] Read `content.ts.md`, all feature specs, architecture, data model, error handling, and testing docs.
-- [ ] Present the Phase 6 plan and receive user confirmation.
-- [ ] Complete the full observe, detect, inject, discover/cache, randomize, and play flow.
-- [ ] Make `content.ts` the sole complete-catalog cache owner.
-- [ ] Guard cache writes, UI updates, randomization, and final playback by title and generation.
-- [ ] Implement cancellation for title changes, root replacements, overlay close, `/watch/`, stop, and `pagehide`.
-- [ ] Implement one stale-cache invalidation and fresh rediscovery.
-- [ ] Implement five-second `/watch/` confirmation.
-- [ ] Implement retryable persistent error state and five-second toast behavior.
-- [ ] Implement idempotent `start()` and `stop()` lifecycle.
-- [ ] Cover every documented edge case without adding stretch goals.
-- [ ] Add integration tests for lifecycle, caching, cancellation, feedback, and playback.
-- [ ] Verify Chrome and Safari builds and Phase 6 exit criteria.
+- [x] Read `content.ts.md`, all feature specs, architecture, data model, error handling, and testing docs.
+- [x] Present the Phase 6 plan and receive user confirmation.
+- [x] Support numeric and name-only season labels with durable normalized identity and a documented action denylist.
+- [x] Show a five-second selection toast with season and episode information; replace it with exact failure feedback when later work fails.
+- [x] Complete the full observe, detect, inject, discover/cache, randomize, and play flow.
+- [x] Make `content.ts` the sole complete-catalog cache owner.
+- [x] Guard cache writes, UI updates, randomization, and final playback by title and generation.
+- [x] Implement cancellation for title changes, root replacements, overlay close, `/watch/`, stop, and `pagehide`.
+- [x] Implement one stale-cache invalidation and fresh rediscovery.
+- [x] Implement five-second `/watch/` confirmation.
+- [x] Implement retryable persistent error state and five-second toast behavior.
+- [x] Implement idempotent `start()` and `stop()` lifecycle.
+- [x] Cover every documented edge case without adding stretch goals.
+- [x] Add integration tests for lifecycle, caching, cancellation, feedback, and playback.
+- [x] Verify live Safari behavior and Phase 6 exit criteria; Chrome live validation remains Phase 7.
 
 ## Phase 7: Chrome Compatibility Validation
 

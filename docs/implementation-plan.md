@@ -167,7 +167,9 @@ No background service worker is registered in Chrome or Safari. All core behavio
   - Series with 30+ seasons
   - Netflix custom season dropdown
   - Initially truncated episode lists
+  - Named season labels, including name-only entries, with durable normalized identity
   - Fast navigation between series
+- Five-second selection status toast with season and episode information; exact later failures replace it
 
 **Exit criteria**: Extension works end-to-end on real Netflix. Handles edge cases gracefully.
 

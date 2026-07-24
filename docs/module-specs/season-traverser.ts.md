@@ -31,7 +31,7 @@ Discover all playable episodes across all seasons of the current TV series by tr
    c. Expand and validate the episode section
    d. Collect the complete rendered episode set
     e. On failure, re-query and retry once with one new 10-second deadline
-3. Otherwise, use the Netflix custom-dropdown strategy to enumerate all explicit seasons
+3. Otherwise, use the Netflix custom-dropdown strategy to enumerate all explicit numeric and named seasons
 4. For each explicit season:
     a. Create one absolute deadline 10 seconds in the future
     b. Call shared `activateSeason()` with that deadline; it performs no click or content-change requirement when already active, waits for the approved minimum live-row readiness threshold when switching, and returns the current live episode selector
@@ -146,6 +146,7 @@ After all seasons succeed, zero total episodes throws `NoEpisodesError`. An empt
 
 - Unit test: Season enumeration logic (mock DOM)
 - Unit test: Parse season label and expected count from dropdown menu items
+- Unit test: Parse named labels with or without counts into durable normalized keys
 - Integration test: Mock Netflix custom dropdown with multiple seasons
 - Integration test: Expansion grows 10 visible rows to the declared season count
 - Integration test: Old rows do not satisfy season-change readiness

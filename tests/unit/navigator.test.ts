@@ -121,6 +121,62 @@ describe('playEpisode', () => {
     expect(replacementClick).toHaveBeenCalledOnce()
   })
 
+  it('reactivates and plays a name-only season', async () => {
+    const root = document.createElement('div')
+    const selector = document.createElement('div')
+    selector.dataset.uia = 'episode-selector'
+    const toggle = document.createElement('button')
+    toggle.dataset.uia = 'dropdown-toggle'
+    toggle.setAttribute('aria-haspopup', 'true')
+    toggle.textContent = 'Phantom Blood'
+    const oldRow = document.createElement('div')
+    oldRow.dataset.uia = 'titleCard--container'
+    oldRow.setAttribute('role', 'button')
+    oldRow.setAttribute('aria-label', 'Old')
+    selector.append(toggle, oldRow)
+    root.append(selector)
+    document.body.append(root)
+
+    const selectedClick = vi.fn()
+    toggle.addEventListener('click', () => {
+      const menu = document.createElement('div')
+      menu.dataset.uia = 'dropdown-menu'
+      menu.setAttribute('role', 'menu')
+      const item = document.createElement('button')
+      item.dataset.uia = 'dropdown-menu-item'
+      item.setAttribute('role', 'menuitem')
+      item.textContent = 'Battle Tendency'
+      item.addEventListener('click', () => {
+        menu.remove()
+        toggle.textContent = 'Battle Tendency'
+        oldRow.remove()
+        const selected = document.createElement('div')
+        selected.dataset.uia = 'titleCard--container'
+        selected.setAttribute('role', 'button')
+        selected.setAttribute('aria-label', 'New York JoJo')
+        selected.innerHTML = '<span data-uia="episode-number">E1</span>'
+        selected.addEventListener('click', selectedClick)
+        selector.append(selected)
+      })
+      menu.append(item)
+      root.append(menu)
+    })
+
+    await playEpisode(
+      episode({
+        seasonKey: 'label:battle tendency',
+        seasonLabel: 'Battle Tendency',
+        seasonNumber: null,
+        title: 'New York JoJo',
+      }),
+      root,
+      new AbortController().signal,
+      vi.fn(),
+    )
+
+    expect(selectedClick).toHaveBeenCalledOnce()
+  })
+
   it('rejects missing or ambiguous selectors without clicking', async () => {
     const missing = document.createElement('div')
     document.body.append(missing)

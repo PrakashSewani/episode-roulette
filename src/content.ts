@@ -11,9 +11,19 @@ import {
   TITLE_DETAILS_METADATA,
   TITLE_DETAILS_ROOT,
 } from './netflix/selectors'
-import type { OperationContext, PageChangeEvent, TitleContext } from './types'
+import {
+  CacheValidationMismatchError,
+  DiscoveryIncompleteError,
+  NoEpisodesError,
+  PlaybackResolutionError,
+  type Episode,
+  type OperationContext,
+  type PageChangeEvent,
+  type SeriesInfo,
+  type TitleContext,
+} from './types'
 import type { ButtonController } from './types'
-import { dismissToast } from './ui/feedback'
+import { dismissToast, showErrorToast, showStatusToast } from './ui/feedback'
 import { injectButton } from './ui/button'
 import { injectStyles, removeStyles } from './ui/styles'
 import { discoverEpisodes } from './discovery/season-traverser'
@@ -21,6 +31,7 @@ import { playEpisode } from './engine/navigator'
 import { pickRandom } from './engine/randomizer'
 
 const DETECTION_TIMEOUT_MS = 5_000
+const PLAYBACK_CONFIRMATION_TIMEOUT_MS = 5_000
 
 let started = false
 let generation = 0
@@ -29,6 +40,17 @@ let activeRoot: HTMLElement | null = null
 let detectionTimer: number | null = null
 let seriesConfirmed = false
 let buttonController: ButtonController | null = null
+const catalogCache = new Map<string, SeriesInfo>()
+
+interface PlaybackConfirmation {
+  context: OperationContext
+  timer: number
+  resolve: () => void
+  reject: (error: Error) => void
+  abort: () => void
+}
+
+let playbackConfirmation: PlaybackConfirmation | null = null
 
 function isVisible(element: HTMLElement): boolean {
   const style = window.getComputedStyle(element)
@@ -110,32 +132,116 @@ function assertCurrent(context: OperationContext, root: HTMLElement): void {
   }
 }
 
-async function runUncachedPlayback(
+function formatSelection(episode: Episode): string {
+  const episodeNumber = episode.episodeNumber ?? episode.episodeIndex + 1
+  const title = episode.title === 'Unknown Episode' ? '' : `: ${episode.title}`
+  return `Selected ${episode.seasonLabel}, Episode ${episodeNumber}${title}`
+}
+
+function showSelection(context: OperationContext, root: HTMLElement, episode: Episode): void {
+  assertCurrent(context, root)
+  showStatusToast(formatSelection(episode))
+}
+
+function clearPlaybackConfirmation(error?: Error): void {
+  const confirmation = playbackConfirmation
+  if (confirmation === null) return
+  playbackConfirmation = null
+  window.clearTimeout(confirmation.timer)
+  confirmation.context.controller.signal.removeEventListener('abort', confirmation.abort)
+  if (error === undefined) confirmation.resolve()
+  else confirmation.reject(error)
+}
+
+function waitForPlaybackStart(context: OperationContext): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const abort = (): void => {
+      if (playbackConfirmation?.context === context) {
+        clearPlaybackConfirmation(new DOMException('The operation was aborted.', 'AbortError'))
+      }
+    }
+    const timer = window.setTimeout(() => {
+      if (playbackConfirmation?.context === context) {
+        clearPlaybackConfirmation(new PlaybackResolutionError('Playback did not start'))
+      }
+    }, PLAYBACK_CONFIRMATION_TIMEOUT_MS)
+    playbackConfirmation = { context, timer, resolve, reject, abort }
+    context.controller.signal.addEventListener('abort', abort, { once: true })
+  })
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof DiscoveryIncompleteError) {
+    return 'Could not load all seasons. Try again.'
+  }
+  if (error instanceof NoEpisodesError) {
+    return 'No episodes found'
+  }
+  if (error instanceof CacheValidationMismatchError || error instanceof PlaybackResolutionError) {
+    return error.message === 'Playback did not start'
+      ? 'Could not start playback. Try again.'
+      : 'Could not open the selected episode. Try again.'
+  }
+  return 'Something went wrong. Try again.'
+}
+
+async function discoverAndCache(
+  context: OperationContext,
+  root: HTMLElement,
+): Promise<SeriesInfo> {
+  const catalog = await discoverEpisodes(
+    context.title.titleId,
+    root,
+    context.controller.signal,
+  )
+  assertCurrent(context, root)
+  catalogCache.set(context.title.titleId, catalog)
+  return catalog
+}
+
+async function selectAndPlay(
+  context: OperationContext,
+  root: HTMLElement,
+  catalog: SeriesInfo,
+): Promise<void> {
+  assertCurrent(context, root)
+  const episode = pickRandom(catalog.episodes)
+  showSelection(context, root, episode)
+  await playEpisode(
+    episode,
+    root,
+    context.controller.signal,
+    () => assertCurrent(context, root),
+  )
+}
+
+async function runPlayback(
   context: OperationContext,
   root: HTMLElement,
   controller: ButtonController,
 ): Promise<void> {
+  dismissToast()
   controller.setState('loading')
   try {
-    const catalog = await discoverEpisodes(
-      context.title.titleId,
-      root,
-      context.controller.signal,
-    )
-    assertCurrent(context, root)
-    const episode = pickRandom(catalog.episodes)
-    assertCurrent(context, root)
-    await playEpisode(
-      episode,
-      root,
-      context.controller.signal,
-      () => assertCurrent(context, root),
-    )
+    let catalog = catalogCache.get(context.title.titleId)
+      ?? await discoverAndCache(context, root)
+    try {
+      await selectAndPlay(context, root, catalog)
+    } catch (error) {
+      if (!(error instanceof CacheValidationMismatchError)) throw error
+      assertCurrent(context, root)
+      catalogCache.delete(context.title.titleId)
+      catalog = await discoverAndCache(context, root)
+      await selectAndPlay(context, root, catalog)
+    }
+    await waitForPlaybackStart(context)
   } catch (error) {
     if (isAbortError(error)) return
     console.error('[Episode Roulette] Random playback failed', error)
     if (isCurrent(context) && activeRoot === root && buttonController === controller) {
-      controller.setState('ready')
+      const message = errorMessage(error)
+      controller.setState('error', message)
+      showErrorToast(message)
     }
   }
 }
@@ -153,7 +259,7 @@ async function injectSeriesButton(
 
     buttonController = controller
     controller?.onClick(() => {
-      void runUncachedPlayback(context, root, controller)
+      void runPlayback(context, root, controller)
     })
   } catch (error) {
     if (!isAbortError(error)) {
@@ -194,6 +300,9 @@ function locateAndObserveRoot(context: OperationContext): void {
 }
 
 function invalidateActiveContext(): void {
+  if (playbackConfirmation !== null) {
+    clearPlaybackConfirmation(new DOMException('The operation was aborted.', 'AbortError'))
+  }
   activeContext?.controller.abort()
   generation += 1
   buttonController?.remove()
@@ -235,6 +344,12 @@ function replaceTitleRoot(context: OperationContext): void {
 }
 
 function handleRouteChange(url: string): void {
+  const pathname = new URL(url).pathname
+  if (pathname.startsWith('/watch/')) {
+    if (playbackConfirmation !== null) clearPlaybackConfirmation()
+    invalidateActiveContext()
+    return
+  }
   const title = getTitleContext(url)
   if (title === null) {
     invalidateActiveContext()
@@ -302,6 +417,7 @@ export function stop(): void {
   invalidateActiveContext()
   onStop()
   removeStyles()
+  catalogCache.clear()
 }
 
 start()
