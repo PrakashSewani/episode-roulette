@@ -334,7 +334,7 @@ When a test fails, document:
 
 Automated unit and fixture integration tests must run non-interactively in CI on every pull request.
 
-CI uses Node 24 LTS as pinned by `.nvmrc` and `package.json#engines`, then installs from the committed lockfile with `npm ci`. The macOS job uses a runner with full Xcode selected and verifies `xcodebuild` availability before Safari packaging validation.
+CI uses Node 24 LTS as pinned by `package.json#engines`, then installs from the committed lockfile with `npm ci`. The macOS job uses a runner with full Xcode selected and verifies `xcodebuild` availability before Safari packaging validation.
 
 Required CI commands:
 

@@ -2,7 +2,7 @@
 
 ## Toolchain
 
-- Node 24 LTS is pinned by `.nvmrc` and `package.json#engines`.
+- Node 24 LTS is pinned by `package.json#engines`.
 - Dependencies are installed reproducibly with `npm ci` in CI.
 - TypeScript is strict and targets ES2020.
 - Vite and CRXJS produce the Manifest V3 WebExtension.
@@ -162,7 +162,7 @@ Automated tests cannot prove current Netflix DOM compatibility or authenticated 
 
 Use:
 
-- `CHROME-VALIDATION.md` for Chrome
+- `docs/testing.md` for Chrome
 - `docs/testing.md` and `docs/safari.md` for Safari
 
 Do not mark manual checks complete without the user's reported result.
@@ -174,7 +174,7 @@ Do not mark manual checks complete without the user's reported result.
 Ubuntu WebExtension job:
 
 1. Checkout
-2. Set up Node from `.nvmrc`
+2. Set up Node 24 LTS
 3. `npm ci`
 4. `npm test`
 5. `npm run build`
@@ -183,7 +183,7 @@ Ubuntu WebExtension job:
 macOS Safari job:
 
 1. Checkout
-2. Set up Node from `.nvmrc`
+2. Set up Node 24 LTS
 3. `npm ci`
 4. `npm test`
 5. `npm run build`

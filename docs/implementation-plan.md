@@ -12,7 +12,7 @@ This document defines the implementation phases for Episode Roulette. Work must 
 
 **Deliverables**:
 - `package.json` with dependencies (`vite`, `typescript`, `@crxjs/vite-plugin`)
-- Committed package lockfile, `.nvmrc`, and matching `package.json#engines` pinned to Node 24 LTS; CI installs with `npm ci`
+- Committed package lockfile and matching `package.json#engines` pinned to Node 24 LTS; CI installs with `npm ci`
 - `.gitignore` excludes `dist/`, `safari/Extension/Resources/`, `safari/GeneratedVersion.xcconfig`, Xcode user state, DerivedData, and local signing configuration
 - `tsconfig.json` with strict mode, ES2020 target
 - `vite.config.ts` configured to emit one universal Manifest V3 WebExtension build to `dist/webextension/`

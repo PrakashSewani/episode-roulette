@@ -16,14 +16,14 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: Season-traversal cleanup pass complete (behavior-preserving refactor of already-complete Phases 4 and 5). Phase 7 remains blocked (Chrome numeric-season smoke evidence; named seasons are a known first-release limitation). Phase 8 remains in progress for remote CI and final live Chrome/Safari smoke checks. The cleanup does not change phase completion status.
+- Current state: Season-traversal cleanup committed (`3747c01`); removed unused project files (`.nvmrc`, `CHROME-VALIDATION.md`, `safari/README.md`) with all referencing docs and CI updated. Phase 7 remains blocked (Chrome numeric-season smoke evidence; named seasons are a known first-release limitation). Phase 8 remains in progress for remote CI and final live Chrome/Safari smoke checks.
 - Item currently in progress: Complete remaining Phase 7/8 release gates without named-season live pass.
-- Completed in this session: Season-traversal cleanups — (1) `waitForStableRows` and the `activateSeason` transition condition now compute `getValidEpisodeRows` once per check and `snapshotRows` takes the rows array instead of re-querying; (2) removed the dead no-op `MutationObserver` in `waitForStableRows`, so row stability is explicitly rAF-driven (matches updated spec); (3) removed the redundant `resilientQuery` before `waitForElement` in `season-traverser.ts#resolveEpisodeSelector`; (6) moved `isVisible` into `dom-utils.ts` as the single shared visibility predicate (used by `season-controller.ts` and `navigator.ts`); (7) exported `resolveLiveEpisodeSelector` from `season-controller.ts` and reused it in `navigator.ts`, removing the duplicated `requireEpisodeSelector`/`isVisible`. Docs updated: `season-controller.ts.md` (stability wording + new API entry), `navigator.ts.md` (uses shared helper), `dom-utils.ts.md` (isVisible API + responsibility), `module-map.md` (dom-utils role), `maintenance-playbook.md` (removed the now-resolved MutationObserver-vs-rAF inspection note).
-- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 99 tests across 14 files; `npm run build` succeeded; `git diff --check` clean.
-- Blockers or unanswered questions: Named-season live support deferred. Still need Chrome numeric-season smoke evidence recorded, GitHub Actions green, and signed Safari smoke for release readiness. Deferred improvement items (not blockers): fail-fast on permanent structural `unsupported-layout` sub-cases (needs error-reason taxonomy + multi-doc/test work) and a discovery progress indicator (needs its own spec'd UI phase).
-- Files changed: `src/netflix/season-controller.ts`, `src/netflix/dom-utils.ts`, `src/engine/navigator.ts`, `src/discovery/season-traverser.ts`, `docs/module-specs/season-controller.ts.md`, `docs/module-specs/navigator.ts.md`, `docs/module-specs/dom-utils.ts.md`, `knowledge-transfer/module-map.md`, `knowledge-transfer/maintenance-playbook.md`, this tracker.
-- Exact next action: Finish Chrome Phase 7 checklist for numeric seasons only (named = SKIP/limitation), confirm CI, signed Safari smoke; open future tasks for fail-fast structural errors and discovery progress feedback if desired.
-- Required docs for the next agent: `AGENTS.md`, Phases 7 and 8 of `docs/implementation-plan.md`, `CHROME-VALIDATION.md`, `README.md` limitation section, `docs/module-specs/season-controller.ts.md` (stability is rAF-driven), and this tracker.
+- Completed in this session: (1) Season-traversal cleanup pass committed as `3747c01`. (2) Removed `.nvmrc`, `CHROME-VALIDATION.md`, and `safari/README.md` per user request; updated `.github/workflows/ci.yml` to hardcode `node-version: '24'` instead of `node-version-file: .nvmrc`; removed dangling references from `README.md`, `docs/implementation-plan.md`, `docs/testing.md`, `docs/project-todos.md`, and `knowledge-transfer/build-testing-release.md`. Node 24 LTS remains pinned by `package.json#engines` (`^24.0.0`).
+- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 99 tests across 14 files; `npm run build` succeeded; no dangling references to deleted files.
+- Blockers or unanswered questions: Named-season live support deferred (documented limitation). Still need Chrome numeric-season smoke evidence recorded, GitHub Actions green, and signed Safari smoke for release readiness.
+- Files changed: `.github/workflows/ci.yml`, `README.md`, `docs/implementation-plan.md`, `docs/testing.md`, `docs/project-todos.md`, `knowledge-transfer/build-testing-release.md`; deleted `.nvmrc`, `CHROME-VALIDATION.md`, `safari/README.md`.
+- Exact next action: Finish Chrome Phase 7 checklist for numeric seasons only (named = SKIP/limitation), confirm CI, signed Safari smoke.
+- Required docs for the next agent: `AGENTS.md`, Phases 7 and 8 of `docs/implementation-plan.md`, `README.md` limitation section, `docs/module-specs/season-controller.ts.md` (stability is rAF-driven), and this tracker.
 
 ## Phase Tracker
 
@@ -44,7 +44,7 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 **Implemented**:
 
-- Node 24 LTS is pinned by `.nvmrc` and `package.json#engines`.
+- Node 24 LTS is pinned by `package.json#engines`.
 - Vite, TypeScript, and CRXJS build the shared Manifest V3 extension to `dist/webextension/`.
 - `src/manifest.ts` is the canonical manifest source and reads the product version from `package.json`.
 - `src/content.ts` is the minimal shared content-script entry point.
