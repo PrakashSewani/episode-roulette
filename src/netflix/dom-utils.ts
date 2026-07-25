@@ -34,6 +34,16 @@ export function getTextContent(
   return text ? text : null
 }
 
+export function isVisible(element: HTMLElement): boolean {
+  const style = window.getComputedStyle(element)
+  const hasLayoutBox = [...element.getClientRects()].some(
+    (rect) => rect.width > 0 && rect.height > 0,
+  )
+  return hasLayoutBox
+    && style.display !== 'none'
+    && style.visibility !== 'hidden'
+}
+
 function createAbortError(): DOMException {
   return new DOMException('The operation was aborted.', 'AbortError')
 }

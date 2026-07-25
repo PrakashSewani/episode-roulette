@@ -27,6 +27,8 @@ import { SeasonDescriptor } from '../types'
 
 export function getValidEpisodeRows(root: ParentNode): HTMLElement[]
 
+export function resolveLiveEpisodeSelector(titleRoot: HTMLElement): HTMLElement | null
+
 export function enumerateSeasons(
   titleRoot: HTMLElement,
   episodeSelector: HTMLElement,
@@ -57,6 +59,8 @@ export function expandAndValidateSeason(
 `deadline` is an absolute `performance.now()` timestamp owned by the caller. Controller functions never create or extend it.
 
 `getValidEpisodeRows()` queries `EPISODE_ROW` within `root`, de-duplicates matches from selector fallbacks, and returns only connected, visible `HTMLElement` rows with `role="button"`, preserving DOM order. It is synchronous and is the sole implementation of structural episode-row validity. `detector.ts`, controller operations, and discovery use it rather than duplicating the predicate.
+
+`resolveLiveEpisodeSelector()` queries `EPISODE_SELECTOR` within `titleRoot`, de-duplicates matches from selector fallbacks, and returns the single connected, visible `HTMLElement` selector, or `null` when zero or multiple candidates remain. It is synchronous and shared by activation and playback so live episode-selector resolution stays consistent across the two code paths.
 
 ---
 
@@ -143,13 +147,13 @@ Waiting for any episode row is never sufficient.
 
 ## Expansion and Stability
 
-The traverser or navigator supplies one absolute 10-second deadline for a complete season attempt. Enumeration has its own initial 10-second attempt deadline. Completion remains DOM-driven through MutationObserver notifications and stable animation frames; the deadline is only a safety bound when Netflix never reaches a valid state. For a season, activation and expansion share the same deadline; controller calls do not reset it. A discovery retry receives one new 10-second deadline. `AbortError` is immediate and bypasses retry.
+The traverser or navigator supplies one absolute 10-second deadline for a complete season attempt. Enumeration has its own initial 10-second attempt deadline. Completion is driven by per-animation-frame stability checks; the deadline is only a safety bound when Netflix never reaches a valid state. For a season, activation and expansion share the same deadline; controller calls do not reset it. A discovery retry receives one new 10-second deadline. `AbortError` is immediate and bypasses retry.
 
 For each season attempt:
 
 1. If `SECTION_EXPAND` exists, click it once.
 2. Require the control to disappear.
-3. Observe `episodeSelector` with `{ childList: true, subtree: true, attributes: true }` so readiness checks react promptly to Netflix rendering. Before stability counting begins, require the season's minimum readiness count: one valid row when `expectedEpisodeCount` is `null` or `1`, otherwise at least two valid rows. Stability is determined only by the ordered valid-row identity snapshot and count. Reset stability when that snapshot changes; unrelated subtree mutations such as image, thumbnail, progress, or layout updates inside otherwise unchanged episode rows do not reset it. Require the snapshot to remain unchanged across two consecutive animation frames before the deadline.
+3. Poll `episodeSelector` on every animation frame so readiness checks react promptly to Netflix rendering. Before stability counting begins, require the season's minimum readiness count: one valid row when `expectedEpisodeCount` is `null` or `1`, otherwise at least two valid rows. Stability is determined only by the ordered valid-row identity snapshot and count. Reset stability when that snapshot changes; unrelated subtree mutations such as image, thumbnail, progress, or layout updates inside otherwise unchanged episode rows do not reset it. Require the snapshot to remain unchanged across two consecutive animation frames before the deadline.
 4. If `expectedEpisodeCount` is non-null, require an exact count match.
 5. Return the current live rows, all of which must satisfy the centralized valid-row definition.
 

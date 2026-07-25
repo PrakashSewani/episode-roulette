@@ -212,6 +212,7 @@ Role:
 
 - Generic first-success queries
 - Generic text extraction
+- Generic element visibility predicate
 - Abortable element waits
 - Observer, timer, and listener cleanup
 

@@ -12,6 +12,7 @@ Provide generic DOM query utilities that try caller-supplied selector strategies
 2. Wait for elements to appear (async)
 3. Make every asynchronous wait abortable
 4. Provide typed wrappers for common operations
+5. Provide a generic element visibility predicate
 
 `dom-utils.ts` must not import `selectors.ts`. Feature modules choose Netflix selector configurations and pass their arrays and scoped roots into these helpers.
 
@@ -97,6 +98,24 @@ export function getTextContent(
   parent: Element
 ): string | null
 ```
+
+### isVisible
+
+```typescript
+/**
+ * Test whether an element is currently visible.
+ * @param element - Element to test
+ * @returns true when the element has a non-zero layout box and computed
+ *          display/visibility do not hide it
+ */
+export function isVisible(element: HTMLElement): boolean
+```
+
+**Behavior**:
+- Require at least one non-zero `getClientRects()` box
+- Require computed `display` other than `none`
+- Require computed `visibility` other than `hidden`
+- Synchronous; no observer or timer
 
 ---
 

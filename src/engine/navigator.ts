@@ -9,31 +9,10 @@ import { resolveEpisodeRow } from '../netflix/episode-identity'
 import {
   activateSeason,
   expandAndValidateSeason,
+  resolveLiveEpisodeSelector,
 } from '../netflix/season-controller'
-import { EPISODE_SELECTOR } from '../netflix/selectors'
 
 const PLAYBACK_TIMEOUT_MS = 10_000
-
-function isVisible(element: HTMLElement): boolean {
-  const style = window.getComputedStyle(element)
-  return [...element.getClientRects()].some((rect) => rect.width > 0 && rect.height > 0)
-    && style.display !== 'none'
-    && style.visibility !== 'hidden'
-}
-
-function requireEpisodeSelector(root: HTMLElement): HTMLElement {
-  const candidates = new Set<HTMLElement>()
-  for (const selector of EPISODE_SELECTOR.selectors) {
-    for (const match of root.querySelectorAll<HTMLElement>(selector)) {
-      candidates.add(match)
-    }
-  }
-  const valid = [...candidates].filter((element) => element.isConnected && isVisible(element))
-  if (valid.length !== 1) {
-    throw new PlaybackResolutionError('Episode selector could not be resolved uniquely')
-  }
-  return valid[0]!
-}
 
 function toSeasonDescriptor(episode: Episode): SeasonDescriptor {
   return {
@@ -63,7 +42,10 @@ export async function playEpisode(
   assertCurrent: () => void,
 ): Promise<void> {
   try {
-    const episodeSelector = requireEpisodeSelector(root)
+    const episodeSelector = resolveLiveEpisodeSelector(root)
+    if (episodeSelector === null) {
+      throw new PlaybackResolutionError('Episode selector could not be resolved uniquely')
+    }
     const season = toSeasonDescriptor(episode)
     const deadline = performance.now() + PLAYBACK_TIMEOUT_MS
     const liveEpisodeSelector = await activateSeason(

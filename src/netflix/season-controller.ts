@@ -1,6 +1,6 @@
 import type { SeasonDescriptor } from '../types'
 import { SeasonControllerError } from '../types'
-import { resilientQuery, resilientQueryAll, waitForElement } from './dom-utils'
+import { isVisible, resilientQuery, resilientQueryAll, waitForElement } from './dom-utils'
 import {
   EPISODE_SELECTOR,
   EPISODE_ROW,
@@ -117,8 +117,8 @@ function parseSeasonElement(element: Element): SeasonDescriptor | null {
   }
 }
 
-function snapshotRows(root: ParentNode): string {
-  return JSON.stringify(getValidEpisodeRows(root).map((row, index) => [
+function snapshotRows(rows: HTMLElement[]): string {
+  return JSON.stringify(rows.map((row, index) => [
     row.getAttribute('aria-label') ?? '',
     (row.textContent ?? '').normalize('NFKC').trim().replace(/\s+/gu, ' '),
     index,
@@ -129,7 +129,7 @@ function minimumReadyRowCount(season: SeasonDescriptor): number {
   return season.expectedEpisodeCount !== null && season.expectedEpisodeCount >= 2 ? 2 : 1
 }
 
-function resolveLiveEpisodeSelector(titleRoot: HTMLElement): HTMLElement | null {
+export function resolveLiveEpisodeSelector(titleRoot: HTMLElement): HTMLElement | null {
   const candidates = new Set<HTMLElement>()
   for (const selector of EPISODE_SELECTOR.selectors) {
     for (const match of titleRoot.querySelectorAll<HTMLElement>(selector)) {
@@ -176,17 +176,6 @@ function waitForCondition(
     observer.observe(root, observeOptions)
     signal.addEventListener('abort', abort, { once: true })
   })
-}
-
-function isVisible(element: HTMLElement): boolean {
-  const style = window.getComputedStyle(element)
-  const hasLayoutBox = [...element.getClientRects()].some(
-    (rect) => rect.width > 0 && rect.height > 0,
-  )
-
-  return hasLayoutBox
-    && style.display !== 'none'
-    && style.visibility !== 'hidden'
 }
 
 export function getValidEpisodeRows(episodeSelector: ParentNode): HTMLElement[] {
@@ -299,7 +288,7 @@ export async function activateSeason(
     throw new SeasonControllerError('strategy-mismatch', 'Season dropdown is missing')
   }
 
-  const previousSnapshot = snapshotRows(episodeSelector)
+  const previousSnapshot = snapshotRows(getValidEpisodeRows(episodeSelector))
   let menu = resilientQuery<HTMLElement>(SEASON_DROPDOWN_MENU.selectors, titleRoot)
   if (menu === null) {
     toggle.click()
@@ -336,12 +325,17 @@ export async function activateSeason(
     'transition-timeout',
     () => {
       const current = resolveLiveEpisodeSelector(titleRoot)
-      if (
-        current === null
-        || getActiveSeasonKey(current) !== season.key
-        || snapshotRows(current) === previousSnapshot
-        || getValidEpisodeRows(current).length < minimumReadyRowCount(season)
-      ) {
+      if (current === null) {
+        return false
+      }
+      if (getActiveSeasonKey(current) !== season.key) {
+        return false
+      }
+      const currentRows = getValidEpisodeRows(current)
+      if (snapshotRows(currentRows) === previousSnapshot) {
+        return false
+      }
+      if (currentRows.length < minimumReadyRowCount(season)) {
         return false
       }
       liveEpisodeSelector = current
@@ -364,15 +358,12 @@ function waitForStableRows(
   assertNotAborted(signal)
 
   return new Promise((resolve, reject) => {
-    let observer: MutationObserver | null = null
     let frameId: number | null = null
     let timer: number | null = null
     let previousSnapshot: string | null = null
     let stableFrames = 0
 
     const cleanup = (): void => {
-      observer?.disconnect()
-      observer = null
       if (frameId !== null) window.cancelAnimationFrame(frameId)
       if (timer !== null) window.clearTimeout(timer)
       signal.removeEventListener('abort', abort)
@@ -384,7 +375,7 @@ function waitForStableRows(
     const check = (): void => {
       assertNotAborted(signal)
       const rows = getValidEpisodeRows(episodeSelector)
-      const snapshot = snapshotRows(episodeSelector)
+      const snapshot = snapshotRows(rows)
       if (rows.length < minimumReadyRowCount(season)) {
         stableFrames = 0
       } else if (snapshot === previousSnapshot) {
@@ -401,13 +392,6 @@ function waitForStableRows(
       frameId = window.requestAnimationFrame(check)
     }
 
-    observer = new MutationObserver(() => {})
-    observer.observe(episodeSelector, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'role'],
-    })
     timer = window.setTimeout(() => {
       cleanup()
       reject(new SeasonControllerError('render-timeout', 'Episode rows did not stabilize'))

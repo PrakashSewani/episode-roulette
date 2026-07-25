@@ -336,7 +336,6 @@ If code and docs appear to disagree:
 Known areas that deserve careful inspection rather than assumptions include:
 
 - Combined single-line season label/count handling
-- The exact MutationObserver versus animation-frame role in row stability
 - Historical numeric-season-only statements from earlier phases
 - Example test organization versus the actual current test files
 - Type checking being locally required but not currently a distinct CI step

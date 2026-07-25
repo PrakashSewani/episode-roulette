@@ -75,7 +75,10 @@ export async function playEpisode(
   signal: AbortSignal,
   assertCurrent: () => void,
 ): Promise<void> {
-  const episodeSelector = requireEpisodeSelector(root)
+  const episodeSelector = resolveLiveEpisodeSelector(root)
+  if (!episodeSelector) {
+    throw new PlaybackResolutionError('Episode selector could not be resolved uniquely')
+  }
   const season = toSeasonDescriptor(episode)
   const deadline = performance.now() + 10000
   const liveEpisodeSelector = await activateSeason(
@@ -105,7 +108,7 @@ export async function playEpisode(
 }
 ```
 
-`requireEpisodeSelector(root)` resolves `EPISODE_SELECTOR` only within `root`, requires exactly one connected visible `HTMLElement`, and throws `PlaybackResolutionError` otherwise.
+`resolveLiveEpisodeSelector(root)` is the shared controller helper that resolves `EPISODE_SELECTOR` only within `root`, requires exactly one connected visible `HTMLElement`, and returns `null` otherwise. The navigator throws `PlaybackResolutionError` on a `null` result so a missing or ambiguous selector maps to a retryable playback error rather than a cache mismatch.
 
 No asynchronous boundary may occur between `assertCurrent()` and `row.click()`.
 

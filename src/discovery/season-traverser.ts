@@ -5,7 +5,7 @@ import {
   type SeasonDescriptor,
   type SeriesInfo,
 } from '../types'
-import { resilientQuery, waitForElement } from '../netflix/dom-utils'
+import { waitForElement } from '../netflix/dom-utils'
 import {
   activateSeason,
   enumerateSeasons,
@@ -31,8 +31,7 @@ async function resolveEpisodeSelector(
   deadline: number,
   signal: AbortSignal,
 ): Promise<HTMLElement> {
-  const existing = resilientQuery<HTMLElement>(EPISODE_SELECTOR.selectors, root)
-  const selector = existing ?? await waitForElement<HTMLElement>(
+  const selector = await waitForElement<HTMLElement>(
     EPISODE_SELECTOR.selectors,
     Math.max(0, deadline - performance.now()),
     root,
