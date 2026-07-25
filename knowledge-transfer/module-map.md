@@ -11,6 +11,7 @@ content.ts
   -> detector.ts
   -> selectors.ts
   -> button.ts / styles.ts / feedback.ts
+  -> popup/popup.ts (via chrome.runtime.onMessage)
   -> season-traverser.ts
   -> randomizer.ts
   -> navigator.ts
@@ -425,6 +426,31 @@ It must not modify global Netflix styles. Extension selectors and classes remain
 Primary tests:
 
 - `tests/unit/styles.test.ts`
+
+### `src/popup/popup.ts`
+
+Role:
+
+- Toolbar popup status display and roll trigger
+- Query active tab for series status via `chrome.tabs.sendMessage`
+- Send `roll` message to trigger the same playback flow as the in-page button
+- Stateless view; no discovery, selection, playback, or cache ownership
+
+Public API:
+
+```typescript
+(none — HTML entry point loaded by the browser action)
+```
+
+High-risk changes:
+
+- Bypassing the content script to perform discovery directly
+- Retaining state across popup open/close cycles
+- Adding permissions not declared in the manifest
+
+Primary tests:
+
+- `tests/unit/popup.test.ts`
 
 ## Build and Packaging Modules
 

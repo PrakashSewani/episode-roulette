@@ -20,6 +20,23 @@ Netflix page
 
 Chrome loads `dist/webextension/` directly. Safari wraps the byte-identical WebExtension output in the committed Xcode project under `safari/`.
 
+## Toolbar Popup
+
+The manifest declares an `action` with `default_popup` pointing to `src/popup/index.html`. No service worker is required — the popup communicates with the content script through `chrome.tabs.sendMessage`.
+
+The popup shows four status states derived from `content.ts`:
+
+| Status | Condition |
+|---|---|
+| `no-series` | No active context, no series confirmed, or not on Netflix |
+| `ready` | Series confirmed and button in `ready` state |
+| `loading` | Discovery or playback in progress |
+| `error` | Last operation failed with a retryable error |
+
+The popup's "Roll Random Episode" button sends a `roll` message that triggers the same `runPlayback()` flow as the in-page button. Both entry points share one playback contract with all existing generation, abort, and context guards.
+
+The in-page button remains the primary entry point for discoverability. The popup provides toolbar access without scrolling to the button.
+
 ## Runtime Entry
 
 `src/content.ts` exports `start()` and `stop()` and invokes `start()` when the module loads.

@@ -228,6 +228,34 @@ Discovery and playback receive the active context's `AbortSignal`. Their returne
 
 ---
 
+## Popup Message Handling
+
+`content.ts` registers a `chrome.runtime.onMessage` listener in `start()` and removes it in `stop()`. The listener handles two message types from the toolbar popup (`src/popup/popup.ts`):
+
+### `getStatus`
+
+Responds with `{ type: 'status', status: PopupStatus }` where `PopupStatus` is:
+
+- `no-series` — no active context, no series confirmed, or no button controller
+- `ready` — series confirmed and button controller is in `ready` state
+- `loading` — button controller is in `loading` state
+- `error` — button controller is in `error` state
+
+The status is derived from the module-level `seriesConfirmed`, `activeContext`, `activeRoot`, and `buttonController` variables plus the button controller's `getState()` accessor.
+
+### `roll`
+
+Triggers the same `runPlayback()` flow as the in-page button click, using the current `activeContext`, `activeRoot`, and `buttonController`. Responds with:
+
+- `{ type: 'roll-accepted' }` — playback started; all existing generation, abort, and context guards apply
+- `{ type: 'roll-rejected', reason: string }` — no series, no context, or already loading
+
+A rejected roll never starts discovery or playback. An accepted roll reuses the exact same `runPlayback(context, root, controller)` call as the in-page button's `onClick` handler, so both entry points share one playback contract.
+
+The `ButtonController.getState()` accessor exposes the current `ButtonState` (`ready`, `loading`, or `error`) without changing any button behavior.
+
+---
+
 ## Testing
 
 - Integration test: Movie `jbv` context never injects the button

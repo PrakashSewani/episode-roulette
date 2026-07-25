@@ -1,0 +1,115 @@
+:root {
+  --netflix-red: #e50914;
+  --netflix-red-dark: #b81d24;
+  --bg: #141414;
+  --surface: #1f1f1f;
+  --text: #ffffff;
+  --text-muted: #b3b3b3;
+  --border: #2f2f2f;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 280px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+}
+
+.ep-roulette-popup {
+  padding: 16px;
+}
+
+.ep-roulette-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ep-roulette-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+}
+
+.ep-roulette-header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.ep-roulette-status {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 14px;
+  min-height: 18px;
+}
+
+.ep-roulette-roll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--netflix-red);
+  color: var(--text);
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ep-roulette-roll:hover:not(:disabled) {
+  background: var(--netflix-red-dark);
+}
+
+.ep-roulette-roll:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ep-roulette-roll:disabled {
+  background: #404040;
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.ep-roulette-roll-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.ep-roulette-roll.rolling .ep-roulette-roll-icon {
+  animation: ep-roulette-spin 0.8s linear infinite;
+}
+
+@keyframes ep-roulette-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.ep-roulette-footer {
+  margin-top: 14px;
+  text-align: center;
+}
+
+.ep-roulette-sponsor {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.ep-roulette-sponsor:hover {
+  color: var(--text);
+}

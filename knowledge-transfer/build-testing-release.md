@@ -59,6 +59,8 @@ The package assertion verifies:
 - No extension permissions
 - No optional host permissions
 - No background or service worker
+- Toolbar popup with dice icon for Chrome and Safari
+- Icons generated from `icons/dice.svg` via `npm run icons` (requires `sharp`)
 - Every declared script and resource exists
 - No nested WebExtension package
 

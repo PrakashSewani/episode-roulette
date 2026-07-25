@@ -10,6 +10,7 @@
     "assert:safari": "node scripts/assert-packaging.mjs safari",
     "assert:webextension": "node scripts/assert-packaging.mjs webextension",
     "build": "vite build",
+    "icons": "node scripts/generate-icons.mjs",
     "test": "vitest run",
     "safari:init": "npm run build && node scripts/safari-init.mjs",
     "safari:sync": "npm run build && node scripts/safari-sync.mjs",
@@ -17,7 +18,9 @@
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "2.7.1",
+    "@types/chrome": "^0.2.2",
     "jsdom": "^29.1.1",
+    "sharp": "^0.35.3",
     "typescript": "7.0.2",
     "vite": "8.1.5",
     "vitest": "^4.1.10"

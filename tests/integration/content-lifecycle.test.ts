@@ -553,4 +553,69 @@ describe('Phase 2 content lifecycle', () => {
     await vi.waitFor(() => expect(playbackHarness.discoverEpisodes).toHaveBeenCalledTimes(2))
     content.stop()
   })
+
+  it('responds to popup getStatus with no-series before series confirmation', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=19')
+    document.body.append(createTitleDetails({ episodic: false }))
+    const content = await import('../../src/content')
+    await flushPromises()
+
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0]
+    expect(listener).toBeDefined()
+
+    const sendResponse = vi.fn()
+    listener!({ type: 'getStatus' }, {}, sendResponse)
+    expect(sendResponse).toHaveBeenCalledWith({ type: 'status', status: 'no-series' })
+
+    content.stop()
+  })
+
+  it('responds to popup getStatus with ready after series confirmation and button injection', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=20')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    const content = await import('../../src/content')
+    await flushPromises()
+
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0]
+    const sendResponse = vi.fn()
+    listener!({ type: 'getStatus' }, {}, sendResponse)
+    expect(sendResponse).toHaveBeenCalledWith({ type: 'status', status: 'ready' })
+
+    content.stop()
+  })
+
+  it('triggers playback via popup roll message', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=21')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    playbackHarness.discoverEpisodes.mockResolvedValue({
+      id: '21', totalSeasons: 1, episodes: [], discoveredAt: Date.now(),
+    })
+    playbackHarness.playEpisode.mockResolvedValue(undefined)
+    const content = await import('../../src/content')
+    await flushPromises()
+
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0]
+    const sendResponse = vi.fn()
+    listener!({ type: 'roll' }, {}, sendResponse)
+    expect(sendResponse).toHaveBeenCalledWith({ type: 'roll-accepted' })
+
+    await vi.waitFor(() => expect(playbackHarness.discoverEpisodes).toHaveBeenCalledOnce())
+
+    content.stop()
+  })
+
+  it('rejects popup roll when no series is confirmed', async () => {
+    window.history.replaceState({}, '', '/browse')
+    const content = await import('../../src/content')
+    await flushPromises()
+
+    const listener = vi.mocked(chrome.runtime.onMessage.addListener).mock.calls[0]?.[0]
+    const sendResponse = vi.fn()
+    listener!({ type: 'roll' }, {}, sendResponse)
+    expect(sendResponse).toHaveBeenCalledWith({ type: 'roll-rejected', reason: 'no-series' })
+
+    content.stop()
+  })
 })

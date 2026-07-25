@@ -127,6 +127,17 @@ async function assertManifest(root) {
   if (await exists(path.join(root, 'webextension', 'manifest.json'))) {
     fail('WebExtension package must not contain a nested webextension directory.')
   }
+
+  if (manifest.action?.default_popup) {
+    await assertDeclaredFile(root, manifest.action.default_popup, 'Action popup')
+  }
+  for (const size of Object.values(manifest.action?.default_icon ?? {})) {
+    await assertDeclaredFile(root, size, 'Action icon')
+  }
+  for (const size of Object.values(manifest.icons ?? {})) {
+    await assertDeclaredFile(root, size, 'Manifest icon')
+  }
+
   return { manifest, bytes: await readFile(manifestPath) }
 }
 

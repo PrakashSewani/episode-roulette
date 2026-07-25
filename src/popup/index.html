@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Episode Roulette</title>
+  <link rel="stylesheet" href="./popup.css" />
+</head>
+<body>
+  <div class="ep-roulette-popup">
+    <header class="ep-roulette-header">
+      <img src="../../icons/icon-48.png" alt="" class="ep-roulette-logo" />
+      <h1>Episode Roulette</h1>
+    </header>
+    <p class="ep-roulette-status" id="status">Checking Netflix...</p>
+    <button class="ep-roulette-roll" id="roll" disabled>
+      <span class="ep-roulette-roll-icon">🎲</span>
+      <span class="ep-roulette-roll-text">Roll Random Episode</span>
+    </button>
+    <footer class="ep-roulette-footer">
+      <a href="https://github.com/sponsors/PrakashSewani" target="_blank" rel="noopener noreferrer" class="ep-roulette-sponsor">
+        ❤️ Sponsor development
+      </a>
+    </footer>
+  </div>
+  <script type="module" src="./popup.ts"></script>
+</body>
+</html>

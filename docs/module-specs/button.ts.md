@@ -79,6 +79,9 @@ interface ButtonController {
   /** Update button state and optional retryable error message. */
   setState(state: ButtonState, errorMessage?: string): void
 
+  /** Read the current button state without changing it. */
+  getState(): ButtonState
+
   /** Set click handler */
   onClick(handler: () => void): void
 

@@ -91,6 +91,9 @@ function createController(
       state = nextState
       applyState(button, nextState, errorMessage)
     },
+    getState() {
+      return state
+    },
     onClick(handler) {
       clickHandler = handler
     },

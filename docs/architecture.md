@@ -96,6 +96,7 @@ Episode Roulette is a WebExtension for Chrome and macOS Safari that operates as 
 | Season Traverser | `src/discovery/season-traverser.ts` | Sequence seasons, retry failures, and aggregate complete catalogs | `season-controller.ts`, `episode-collector.ts`, `types.ts` |
 | Episode Collector | `src/discovery/episode-collector.ts` | Build durable episode metadata from supplied complete rows | `episode-identity.ts`, `types.ts` |
 | Button | `src/ui/button.ts` | Create and inject UI button | `selectors.ts`, `dom-utils.ts`, `styles.ts`, `types.ts` |
+| Popup | `src/popup/popup.ts` | Toolbar popup status and roll trigger | `types.ts` |
 | Styles | `src/ui/styles.ts` | Inject CSS matching Netflix design | None |
 | Feedback | `src/ui/feedback.ts` | Own error toast DOM, timers, replacement, and removal | None |
 | Randomizer | `src/engine/randomizer.ts` | Uniform random selection | `types.ts` |
@@ -321,9 +322,14 @@ src/
 │   ├── button.ts            # Button injection
 │   ├── styles.ts            # CSS injection
 │   └── feedback.ts          # Loading/error states
+├── popup/
+│   ├── index.html           # Toolbar popup entry
+│   ├── popup.ts             # Popup status and roll trigger
+│   └── popup.css            # Popup styling
 └── engine/
     ├── randomizer.ts        # Random selection
     └── navigator.ts         # Playback navigation
 
+icons/                        # Dice logo PNGs (generated from dice.svg)
 safari/                      # macOS Safari Web Extension Xcode wrapper
 ```

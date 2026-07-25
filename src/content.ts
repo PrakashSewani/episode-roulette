@@ -19,6 +19,9 @@ import {
   type Episode,
   type OperationContext,
   type PageChangeEvent,
+  type PopupMessage,
+  type PopupMessageResponse,
+  type PopupStatus,
   type SeriesInfo,
   type TitleContext,
 } from './types'
@@ -396,6 +399,66 @@ function handlePageChange(event: PageChangeEvent): void {
   }
 }
 
+function getPopupStatus(): PopupStatus {
+  if (!seriesConfirmed || activeContext === null || activeRoot === null) {
+    return 'no-series'
+  }
+  if (buttonController === null) {
+    return 'no-series'
+  }
+  const state = buttonController.getState()
+  if (state === 'loading') return 'loading'
+  if (state === 'error') return 'error'
+  return 'ready'
+}
+
+function handleMessage(
+  message: PopupMessage,
+  _sender: chrome.runtime.MessageSender,
+  sendResponse: (response: PopupMessageResponse) => void,
+): boolean {
+  if (message.type === 'getStatus') {
+    sendResponse({ type: 'status', status: getPopupStatus() })
+    return false
+  }
+
+  if (message.type === 'roll') {
+    const status = getPopupStatus()
+    if (status === 'no-series' || status === 'loading') {
+      sendResponse({ type: 'roll-rejected', reason: status })
+      return false
+    }
+
+    const context = activeContext
+    const root = activeRoot
+    const controller = buttonController
+    if (context === null || root === null || controller === null) {
+      sendResponse({ type: 'roll-rejected', reason: 'no-series' })
+      return false
+    }
+
+    sendResponse({ type: 'roll-accepted' })
+    void runPlayback(context, root, controller)
+    return false
+  }
+
+  return false
+}
+
+let messageListenerRegistered = false
+
+function registerMessageListener(): void {
+  if (messageListenerRegistered) return
+  chrome.runtime.onMessage.addListener(handleMessage)
+  messageListenerRegistered = true
+}
+
+function unregisterMessageListener(): void {
+  if (!messageListenerRegistered) return
+  chrome.runtime.onMessage.removeListener(handleMessage)
+  messageListenerRegistered = false
+}
+
 export function start(): void {
   if (started) {
     return
@@ -404,6 +467,7 @@ export function start(): void {
   started = true
   injectStyles()
   window.addEventListener('pagehide', stop)
+  registerMessageListener()
   onStart(handlePageChange)
 }
 
@@ -414,6 +478,7 @@ export function stop(): void {
 
   started = false
   window.removeEventListener('pagehide', stop)
+  unregisterMessageListener()
   invalidateActiveContext()
   onStop()
   removeStyles()

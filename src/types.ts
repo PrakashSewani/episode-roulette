@@ -97,6 +97,18 @@ export type ButtonState = 'loading' | 'ready' | 'error'
 
 export interface ButtonController {
   setState(state: ButtonState, errorMessage?: string): void
+  getState(): ButtonState
   onClick(handler: () => void): void
   remove(): void
 }
+
+export type PopupStatus = 'no-series' | 'ready' | 'loading' | 'error'
+
+export type PopupMessage =
+  | { type: 'getStatus' }
+  | { type: 'roll' }
+
+export type PopupMessageResponse =
+  | { type: 'status'; status: PopupStatus }
+  | { type: 'roll-accepted' }
+  | { type: 'roll-rejected'; reason: string }
