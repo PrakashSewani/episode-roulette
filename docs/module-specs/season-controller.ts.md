@@ -96,19 +96,21 @@ The first release supports a fully rendered menu. If a future Netflix layout vir
 First-release episode-count parsing supports English Netflix UI only.
 
 - Read item `innerText` when available, otherwise `textContent`, Unicode-normalize with `NFKC`, split on line breaks, trim each line, collapse Unicode whitespace runs to one ASCII space, and discard blank lines.
-- Parse one shared label identity from the first normalized line. Its normalized identity is NFKC, trimmed, whitespace-collapsed, and lowercased with `toLocaleLowerCase('en-US')`.
+- Before identity parsing, strip a trailing episode-count suffix from the first normalized line when present. A trailing suffix matches `\s*\(\s*<positive integer>\s*Episodes?\s*\)\s*$` case-insensitively. When matched, remove that suffix for identity and record the positive integer as `expectedEpisodeCount`. This covers live Netflix one-line menu items such as `Phantom Blood/Battle Tendency (26 Episodes)` and `Season 7 (24 Episodes)`.
+- If the first line has no trailing count suffix, `expectedEpisodeCount` may still be parsed from a later complete normalized line matching `(<positive integer> Episode)` or `(<positive integer> Episodes)` case-insensitively, preserving multi-line menu text such as `Season 7` plus `(24 Episodes)`.
+- When both a trailing first-line suffix and a later count line are present, the first-line trailing suffix wins.
+- Parse one shared label identity from the first normalized line after suffix stripping. Its display `label` is that stripped first line (NFKC, trimmed, whitespace-collapsed). Its normalized identity for keys is that same string lowercased with `toLocaleLowerCase('en-US')`.
 - A numeric label matching `Season <positive integer>` case-insensitively uses key `season <integer>` and stores the parsed positive `seasonNumber`.
 - Any other non-empty label is a named-season candidate. It uses key `label:<normalized identity>` and stores `seasonNumber: null`.
-- `expectedEpisodeCount` is optional and parsed only from a later complete normalized line matching `(<positive integer> Episode)` or `(<positive integer> Episodes)` case-insensitively. A combined line such as `Season 7 (24 Episodes)` is unsupported and fails enumeration.
 - `See All Episodes` is ignored as the only currently documented non-season action.
 - Numeric seasons remain valid when the count is absent, preserving verified Netflix behavior.
-- Named seasons do not require an episode count. Name-only arc names, subtitles, parts, volumes, and specials are valid season identities; when no count is declared, completeness uses expansion disappearance and stable rendered rows.
+- Named seasons do not require an episode count. Name-only arc names, subtitles, parts, volumes, specials, and combined slash labels such as `Phantom Blood/Battle Tendency` are valid season identities in the parser; when no count is declared, completeness uses expansion disappearance and stable rendered rows. **Product/live scope:** first release only claims reliable support for numeric `Season <number>` labels. Named-season series remain a known live limitation after failed Chrome/Safari validation (2026-07-25); they must fail complete discovery safely rather than randomize a partial catalog.
 - Duplicate canonical keys fail enumeration.
 - Every non-empty item not present in the documented action denylist is treated as a season. Newly observed Netflix actions must be documented and added to the denylist before support is claimed.
 
 If no valid season descriptors remain after filtering, enumeration fails. Unsupported Netflix UI languages are outside first-release scope.
 
-Toggle identity uses the same shared first-line identity parser but does not require an episode count. A toggle matches an explicit descriptor only when its parsed canonical key equals `season.key`.
+Toggle identity uses the same shared identity parser. The closed toggle on live Netflix typically shows the selected label without the count suffix; stripping a missing suffix is a no-op, so the toggle key still matches the menu item key. A toggle matches an explicit descriptor only when its parsed canonical key equals `season.key`.
 
 ---
 
@@ -162,6 +164,8 @@ Controller failures use `SeasonControllerError` reasons from `types.ts`. During 
 - Unit test: Implicit-season descriptor
 - Unit test: Async dropdown enumeration filters non-season actions
 - Unit test: Count-backed and name-only labels enumerate with `seasonNumber: null`
+- Unit test: Same-line count suffixes such as `Phantom Blood/Battle Tendency (26 Episodes)` strip for identity and record `expectedEpisodeCount`
+- Unit test: Closed toggle without a count suffix matches the menu item key after suffix stripping
 - Unit test: Documented action labels are ignored
 - Unit test: Duplicate season keys fail enumeration
 - Unit test: Already-active season performs no dropdown click

@@ -40,6 +40,22 @@ function normalizeLines(element: Element): string[] {
     .filter(Boolean)
 }
 
+const TRAILING_EPISODE_COUNT = /\s*\(\s*(\d+)\s*episodes?\s*\)\s*$/iu
+const STANDALONE_EPISODE_COUNT = /^\(\s*(\d+)\s*episodes?\s*\)$/iu
+
+function parseTrailingEpisodeCount(line: string): { label: string; count: number | null } {
+  const match = line.match(TRAILING_EPISODE_COUNT)
+  if (match?.[1] === undefined) {
+    return { label: line, count: null }
+  }
+  const count = Number(match[1])
+  if (!Number.isSafeInteger(count) || count <= 0) {
+    return { label: line, count: null }
+  }
+  const label = line.slice(0, match.index).normalize('NFKC').trim().replace(/\s+/gu, ' ')
+  return { label, count }
+}
+
 function parseSeasonIdentity(label: string): Pick<SeasonDescriptor, 'key' | 'label' | 'seasonNumber'> {
   const normalizedLabel = label.normalize('NFKC').trim().replace(/\s+/gu, ' ')
   if (normalizedLabel === '') {
@@ -75,16 +91,23 @@ function parseSeasonElement(element: Element): SeasonDescriptor | null {
   const lines = normalizeLines(element)
   const firstLine = lines[0] ?? ''
   if (/^see all episodes$/iu.test(firstLine)) return null
-  const identity = parseSeasonIdentity(firstLine)
 
-  let expectedEpisodeCount: number | null = null
-  for (const line of lines.slice(1)) {
-    const countMatch = line.match(/^\((\d+) episodes?\)$/iu)
-    if (countMatch?.[1] === undefined) continue
-    const count = Number(countMatch[1])
-    if (Number.isSafeInteger(count) && count > 0) {
-      expectedEpisodeCount = count
-      break
+  const { label: identityLine, count: trailingCount } = parseTrailingEpisodeCount(firstLine)
+  if (identityLine === '') {
+    throw new SeasonControllerError('unsupported-layout', 'Season label is empty')
+  }
+  const identity = parseSeasonIdentity(identityLine)
+
+  let expectedEpisodeCount: number | null = trailingCount
+  if (expectedEpisodeCount === null) {
+    for (const line of lines.slice(1)) {
+      const countMatch = line.match(STANDALONE_EPISODE_COUNT)
+      if (countMatch?.[1] === undefined) continue
+      const count = Number(countMatch[1])
+      if (Number.isSafeInteger(count) && count > 0) {
+        expectedEpisodeCount = count
+        break
+      }
     }
   }
 

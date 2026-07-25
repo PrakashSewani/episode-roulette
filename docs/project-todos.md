@@ -16,14 +16,14 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: Phase 7 is blocked only on the user's authenticated Chrome checklist. Under the approved sequencing exception, every local automated Phase 8 gate passes; Phase 8 remains in progress for remote CI execution and the final live Chrome and signed Safari checks.
-- Item currently in progress: Complete the remaining remote CI and manual Chrome/Safari release gates.
-- Completed in this session: Committed and pushed the automated release-gate work as `6c1c78a`. Added the root `knowledge-transfer/` onboarding package covering the current runtime, module ownership, build/testing/release workflow, maintenance procedures, task-specific reading paths, and an evidence-first Amazon Prime Video expansion playbook. Updated `AGENTS.md` to require both normative docs and knowledge-transfer context while preserving `docs/` authority.
-- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 96 tests across 14 files; `npm run build` and `npm run assert:webextension` passed; `npm run safari:build` reported `BUILD SUCCEEDED`; `npm run assert:safari` validated synchronized and built `.appex` resources; `git diff --check` passed.
-- Blockers or unanswered questions: Phase 7 and final release readiness still require the user's authenticated Chrome result. Phase 8 also requires a locally signed Safari smoke test and confirmation that the pushed GitHub Actions jobs pass.
-- Files changed: Added seven files under `knowledge-transfer/`; updated `AGENTS.md` and this tracker.
-- Exact next action: Confirm both GitHub Actions jobs pass, then record the user's Chrome and signed Safari smoke-test results.
-- Required docs for the next agent: `AGENTS.md`, Phases 7 and 8 of `docs/implementation-plan.md`, `docs/testing.md`, `docs/safari.md`, `CHROME-VALIDATION.md`, and this tracker.
+- Current state: User confirmed live named seasons still fail on Chrome (Windows) and Safari (mac). Named seasons are documented as a **known first-release limitation**; first-release smoke requires only numeric `Season N` series. Phase 7 remains incomplete until the remaining Chrome checklist (excluding named seasons) is recorded. Phase 8 remains in progress for remote CI and final live Chrome/Safari smoke checks.
+- Item currently in progress: Complete remaining Phase 7/8 release gates without named-season live pass.
+- Completed in this session: Same-line count-suffix identity parsing retained with tests; product docs, architecture, error-handling, selectors-reference, README, CHROME-VALIDATION, and knowledge-transfer updated so named seasons are an explicit limitation rather than claimed support.
+- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 99 tests across 14 files; `npm run build` succeeded earlier this session.
+- Blockers or unanswered questions: Named-season live support deferred. Still need Chrome numeric-season smoke evidence recorded, GitHub Actions green, and signed Safari smoke for release readiness.
+- Files changed: season-controller parse fix + tests; README, architecture, error-handling, selectors-reference, season-controller spec, CHROME-VALIDATION, knowledge-transfer, this tracker.
+- Exact next action: Finish Chrome Phase 7 checklist for numeric seasons only (named = SKIP/limitation), confirm CI, signed Safari smoke; open a future fix for named seasons only with new live evidence.
+- Required docs for the next agent: `AGENTS.md`, Phases 7 and 8 of `docs/implementation-plan.md`, `CHROME-VALIDATION.md`, `README.md` limitation section, and this tracker.
 
 ## Phase Tracker
 
@@ -34,8 +34,8 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 | 3. UI Injection | complete | Preserve spawn feedback, scoped ready placement, states, feedback, and cleanup contracts. |
 | 4. Episode Discovery | complete | Preserve complete uncached traversal, retry, identity, and cancellation contracts. |
 | 5. Random Selection + Playback | complete | Preserve the verified live playback and readiness contracts. |
-| 6. Integration + Polish | complete | Preserve named-season identity, row-snapshot stability, cache, feedback, and playback-confirmation contracts. |
-| 7. Chrome Compatibility Validation | blocked | User runs the pending live Chrome checklist in `CHROME-VALIDATION.md`. |
+| 6. Integration + Polish | complete | Preserve numeric-season path; named seasons are a documented live limitation. |
+| 7. Chrome Compatibility Validation | blocked | User completes Chrome checklist; named seasons SKIP (known limitation). |
 | 8. Testing + Validation | in progress | Run CI and complete the live Chrome and locally signed Safari smoke checks. |
 
 ## Phase 1: Project Scaffold
@@ -200,6 +200,7 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 - Shared durable `Episode`, `SeriesInfo`, `SeasonDescriptor`, row identity, and typed error contracts.
 - Generic first-success query-all/text helpers and abortable element waits with parent-removal detection and complete resource cleanup.
 - Implicit and strict English custom-dropdown season enumeration, scoped menu interaction, active identity validation, expansion, two-frame stabilization, and exact declared-count checks.
+- Same-line trailing `(N Episode(s))` count suffixes are stripped from season identity in code; live named-season series remain a known first-release limitation after failed Chrome/Safari validation (2026-07-25).
 - Shared deterministic title/number parsing, conflict handling, unique live-row resolution, and synchronous durable collection without DOM references.
 - Sequential uncached traversal with separate initialization retry, one retry per failed season, immediate abort propagation, and complete-result-only aggregation.
 

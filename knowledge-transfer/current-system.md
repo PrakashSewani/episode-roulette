@@ -198,9 +198,9 @@ The current Netflix implementation supports:
 - An implicit season when valid rows exist without a supported dropdown
 - Netflix's verified custom dropdown with toggle, menu, and menu items
 
-Numeric season labels use keys such as `season 7`. Named labels use keys such as `label:phantom blood`. The implicit key is `implicit`.
+Numeric season labels use keys such as `season 7`. Named labels use keys such as `label:phantom blood` or `label:phantom blood/battle tendency`. The implicit key is `implicit`.
 
-Named labels are supported. Known non-season actions are excluded only through the documented denylist. English count parsing is a separate first-release constraint.
+Named labels are parsed in code (including same-line `(N Episodes)` suffix stripping), but **live named-season series are a known first-release limitation** after failed Chrome and Safari validation. First-release product support is numeric `Season N` dropdowns plus implicit single-season lists. Known non-season actions are excluded only through the documented denylist. English count parsing is a separate first-release constraint.
 
 ### Durable Identity
 

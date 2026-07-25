@@ -23,9 +23,11 @@ Stop spending 10 minutes choosing what to rewatch. Click a button, get a random 
 
 First-release support targets Netflix's observed desktop title-detail layouts: implicit single-season lists and the custom English season dropdown. Kids profiles and non-English Netflix UI require separate validation before support is claimed.
 
-### Season-Name Support
+### Season support and limitations
 
-For multi-season series, Episode Roulette supports numeric entries such as `Season 1` and named entries such as arcs, subtitles, `Part <number>`, `Volume <number>`, and `Specials`, including entries that do not display a season number or episode count.
+**Supported (validated live):** multi-season series whose Netflix dropdown uses numeric labels such as `Season 1`, `Season 2`, including optional English episode counts on a separate line.
+
+**Known limitation — named seasons:** series whose dropdown uses non-numeric labels (arcs, subtitles, combined labels such as `Phantom Blood/Battle Tendency`, `Part`/`Volume`/`Specials`, etc.) are **not** reliable on live Netflix in the first release. Discovery may fail safely with a retryable error rather than producing a partial catalog. Prefer a conventional `Season N` series for random playback. Named-season support remains a future fix once live failures are fully diagnosed.
 
 Documented Netflix actions such as `See All Episodes` are ignored rather than treated as seasons. Duplicate or empty season identities fail safely. English Netflix text remains the validated first-release UI scope.
 

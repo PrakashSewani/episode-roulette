@@ -227,11 +227,11 @@ Native `<select>`, tab bars, and accordions are not core-release requirements un
 - Menu: `[data-uia="dropdown-menu"][role="menu"]`
 - Season item: `[data-uia="dropdown-menu-item"][role="menuitem"]`
 - Current season identity: normalized toggle text, such as `Season 7` or `Phantom Blood`
-- Menu item metadata may include an expected count, such as `(24 Episodes)`
+- Menu item metadata may include an expected count on a separate line or as a trailing same-line suffix, such as `(24 Episodes)` or `Phantom Blood/Battle Tendency (26 Episodes)`
 
 These selectors were verified on Netflix desktop in July 2026 and remain centralized fallbacks rather than permanent assumptions.
 
-**Season identity scope**: Numeric labels retain canonical keys such as `season 7`. Any other non-empty dropdown label is supported as a named season; its canonical key is `label:<normalized label>` and `seasonNumber` is `null`. The active toggle is matched through the same normalized label identity. Known actions such as `See All Episodes` are ignored through an explicit denylist; newly observed action labels must be documented before being added. Duplicate normalized season identities fail safely.
+**Season identity scope**: Numeric labels retain canonical keys such as `season 7`. Non-numeric dropdown labels are parsed as named seasons with key `label:<normalized label>` and `seasonNumber: null`; trailing English `(N Episode(s))` suffixes are stripped from identity text. **First-release product support and live smoke cover only `Season <number>` dropdown series.** Live Netflix named-season series (for example JoJo arcs) remain a documented limitation after failed Chrome and Safari validation; discovery is expected to fail safely rather than randomize a partial catalog until a future fix is verified live. Known actions such as `See All Episodes` are ignored through an explicit denylist; newly observed action labels must be documented before being added. Duplicate normalized season identities fail safely.
 
 **Language scope**: Season names are identity text and need not contain English numbering. Optional expected-count parsing and the documented action denylist remain English Netflix UI contracts; additional locales require separate validation.
 

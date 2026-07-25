@@ -62,7 +62,7 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 
 **Detection**: The custom dropdown does not identify the requested season, episode content does not change from the previous snapshot, or the transition wait times out.
 
-**Named-season safety**: Non-empty named labels are valid seasons even without a declared count. Only explicitly documented action labels such as `See All Episodes` are ignored. Duplicate normalized labels or empty labels fail complete discovery.
+**Named-season safety**: Non-empty named labels are parsed and may participate in discovery code paths, but **live named-season series are a known first-release limitation** and may fail complete discovery safely. Only explicitly documented action labels such as `See All Episodes` are ignored. Duplicate normalized labels or empty labels fail complete discovery.
 
 ---
 

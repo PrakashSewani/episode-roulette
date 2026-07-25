@@ -130,6 +130,63 @@ function createNamedDropdownFixture(): HTMLElement {
   return root
 }
 
+/** Live Netflix-style menu: same-line `(N Episodes)` suffix; toggle omits the count. */
+function createLiveNamedDropdownFixture(): HTMLElement {
+  const root = document.createElement('div')
+  const selector = document.createElement('div')
+  selector.dataset.uia = 'episode-selector'
+  const toggle = document.createElement('button')
+  toggle.dataset.uia = 'dropdown-toggle'
+  toggle.setAttribute('aria-haspopup', 'true')
+  toggle.textContent = 'Phantom Blood/Battle Tendency'
+  selector.append(toggle)
+  appendRow(selector, 'Dio the Invader', 1)
+  appendRow(selector, 'A Letter from the Past', 2)
+  root.append(selector)
+  document.body.append(root)
+
+  const seasons = [
+    {
+      label: 'Phantom Blood/Battle Tendency',
+      count: 2,
+      titles: ['Dio the Invader', 'A Letter from the Past'],
+    },
+    {
+      label: 'Diamond Is Unbreakable',
+      count: 2,
+      titles: ['Soft and Wet', 'Love Train'],
+    },
+  ] as const
+
+  toggle.addEventListener('click', () => {
+    const openMenu = root.querySelector('[data-uia="dropdown-menu"]')
+    if (openMenu !== null) {
+      openMenu.remove()
+      return
+    }
+    const menu = document.createElement('div')
+    menu.dataset.uia = 'dropdown-menu'
+    menu.setAttribute('role', 'menu')
+    for (const season of seasons) {
+      const item = document.createElement('button')
+      item.dataset.uia = 'dropdown-menu-item'
+      item.setAttribute('role', 'menuitem')
+      item.textContent = `${season.label} (${season.count} Episodes)`
+      item.addEventListener('click', () => {
+        menu.remove()
+        toggle.textContent = season.label
+        for (const row of selector.querySelectorAll('[data-uia="titleCard--container"]')) {
+          row.remove()
+        }
+        season.titles.forEach((title, index) => appendRow(selector, title, index + 1))
+      })
+      menu.append(item)
+    }
+    root.append(menu)
+  })
+  return root
+}
+
 describe('season traversal', () => {
   beforeEach(() => {
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => (
@@ -192,6 +249,31 @@ describe('season traversal', () => {
     ])
     expect(result.episodes.map((episode) => episode.seasonNumber)).toEqual([
       null, null, null,
+    ])
+  })
+
+  it('collects live-style same-line count named seasons and matches toggle identity', async () => {
+    const result = await discoverEpisodes(
+      '22',
+      createLiveNamedDropdownFixture(),
+      new AbortController().signal,
+    )
+
+    expect(result.totalSeasons).toBe(2)
+    expect(result.episodes.map((episode) => episode.seasonKey)).toEqual([
+      'label:phantom blood/battle tendency',
+      'label:phantom blood/battle tendency',
+      'label:diamond is unbreakable',
+      'label:diamond is unbreakable',
+    ])
+    expect(result.episodes.map((episode) => episode.seasonLabel)).toEqual([
+      'Phantom Blood/Battle Tendency',
+      'Phantom Blood/Battle Tendency',
+      'Diamond Is Unbreakable',
+      'Diamond Is Unbreakable',
+    ])
+    expect(result.episodes.map((episode) => episode.discoveredSeasonEpisodeCount)).toEqual([
+      2, 2, 2, 2,
     ])
   })
 

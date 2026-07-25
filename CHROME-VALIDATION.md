@@ -71,17 +71,11 @@ Choose a conventional multi-season series whose dropdown uses labels such as `Se
 - [ ] Netflix enters `/watch/` and starts the selected episode.
 - [ ] No failure toast appears after playback starts.
 
-## Named Seasons
+## Named Seasons (known first-release limitation)
 
-Use JoJo's Bizarre Adventure or another series with named dropdown entries.
+Named-season series (for example JoJo's Bizarre Adventure) are **out of first-release smoke scope**. Live Chrome and Safari validation on 2026-07-25 failed for named dropdown labels; do not treat a named-season failure as a Phase 7 blocker. Record any accidental attempt under Notes only.
 
-- [ ] The dropdown options are enumerated, including combined labels such as `Phantom Blood/Battle Tendency`.
-- [ ] Traversal reaches the first and last named options.
-- [ ] `Diamond Is Unbreakable` completes without `Episode rows did not stabilize`.
-- [ ] Declared counts, when shown, match the collected episode rows.
-- [ ] A selection toast shows the named season, episode number, and title.
-- [ ] The selected named season is reactivated before playback.
-- [ ] Netflix enters `/watch/` and starts the selected episode.
+- [ ] N/A — skip for first release; numeric seasons above are required instead.
 
 ## Cache And Retry
 
@@ -120,7 +114,7 @@ Netflix UI language:
 Extension installed without errors: PASS/FAIL
 Movie exclusion: PASS/FAIL
 Numeric-season discovery/playback: PASS/FAIL
-Named-season discovery/playback: PASS/FAIL
+Named-season discovery/playback: SKIP (known limitation)
 Selection toast: PASS/FAIL
 Cache reuse: PASS/FAIL
 Retryable error: PASS/FAIL

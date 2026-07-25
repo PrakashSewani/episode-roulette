@@ -161,6 +161,110 @@ describe('season control', () => {
     ])
   })
 
+  it('strips same-line episode-count suffixes for identity and expected counts', async () => {
+    const { root, episodeSelector, toggle } = createDropdownFixture()
+    toggle.click()
+    const menu = root.querySelector('[data-uia="dropdown-menu"]')!
+    menu.replaceChildren()
+    for (const text of [
+      'Season 7 (24 Episodes)',
+      'Phantom Blood/Battle Tendency (26 Episodes)',
+      'Diamond Is Unbreakable (39 Episodes)',
+      'Golden Wind',
+    ]) {
+      const item = document.createElement('button')
+      item.dataset.uia = 'dropdown-menu-item'
+      item.setAttribute('role', 'menuitem')
+      item.textContent = text
+      menu.append(item)
+    }
+
+    await expect(enumerateSeasons(
+      root, episodeSelector, performance.now() + 5_000,
+      new AbortController().signal,
+    )).resolves.toEqual([
+      { key: 'season 7', label: 'Season 7', seasonNumber: 7, expectedEpisodeCount: 24 },
+      {
+        key: 'label:phantom blood/battle tendency',
+        label: 'Phantom Blood/Battle Tendency',
+        seasonNumber: null,
+        expectedEpisodeCount: 26,
+      },
+      {
+        key: 'label:diamond is unbreakable',
+        label: 'Diamond Is Unbreakable',
+        seasonNumber: null,
+        expectedEpisodeCount: 39,
+      },
+      {
+        key: 'label:golden wind',
+        label: 'Golden Wind',
+        seasonNumber: null,
+        expectedEpisodeCount: null,
+      },
+    ])
+  })
+
+  it('matches a closed toggle without count to a same-line count menu item', async () => {
+    const root = document.createElement('div')
+    const episodeSelector = document.createElement('div')
+    episodeSelector.dataset.uia = 'episode-selector'
+    const toggle = document.createElement('button')
+    toggle.dataset.uia = 'dropdown-toggle'
+    toggle.setAttribute('aria-haspopup', 'true')
+    toggle.textContent = 'Phantom Blood/Battle Tendency'
+    episodeSelector.append(toggle)
+    appendRow(episodeSelector, 'Before')
+    root.append(episodeSelector)
+    document.body.append(root)
+
+    toggle.addEventListener('click', () => {
+      const existing = root.querySelector('[data-uia="dropdown-menu"]')
+      if (existing !== null) {
+        existing.remove()
+        return
+      }
+      const menu = document.createElement('div')
+      menu.dataset.uia = 'dropdown-menu'
+      menu.setAttribute('role', 'menu')
+      for (const [label, count, titles] of [
+        ['Phantom Blood/Battle Tendency', 26, ['Before']],
+        ['Diamond Is Unbreakable', 39, ['Soft and Wet', 'Love Train']],
+      ] as const) {
+        const item = document.createElement('button')
+        item.dataset.uia = 'dropdown-menu-item'
+        item.setAttribute('role', 'menuitem')
+        item.textContent = `${label} (${count} Episodes)`
+        item.addEventListener('click', () => {
+          menu.remove()
+          toggle.textContent = label
+          for (const row of getValidEpisodeRows(episodeSelector)) row.remove()
+          for (const title of titles) appendRow(episodeSelector, title)
+        })
+        menu.append(item)
+      }
+      root.append(menu)
+    })
+
+    expect(getActiveSeasonKey(episodeSelector)).toBe('label:phantom blood/battle tendency')
+
+    const live = await activateSeason(
+      root,
+      episodeSelector,
+      {
+        key: 'label:diamond is unbreakable',
+        label: 'Diamond Is Unbreakable',
+        seasonNumber: null,
+        expectedEpisodeCount: 39,
+      },
+      performance.now() + 5_000,
+      new AbortController().signal,
+    )
+
+    expect(getActiveSeasonKey(live)).toBe('label:diamond is unbreakable')
+    expect(getValidEpisodeRows(live)).toHaveLength(2)
+  })
+
   it('ignores a matching dropdown menu outside the title root', async () => {
     const { root, episodeSelector, toggle } = createDropdownFixture()
     const decoy = document.createElement('div')
