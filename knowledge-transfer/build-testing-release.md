@@ -227,3 +227,13 @@ Before committing implementation or release changes:
 8. Update `docs/project-todos.md` with commands and outcomes.
 
 Commit and push only when explicitly requested.
+
+## Release and Publishing
+
+Version source: `package.json` is the sole canonical version. The manifest reads it at build time; Safari sync derives native `MARKETING_VERSION` from the same value.
+
+Chrome Web Store publishing is automated via `.github/workflows/release.yml` on `v*` tag pushes. See `docs/release.md` for the four required repository secrets (`CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`, `CHROME_REFRESH_TOKEN`) and step-by-step setup instructions.
+
+The `npm run publish:chrome` script zips `dist/webextension/`, exchanges the refresh token for an access token, uploads the package, and publishes to the `trusted` channel. It requires all four environment variables.
+
+Safari publishing is manual via Xcode signing and App Store submission. See `docs/safari.md`.

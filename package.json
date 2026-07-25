@@ -1,6 +1,6 @@
 {
   "name": "episode-roulette",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,6 +11,7 @@
     "assert:webextension": "node scripts/assert-packaging.mjs webextension",
     "build": "vite build",
     "icons": "node scripts/generate-icons.mjs",
+    "publish:chrome": "node scripts/publish-chrome.mjs",
     "test": "vitest run",
     "safari:init": "npm run build && node scripts/safari-init.mjs",
     "safari:sync": "npm run build && node scripts/safari-sync.mjs",
