@@ -64,6 +64,15 @@ Episode and season selectors used for detection must be queried within the activ
 | Episode Number | `[data-uia="episode-number"]`, `[data-testid="episode-number"]`, scoped `.titleCard-title_index` | Leading index observed in Netflix episode rows |
 | Episode Link | No verified selector | The observed row contained no anchor; durable playback is a separate architecture decision |
 
+### Video Player and Timeline
+
+| Name | Selectors | Notes |
+|------|-----------|-------|
+| Video Player | `video` | Readiness / progress only; **do not** set `currentTime` (M7375) |
+| Player Timeline | `[data-uia="timeline"]`, `[data-uia="timeline-bar"]`, `[data-uia="player-timeline"]`, `[data-uia="scrubber"]`, bottom-controls `[role="slider"]`, seek/scrubber aria labels | Target for one user-like click at bar start |
+
+**Observation date:** 2026-07-26 — Live random-roll logs found `<video>` at resume position (~244s, `readyState: 4`, playing, blob src). Assigning `currentTime = 0` produced Netflix error M7375 ("Pardon the interruption") after a brief flash. Restart uses timeline UI interaction instead: absolute-left scrubber click moves playback near start (~2s) without M7375. A 1%-width click landed ~13s mid-episode. Live timeline match used `[data-uia="timeline"]` (width ~1566px).
+
 ---
 
 ## Maintaining Selectors

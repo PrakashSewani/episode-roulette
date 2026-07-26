@@ -180,6 +180,20 @@ No selected episode, playback result, or repeat-prevention state is retained aft
 
 Selection feedback reports what was chosen, not that playback has succeeded. It appears immediately after the guarded random selection so the user can see the result while Netflix switches seasons. `/watch/` confirmation remains the success criterion for the operation lifecycle.
 
+## Playback Restart
+
+Every random roll must start the selected episode from the beginning. After the route enters `/watch/` from a pending random-roll playback, the orchestrator starts a separate, best-effort seek-to-beginning operation that outlives the title-details `OperationContext`.
+
+1. `navigator.ts` clicks the verified episode row and `content.ts` keeps the button `loading`.
+2. Immediately after a successful row click, `content.ts` sets a durable `pendingRestartUntil` timestamp (absolute `performance.now()` deadline, 15 seconds). This flag must **not** depend on `playbackConfirmation`, because Netflix often removes the title root (aborting confirmation) before the `/watch/` route is reported.
+3. `waitForPlaybackStart(context)` still resolves when `handleRouteChange` detects `/watch/` and calls `clearPlaybackConfirmation()`, or rejects on timeout/abort.
+4. On `/watch/`, if `performance.now() < pendingRestartUntil`, consume the flag, create an independent `restartController`, and call `seekToBeginning(restartController.signal)` from `restart.ts`.
+5. `restart.ts` waits for the player to settle, then performs a simulated scrubber click at the timeline start (never assigns `video.currentTime`; see `restart.ts.md` and M7375).
+6. Clear `pendingRestartUntil` on successful consume, on confirmation timeout failure, and in `stop()`. Do not clear it solely because the title `OperationContext` was aborted on the way to `/watch/`.
+7. The restart controller is aborted in `stop()` and when the route leaves `/watch/`.
+
+This restart is **best-effort and silent**. If the seek fails, playback continues from wherever Netflix placed it; no toast or button error is shown.
+
 ## Button State Machine
 
 ```text

@@ -119,7 +119,8 @@ docs/
 │   ├── styles.ts.md         # CSS injection spec
 │   ├── feedback.ts.md       # Loading/error states spec
 │   ├── randomizer.ts.md     # Random selection spec
-│   └── navigator.ts.md      # Playback navigation spec
+│   ├── navigator.ts.md      # Playback navigation spec
+│   └── restart.ts.md        # Seek-to-beginning after /watch/
 ├── data-model.md            # TypeScript types and interfaces
 ├── selectors-reference.md   # All Netflix DOM selectors
 ├── error-handling.md        # Error scenarios and handling

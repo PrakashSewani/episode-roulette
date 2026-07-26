@@ -32,9 +32,11 @@ import { injectStyles, removeStyles } from './ui/styles'
 import { discoverEpisodes } from './discovery/season-traverser'
 import { playEpisode } from './engine/navigator'
 import { pickRandom } from './engine/randomizer'
+import { seekToBeginning } from './engine/restart'
 
 const DETECTION_TIMEOUT_MS = 5_000
 const PLAYBACK_CONFIRMATION_TIMEOUT_MS = 5_000
+const PENDING_RESTART_WINDOW_MS = 15_000
 
 let started = false
 let generation = 0
@@ -43,6 +45,8 @@ let activeRoot: HTMLElement | null = null
 let detectionTimer: number | null = null
 let seriesConfirmed = false
 let buttonController: ButtonController | null = null
+let restartController: AbortController | null = null
+let pendingRestartUntil = 0
 const catalogCache = new Map<string, SeriesInfo>()
 
 interface PlaybackConfirmation {
@@ -152,6 +156,11 @@ function clearPlaybackConfirmation(error?: Error): void {
   playbackConfirmation = null
   window.clearTimeout(confirmation.timer)
   confirmation.context.controller.signal.removeEventListener('abort', confirmation.abort)
+  // Timeout/failure means playback never started; do not keep a stale restart arm.
+  // Abort/success leave pendingRestart for the /watch/ consumer (title root often dies first).
+  if (error !== undefined && error.name !== 'AbortError') {
+    clearPendingRestart()
+  }
   if (error === undefined) confirmation.resolve()
   else confirmation.reject(error)
 }
@@ -170,6 +179,31 @@ function waitForPlaybackStart(context: OperationContext): Promise<void> {
     }, PLAYBACK_CONFIRMATION_TIMEOUT_MS)
     playbackConfirmation = { context, timer, resolve, reject, abort }
     context.controller.signal.addEventListener('abort', abort, { once: true })
+  })
+}
+
+function armPendingRestart(): void {
+  pendingRestartUntil = performance.now() + PENDING_RESTART_WINDOW_MS
+}
+
+function consumePendingRestart(): boolean {
+  const armed = performance.now() < pendingRestartUntil
+  pendingRestartUntil = 0
+  return armed
+}
+
+function clearPendingRestart(): void {
+  pendingRestartUntil = 0
+}
+
+function startRestartSeek(): void {
+  restartController?.abort()
+  const controller = new AbortController()
+  restartController = controller
+  void seekToBeginning(controller.signal).finally(() => {
+    if (restartController === controller) {
+      restartController = null
+    }
   })
 }
 
@@ -216,6 +250,7 @@ async function selectAndPlay(
     context.controller.signal,
     () => assertCurrent(context, root),
   )
+  armPendingRestart()
 }
 
 async function runPlayback(
@@ -349,12 +384,20 @@ function replaceTitleRoot(context: OperationContext): void {
 function handleRouteChange(url: string): void {
   const pathname = new URL(url).pathname
   if (pathname.startsWith('/watch/')) {
+    const fromRandomRoll = consumePendingRestart()
     if (playbackConfirmation !== null) clearPlaybackConfirmation()
+    if (fromRandomRoll) startRestartSeek()
     invalidateActiveContext()
     return
   }
+
+  restartController?.abort()
+  restartController = null
+
   const title = getTitleContext(url)
   if (title === null) {
+    // Left title/details without reaching /watch/; drop unused restart arm.
+    clearPendingRestart()
     invalidateActiveContext()
     return
   }
@@ -373,6 +416,8 @@ function handleRouteChange(url: string): void {
     return
   }
 
+  // New title means the prior roll's pending restart no longer applies.
+  clearPendingRestart()
   beginTitleContext(title, performance.now() + DETECTION_TIMEOUT_MS)
 }
 
@@ -479,6 +524,9 @@ export function stop(): void {
   started = false
   window.removeEventListener('pagehide', stop)
   unregisterMessageListener()
+  clearPendingRestart()
+  restartController?.abort()
+  restartController = null
   invalidateActiveContext()
   onStop()
   removeStyles()

@@ -20,6 +20,7 @@ const playbackHarness = vi.hoisted(() => ({
   discoverEpisodes: vi.fn(),
   pickRandom: vi.fn(),
   playEpisode: vi.fn(),
+  seekToBeginning: vi.fn(),
 }))
 
 vi.mock('../../src/netflix/observer', () => ({
@@ -45,6 +46,10 @@ vi.mock('../../src/engine/navigator', () => ({
   playEpisode: playbackHarness.playEpisode,
 }))
 
+vi.mock('../../src/engine/restart', () => ({
+  seekToBeginning: playbackHarness.seekToBeginning,
+}))
+
 describe('Phase 2 content lifecycle', () => {
   beforeEach(() => {
     vi.resetModules()
@@ -61,6 +66,7 @@ describe('Phase 2 content lifecycle', () => {
     })
     playbackHarness.pickRandom.mockReturnValue(selectedEpisode)
     playbackHarness.playEpisode.mockResolvedValue(undefined)
+    playbackHarness.seekToBeginning.mockResolvedValue(undefined)
   })
 
   it('waits for a unique visible validated title root', async () => {
@@ -321,14 +327,23 @@ describe('Phase 2 content lifecycle', () => {
     content.stop()
   })
 
+  async function completeRollUntilPlaybackPending(
+    root: HTMLElement,
+  ): Promise<void> {
+    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
+    await vi.waitFor(() => expect(playbackHarness.playEpisode).toHaveBeenCalled())
+    await playbackHarness.playEpisode.mock.results[0]?.value
+    await flushPromises()
+    await flushPromises()
+  }
+
   it('accepts a watch route as playback confirmation', async () => {
     window.history.replaceState({}, '', '/browse?jbv=128')
     const root = createTitleDetails({ episodic: true })
     document.body.append(root)
     const content = await import('../../src/content')
     await flushPromises()
-    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
-    await flushPromises()
+    await completeRollUntilPlaybackPending(root)
 
     window.history.replaceState({}, '', '/watch/999')
     observerHarness.callback?.({ type: 'route-changed', url: window.location.href })
@@ -336,6 +351,91 @@ describe('Phase 2 content lifecycle', () => {
 
     expect(document.querySelector('[data-uia="random-episode-btn"]')).toBeNull()
     expect(document.querySelector('.ep-roulette-toast')).toBeNull()
+    expect(playbackHarness.seekToBeginning).toHaveBeenCalledOnce()
+    expect(playbackHarness.seekToBeginning).toHaveBeenCalledWith(expect.any(AbortSignal))
+    content.stop()
+  })
+
+  it('does not seek when /watch/ is reached without a pending random roll', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=1281')
+    document.body.append(createTitleDetails({ episodic: true }))
+    const content = await import('../../src/content')
+    await flushPromises()
+
+    window.history.replaceState({}, '', '/watch/999')
+    observerHarness.callback?.({ type: 'route-changed', url: window.location.href })
+    await flushPromises()
+
+    expect(playbackHarness.seekToBeginning).not.toHaveBeenCalled()
+    content.stop()
+  })
+
+  it('still restarts after title-root abort before /watch/ is reported', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=1284')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    const content = await import('../../src/content')
+    await flushPromises()
+    await completeRollUntilPlaybackPending(root)
+
+    // Netflix often removes the title root before the /watch/ route lands.
+    // That aborts playbackConfirmation; restart must still arm from the click.
+    root.remove()
+    observerHarness.callback?.({
+      type: 'title-root-removed',
+      url: window.location.href,
+      generation: observerHarness.observeTitleRoot.mock.calls[0]?.[1] as number,
+    })
+    await flushPromises()
+
+    window.history.replaceState({}, '', '/watch/999')
+    observerHarness.callback?.({ type: 'route-changed', url: window.location.href })
+    await flushPromises()
+
+    expect(playbackHarness.seekToBeginning).toHaveBeenCalledOnce()
+    content.stop()
+  })
+
+  it('aborts the restart seek on stop', async () => {
+    playbackHarness.seekToBeginning.mockImplementation(() => new Promise(() => {}))
+    window.history.replaceState({}, '', '/browse?jbv=1282')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    const content = await import('../../src/content')
+    await flushPromises()
+    await completeRollUntilPlaybackPending(root)
+
+    window.history.replaceState({}, '', '/watch/999')
+    observerHarness.callback?.({ type: 'route-changed', url: window.location.href })
+    await flushPromises()
+
+    const signal = playbackHarness.seekToBeginning.mock.calls[0]?.[0] as AbortSignal
+    expect(signal.aborted).toBe(false)
+    content.stop()
+    expect(signal.aborted).toBe(true)
+  })
+
+  it('aborts the restart seek when leaving /watch/', async () => {
+    playbackHarness.seekToBeginning.mockImplementation(() => new Promise(() => {}))
+    window.history.replaceState({}, '', '/browse?jbv=1283')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    const content = await import('../../src/content')
+    await flushPromises()
+    await completeRollUntilPlaybackPending(root)
+
+    window.history.replaceState({}, '', '/watch/999')
+    observerHarness.callback?.({ type: 'route-changed', url: window.location.href })
+    await flushPromises()
+
+    const signal = playbackHarness.seekToBeginning.mock.calls[0]?.[0] as AbortSignal
+    expect(signal.aborted).toBe(false)
+
+    window.history.replaceState({}, '', '/browse?jbv=1283')
+    observerHarness.callback?.({ type: 'route-changed', url: window.location.href })
+    await flushPromises()
+
+    expect(signal.aborted).toBe(true)
     content.stop()
   })
 

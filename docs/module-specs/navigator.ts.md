@@ -68,6 +68,8 @@ Named seasons use the same durable `seasonKey` and `seasonLabel` captured during
 
 ### Re-Resolve and Click
 
+The navigator ends at the native row click. Subsequent restart-from-beginning behavior is handled by `restart.ts` after `content.ts` confirms `/watch/`.
+
 ```typescript
 export async function playEpisode(
   episode: Episode,
@@ -115,8 +117,10 @@ No asynchronous boundary may occur between `assertCurrent()` and `row.click()`.
 Clicking the element triggers Netflix's full playback flow:
 - Loading screen
 - Buffering
-- Resume from last position (if applicable)
+- Netflix resumes from last position (if applicable)
 - Credits/next episode UI
+
+`content.ts` separately restarts the player near the beginning after `/watch/` for every random roll via `restart.ts` (timeline scrubber click; never `video.currentTime`). The navigator itself does not manipulate the player.
 
 ### Episode Resolution
 
@@ -169,4 +173,4 @@ The core architecture has no URL fallback. Playback succeeds through a uniquely 
 - Unit test: Abort or stale-generation assertion prevents the final click
 - Unit test: Live catalog mismatch is distinguishable from an ordinary playback-resolution failure
 - Manual test: Clicking button starts real Netflix playback
-- Manual test: Episode resumes from last watched position
+- Manual test: Episode starts from the beginning for a previously watched episode

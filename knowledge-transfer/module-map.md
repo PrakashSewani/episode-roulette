@@ -15,6 +15,7 @@ content.ts
   -> season-traverser.ts
   -> randomizer.ts
   -> navigator.ts
+  -> restart.ts
 
 season-traverser.ts
   -> season-controller.ts
@@ -80,6 +81,7 @@ Critical collaborators:
 - Traverser for complete catalog discovery
 - Randomizer for independent selection
 - Navigator for safe native playback
+- Restart for post-`/watch/` seek-to-beginning
 
 High-risk changes:
 
@@ -383,6 +385,26 @@ Primary tests:
 
 - `tests/unit/navigator.test.ts`
 
+### `src/engine/restart.ts`
+
+Role:
+
+- After a random roll reaches `/watch/`, restart near the episode start
+- Wait for settle, then click the player timeline scrubber at the absolute left edge
+- Optionally one delayed scrubber retry if still mid-episode
+- Abort cleanly on navigation away or `stop()`
+
+Must not gain:
+
+- UI or toast behavior
+- Cache or history access
+- Title context dependency (it only needs an abort signal)
+- Direct `video.currentTime` assignment (live M7375)
+
+Primary tests:
+
+- `tests/unit/restart.test.ts`
+
 ## UI Modules
 
 ### `src/ui/button.ts`
@@ -514,6 +536,7 @@ Read `knowledge-transfer/build-testing-release.md` before changing any of these 
 | CSS ownership | `tests/unit/styles.test.ts` |
 | Uniform selection | `tests/unit/randomizer.test.ts` |
 | Playback resolution | `tests/unit/navigator.test.ts` |
+| Restart from beginning | `tests/unit/restart.test.ts` |
 | Full orchestration | `tests/integration/content-lifecycle.test.ts` |
 | Real controller/traversal integration | `tests/integration/season-traversal.test.ts` |
 

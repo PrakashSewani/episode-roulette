@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest'
 import {
   EPISODE_ROW,
   EPISODE_SELECTOR,
+  PLAYER_TIMELINE,
   PLAY_BUTTON,
   TITLE_DETAILS_ROOT,
+  VIDEO_PLAYER,
 } from '../../src/netflix/selectors'
 
 describe('Netflix selectors', () => {
@@ -20,5 +22,7 @@ describe('Netflix selectors', () => {
       '[data-uia="titleCard--container"][role="button"]',
     ])
     expect(PLAY_BUTTON.selectors).toContain('[data-uia="play-button"]')
+    expect(VIDEO_PLAYER.selectors).toEqual(['video'])
+    expect(PLAYER_TIMELINE.selectors[0]).toBe('[data-uia="timeline"]')
   })
 })

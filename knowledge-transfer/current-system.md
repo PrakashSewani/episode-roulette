@@ -188,6 +188,7 @@ ready/error click
   -> guard current context
   -> synchronously click the row
   -> wait up to five seconds for /watch/
+  -> if /watch/ confirmed and roll was pending, restart.ts scrubs timeline to start
 ```
 
 ### Catalog Discovery
@@ -250,6 +251,8 @@ There must be no asynchronous boundary between the final context assertion and `
 
 `content.ts`, not `navigator.ts`, confirms success by waiting for a route whose path begins `/watch/`. A five-second timeout becomes a retryable playback error.
 
+After a successful episode-row click, `content.ts` arms a durable 15-second `pendingRestartUntil` flag. Netflix often removes the title root (aborting `playbackConfirmation`) before the `/watch/` route is reported, so restart must not depend on `playbackConfirmation` still being non-null. When `/watch/` arrives within the window, `content.ts` starts a separate `restart.ts` operation. Restart waits for settle, then performs **one** simulated scrubber click at the start of the player timeline. It must **never** assign `video.currentTime` (live M7375). The restart has its own abort signal because the title `OperationContext` is already invalidated by then. The operation is best-effort and silent.
+
 ## State Ownership
 
 ### `content.ts`
@@ -264,6 +267,8 @@ Owns:
 - Current button controller
 - Complete-catalog cache
 - Pending playback confirmation
+- Durable `pendingRestartUntil` flag for post-click restart intent
+- Independent restart seek controller for post-`/watch/` behavior
 
 Only `content.ts` may read, write, invalidate, or clear catalog entries.
 
@@ -340,3 +345,5 @@ User-visible message wording is authoritative in `docs/error-handling.md`.
 14. Selection remains uniform and history-free.
 15. Chrome and Safari consume one shared runtime and manifest output.
 16. No background runtime is added without a documented responsibility.
+17. Restart-from-beginning is a silent best-effort scrubber click after `/watch/`; never assign `video.currentTime` (M7375).
+18. Restart intent is armed at successful row click (`pendingRestartUntil`) and must survive title-root abort before `/watch/`.

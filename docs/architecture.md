@@ -72,12 +72,15 @@ Episode Roulette is a WebExtension for Chrome and macOS Safari that operates as 
        │
        ▼
 10. randomizer.ts selects one episode uniformly at random
-       │
-       ▼
+        │
+        ▼
 11. navigator.ts triggers Netflix-native playback
-       │
-       ▼
-12. Episode plays as if user clicked it manually
+        │
+        ▼
+12. content.ts confirms `/watch/` and starts restart.ts
+        │
+        ▼
+13. restart.ts clicks the player scrubber at the start (no `currentTime`)
 ```
 
 ---
@@ -101,6 +104,7 @@ Episode Roulette is a WebExtension for Chrome and macOS Safari that operates as 
 | Feedback | `src/ui/feedback.ts` | Own error toast DOM, timers, replacement, and removal | None |
 | Randomizer | `src/engine/randomizer.ts` | Uniform random selection | `types.ts` |
 | Navigator | `src/engine/navigator.ts` | Re-resolve durable metadata and trigger Netflix-native playback | `season-controller.ts`, `episode-identity.ts`, `selectors.ts`, `dom-utils.ts`, `types.ts` |
+| Restart | `src/engine/restart.ts` | After `/watch/`, scrub timeline to start (never `currentTime`) | `selectors.ts`, `dom-utils.ts` |
 | Types | `src/types.ts` | Shared TypeScript interfaces | None |
 
 ---
@@ -328,7 +332,8 @@ src/
 │   └── popup.css            # Popup styling
 └── engine/
     ├── randomizer.ts        # Random selection
-    └── navigator.ts         # Playback navigation
+    ├── navigator.ts         # Playback navigation
+    └── restart.ts           # Scrub-to-start after /watch/
 
 icons/                        # Dice logo PNGs (generated from dice.svg)
 safari/                      # macOS Safari Web Extension Xcode wrapper

@@ -170,6 +170,38 @@ export const EPISODE_NUMBER = {
 
 The final fallback is queried only within the supplied episode row, so it remains structurally scoped rather than becoming a global class-name query.
 
+### Video Player
+
+```typescript
+export const VIDEO_PLAYER = {
+  name: 'Video Player',
+  selectors: [
+    'video',
+  ]
+}
+```
+
+`VIDEO_PLAYER` is used by `restart.ts` only as a readiness and progress signal after `/watch/`. Restart must not assign `currentTime` on this element (M7375).
+
+### Player Timeline
+
+```typescript
+export const PLAYER_TIMELINE = {
+  name: 'Player Timeline',
+  selectors: [
+    '[data-uia="timeline"]',
+    '[data-uia="timeline-bar"]',
+    '[data-uia="player-timeline"]',
+    '[data-uia="scrubber"]',
+    '.watch-video--bottom-controls-container [role="slider"]',
+    '[aria-label*="Seek" i]',
+    '[aria-label*="scrubber" i]',
+  ]
+}
+```
+
+`PLAYER_TIMELINE` is the scrubber surface used for a single simulated user click at the start of the bar. Ordered fallbacks are provisional until live player DOM is recorded in `selectors-reference.md`.
+
 There is no `EPISODE_LINK` selector. No anchor was present inside the observed Netflix desktop episode row in July 2026, and playback re-resolves and clicks the current live row instead of navigating to a URL.
 
 ---

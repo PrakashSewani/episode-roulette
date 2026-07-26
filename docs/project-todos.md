@@ -16,14 +16,13 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: Toolbar popup with dice icon implemented for Chrome and Safari. The in-page button injection is unchanged. Phase 7 remains blocked (Chrome numeric-season smoke evidence; named seasons are a known first-release limitation). Phase 8 remains in progress.
-- Item currently in progress: Live test of toolbar popup on Chrome and Safari.
-- Completed in this session: Added extension toolbar popup with dice icon. (A) Generated dice SVG and PNG icons at 16/32/48/64/128/256/512/1024px via `scripts/generate-icons.mjs` using `sharp`; filled Safari `AppIcon.appiconset` with icon filenames. (B) Updated `src/manifest.ts` with `action` (default_popup, default_icon, default_title) and `icons` fields. Created `src/popup/index.html`, `popup.ts`, `popup.css` — 280px panel with dice logo, status text, and "Roll Random Episode" button. (C) Added `PopupMessage`/`PopupMessageResponse`/`PopupStatus` types to `src/types.ts`. Added `getState()` to `ButtonController` interface and `button.ts` implementation (read-only accessor, no behavior change). Added `chrome.runtime.onMessage` listener to `content.ts` (registered in `start()`, removed in `stop()`) handling `getStatus` and `roll` messages — `roll` triggers the same `runPlayback()` flow as the in-page button. (D) Created `docs/module-specs/popup.ts.md`. Updated `architecture.md` (module map + file structure), `content.ts.md` (message handling section), `button.ts.md` (getState API), knowledge-transfer `current-system.md`, `module-map.md`, `build-testing-release.md`. (E) Added 6 popup unit tests and 4 content message handler integration tests. Updated `tests/setup.ts` with chrome mock. (F) Updated `assert-packaging.mjs` to verify popup and icon files exist in the build. Added `@types/chrome` devDependency and `tsconfig.json` types entry.
-- Verification completed: `npx tsc --noEmit` passed; `npm test` passed 109 tests across 15 files (6 popup + 4 message handler + 99 existing); `npm run build` succeeded; `npm run assert:webextension` passed.
-- Blockers or unanswered questions: Live test of popup on Chrome and Safari needed. Named-season live support deferred (documented limitation).
-- Files changed: `src/manifest.ts`, `src/content.ts`, `src/types.ts`, `src/ui/button.ts`, `src/popup/` (new), `icons/` (new), `scripts/generate-icons.mjs` (new), `scripts/assert-packaging.mjs`, `package.json`, `tsconfig.json`, `tests/setup.ts`, `tests/unit/popup.test.ts` (new), `tests/integration/content-lifecycle.test.ts`, `safari/App/Assets.xcassets/AppIcon.appiconset/` (icons + Contents.json), docs and knowledge-transfer updates.
-- Exact next action: Live test popup on Chrome (load `dist/webextension/`), verify dice icon in toolbar, click popup, confirm status and roll work. Then finish Phase 7/8 release gates.
-- Required docs for the next agent: `AGENTS.md`, `docs/module-specs/popup.ts.md`, `docs/module-specs/content.ts.md` (popup message handling), and this tracker.
+- Current state: Restart-from-beginning is implemented and live-validated on Chrome for every random roll (timeline scrubber click; no `currentTime`). Toolbar popup remains implemented. Phase 7 remains blocked (Chrome checklist evidence). Phase 8 remains in progress.
+- Item currently in progress: Phase 7/8 remaining live gates (full Chrome checklist, Safari smoke, CI confirmation).
+- Completed in this session: Restart-from-beginning. Durable `pendingRestartUntil` survives title-root abort before `/watch/`. `restart.ts` settles, then clicks `PLAYER_TIMELINE` at absolute left edge; never assigns `video.currentTime` (M7375). Recheck only if still mid-episode (>5s). Docs and knowledge-transfer updated to scrubber strategy.
+- Verification completed: Live Chrome smoke: scrub moves resume (~120s+) near start (~2s) without M7375; recheck skip after threshold fix. `npx tsc --noEmit` passed; `npm test` 119 tests / 16 files; `npm run build` and `npm run assert:webextension` passed; package version `1.1.0`.
+- Blockers or unanswered questions: Full Phase 7 Chrome checklist still pending. Named-season live support deferred. Safari live smoke still pending on macOS.
+- Exact next action: Finish Phase 7 Chrome smoke checklist and Phase 8 release gates.
+- Required docs for the next agent: `AGENTS.md`, `docs/module-specs/restart.ts.md`, `docs/module-specs/content.ts.md` (Playback Restart), and this tracker.
 
 ## Phase Tracker
 
@@ -31,12 +30,13 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 |---|---|---|
 | 1. Project Scaffold | complete | Preserve the universal build and Safari packaging contracts. |
 | 2. Netflix SPA Navigation Detection | complete | Preserve the neutral observer, scoped detection, and absolute-deadline contracts. |
-| 3. UI Injection | complete | Preserve spawn feedback, scoped ready placement, states, feedback, and cleanup contracts. |
+| 3. UI Injection | complete | Preserve the spawn feedback, scoped ready placement, states, feedback, and cleanup contracts. |
 | 4. Episode Discovery | complete | Preserve complete uncached traversal, retry, identity, and cancellation contracts. |
 | 5. Random Selection + Playback | complete | Preserve the verified live playback and readiness contracts. |
 | 6. Integration + Polish | complete | Preserve numeric-season path; named seasons are a documented live limitation. |
 | 7. Chrome Compatibility Validation | blocked | User completes Chrome checklist; named seasons SKIP (known limitation). |
 | 8. Testing + Validation | in progress | Run CI and complete the live Chrome and locally signed Safari smoke checks. |
+| Restart from beginning | complete | Live Chrome scrubber restart validated; preserve no-`currentTime` contract. |
 
 ## Phase 1: Project Scaffold
 

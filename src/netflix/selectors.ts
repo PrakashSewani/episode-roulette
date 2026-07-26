@@ -74,3 +74,21 @@ export const EPISODE_NUMBER: SelectorConfig = {
     '.titleCard-title_index',
   ],
 }
+
+export const VIDEO_PLAYER: SelectorConfig = {
+  name: 'Video Player',
+  selectors: ['video'],
+}
+
+export const PLAYER_TIMELINE: SelectorConfig = {
+  name: 'Player Timeline',
+  selectors: [
+    '[data-uia="timeline"]',
+    '[data-uia="timeline-bar"]',
+    '[data-uia="player-timeline"]',
+    '[data-uia="scrubber"]',
+    '.watch-video--bottom-controls-container [role="slider"]',
+    '[aria-label*="Seek" i]',
+    '[aria-label*="scrubber" i]',
+  ],
+}
