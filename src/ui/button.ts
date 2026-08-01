@@ -1,3 +1,4 @@
+import { logInfo, logWarning } from '../debug'
 import { waitForElement } from '../netflix/dom-utils'
 import { PLAY_BUTTON } from '../netflix/selectors'
 import type { ButtonController, ButtonState } from '../types'
@@ -88,6 +89,12 @@ function createController(
 
   const controller: ButtonController = {
     setState(nextState, errorMessage) {
+      logInfo('Button setState', {
+        from: state,
+        to: nextState,
+        disabled: nextState === 'loading',
+        errorMessage: errorMessage ?? null,
+      })
       state = nextState
       applyState(button, nextState, errorMessage)
     },
@@ -96,8 +103,10 @@ function createController(
     },
     onClick(handler) {
       clickHandler = handler
+      logInfo('Button click handler registered')
     },
     remove() {
+      logInfo('Button removed from DOM', { state })
       button.remove()
       if (ownedButton?.controller === controller) {
         ownedButton = null
@@ -106,7 +115,18 @@ function createController(
   }
 
   button.addEventListener('click', () => {
+    logInfo('Button DOM click', {
+      state,
+      disabled: button.disabled,
+      hasHandler: clickHandler !== null,
+      phase: button.dataset.phase ?? 'ready',
+    })
     if (state === 'loading' || clickHandler === null) {
+      logWarning('Button click ignored', {
+        reason: state === 'loading' ? 'loading' : 'no-handler',
+        state,
+        disabled: button.disabled,
+      })
       return
     }
 
@@ -118,6 +138,10 @@ function createController(
 
   controller.setState('ready')
   ownedButton = { root, element: button, controller }
+  logInfo('Ready button controller created', {
+    disabled: button.disabled,
+    state: button.dataset.state,
+  })
   return controller
 }
 
@@ -131,15 +155,18 @@ export async function injectButton(
     && ownedButton.element.isConnected
     && root.contains(ownedButton.element)
   ) {
+    logInfo('Reusing existing ready button for same root')
     return ownedButton.controller
   }
 
   if (pendingButton?.root === root && pendingButton.element.isConnected) {
+    logInfo('Reusing in-flight button injection for same root')
     return pendingButton.promise
   }
 
   if (ownedButton !== null) {
     if (ownedButton.element.isConnected) {
+      logWarning('Another connected button exists on a different root; skip inject')
       return null
     }
     ownedButton.controller.remove()
@@ -150,6 +177,7 @@ export async function injectButton(
     orphan.remove()
   }
 
+  logInfo('Showing spawn indicator; waiting for Play button')
   const indicator = createSpawnIndicator()
   root.append(indicator)
 
@@ -167,10 +195,11 @@ export async function injectButton(
         signal,
       )
       if (pendingButton !== pending) {
+        logInfo('Pending button injection superseded')
         return null
       }
       if (playButton === null) {
-        console.warn('[Episode Roulette] Netflix Play button not found')
+        logWarning('Netflix Play button not found within timeout')
         return null
       }
 
@@ -184,9 +213,11 @@ export async function injectButton(
           && ownedButton.element.isConnected
           && root.contains(ownedButton.element)
         ) {
+          logInfo('Owned button appeared while waiting; reusing')
           return ownedButton.controller
         }
         if (ownedButton.element.isConnected) {
+          logWarning('Owned button connected on another root after wait; skip')
           return null
         }
         ownedButton.controller.remove()
@@ -194,13 +225,14 @@ export async function injectButton(
 
       const container = playButton.parentElement
       if (container === null) {
-        console.warn('[Episode Roulette] Netflix Play button has no parent container')
+        logWarning('Netflix Play button has no parent container')
         return null
       }
 
       indicator.remove()
       const button = createButton()
       container.insertBefore(button, playButton.nextSibling)
+      logInfo('Inserted ready button next to Play')
       return createController(root, button)
     } finally {
       indicator.remove()

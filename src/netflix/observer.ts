@@ -1,3 +1,4 @@
+import { logInfo } from '../debug'
 import type { PageChangeCallback, PageChangeEvent } from '../types'
 
 const URL_POLL_INTERVAL_MS = 500
@@ -62,10 +63,12 @@ function disconnectTitleObservers(): void {
 
 export function onStart(pageChangeCallback: PageChangeCallback): void {
   if (callback !== null) {
+    logInfo('Observer callback replaced')
     callback = pageChangeCallback
     return
   }
 
+  logInfo('Observer started (route poll + popstate/hashchange)')
   callback = pageChangeCallback
   lastUrl = ''
   window.addEventListener('popstate', evaluateUrl)

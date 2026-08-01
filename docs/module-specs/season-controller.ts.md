@@ -83,7 +83,7 @@ If valid episode rows exist and `SEASON_DROPDOWN_TOGGLE` does not exist, return 
 
 ### Netflix Custom Dropdown
 
-1. Resolve the toggle within `episodeSelector`.
+1. Resolve the toggle within `episodeSelector`. If neither a toggle nor valid episode rows exist yet, wait within the caller deadline for the toggle (or for valid rows that allow the implicit-season path). Immediate failure on a transient empty episode section after overlay remount is incorrect.
 2. If it is closed, click it and wait for `SEASON_DROPDOWN_MENU`.
 3. Query the menu within `titleRoot`. Live inspection confirmed the menu is inside the active detail-modal root; callers must not query the full document.
 4. Parse all currently rendered `SEASON_DROPDOWN_ITEM` elements.
@@ -108,7 +108,7 @@ First-release episode-count parsing supports English Netflix UI only.
 - Any other non-empty label is a named-season candidate. It uses key `label:<normalized identity>` and stores `seasonNumber: null`.
 - `See All Episodes` is ignored as the only currently documented non-season action.
 - Numeric seasons remain valid when the count is absent, preserving verified Netflix behavior.
-- Named seasons do not require an episode count. Name-only arc names, subtitles, parts, volumes, specials, and combined slash labels such as `Phantom Blood/Battle Tendency` are valid season identities in the parser; when no count is declared, completeness uses expansion disappearance and stable rendered rows. **Product/live scope:** first release only claims reliable support for numeric `Season <number>` labels. Named-season series remain a known live limitation after failed Chrome/Safari validation (2026-07-25); they must fail complete discovery safely rather than randomize a partial catalog.
+- Named seasons do not require an episode count. Name-only arc names, subtitles, parts, volumes, specials, and combined slash labels such as `Phantom Blood/Battle Tendency` are valid season identities in the parser; when no count is declared, completeness uses expansion disappearance and stable rendered rows. Numeric `Season <number>` labels and named labels share the same discovery and playback path. Discovery must still fail safely (no partial catalog) when enumeration, activation, expansion, or exact count validation fails.
 - Duplicate canonical keys fail enumeration.
 - Every non-empty item not present in the documented action denylist is treated as a season. Newly observed Netflix actions must be documented and added to the denylist before support is claimed.
 
@@ -130,7 +130,8 @@ For `season.key === 'implicit'`, activation succeeds without clicking only when 
 
 ### Switch Required
 
-1. Capture the current episode-content snapshot as `JSON.stringify()` of the ordered tuples `[row.getAttribute('aria-label') ?? '', normalizeWhitespace(row.textContent ?? ''), index]` for all structurally valid rows. Snapshot equality is exact string equality; DOM node identity is not used.
+0. If the season dropdown toggle is not yet present inside `episodeSelector`, wait within the caller deadline for either the toggle or a structural change that yields an implicit season (valid rows with no toggle). Live Netflix often remounts the episode section after returning from `/watch/` without the toggle on the first paint; failing immediately produces false `strategy-mismatch` / rediscovery failures on cached rolls. If the deadline expires with neither toggle nor implicit rows, fail with `strategy-mismatch`.
+1. Capture the current episode-content snapshot as `JSON.stringify()` of the ordered tuples `[normalizedTitle or '', episodeNumber or null, index]` for all structurally valid rows, where title and number come from the shared `parseEpisodeRowIdentity()` fields (not full `textContent`). Snapshot equality is exact string equality; DOM node identity is not used. Continuous Netflix card mutations (thumbnails, progress, layout text) must not change the snapshot when the episode identity is unchanged.
 2. Open the dropdown.
 3. Re-query the menu and requested item; never retain menu-item elements from enumeration.
 4. Click the uniquely matching item.
@@ -149,15 +150,20 @@ Waiting for any episode row is never sufficient.
 
 The traverser or navigator supplies one absolute 10-second deadline for a complete season attempt. Enumeration has its own initial 10-second attempt deadline. Completion is driven by per-animation-frame stability checks; the deadline is only a safety bound when Netflix never reaches a valid state. For a season, activation and expansion share the same deadline; controller calls do not reset it. A discovery retry receives one new 10-second deadline. `AbortError` is immediate and bypasses retry.
 
-For each season attempt:
+For each season attempt, loop until success or the absolute deadline:
 
-1. If `SECTION_EXPAND` exists, click it once.
-2. Require the control to disappear.
-3. Poll `episodeSelector` on every animation frame so readiness checks react promptly to Netflix rendering. Before stability counting begins, require the season's minimum readiness count: one valid row when `expectedEpisodeCount` is `null` or `1`, otherwise at least two valid rows. Stability is determined only by the ordered valid-row identity snapshot and count. Reset stability when that snapshot changes; unrelated subtree mutations such as image, thumbnail, progress, or layout updates inside otherwise unchanged episode rows do not reset it. Require the snapshot to remain unchanged across two consecutive animation frames before the deadline.
-4. If `expectedEpisodeCount` is non-null, require an exact count match.
-5. Return the current live rows, all of which must satisfy the centralized valid-row definition.
+1. If `SECTION_EXPAND` is present, click the current control once for this appearance and wait until it disappears. If it reappears later, click that new appearance once as well. Do not retain a stale expand element across appearances.
+2. Poll `episodeSelector` on every animation frame so readiness checks react promptly to Netflix rendering. Before stability counting begins, require the season's minimum readiness count: one valid row when `expectedEpisodeCount` is `null` or `1`, otherwise at least two valid rows. Stability is determined only by the ordered valid-row identity snapshot and count described under Activation. Reset stability when that snapshot changes; unrelated subtree mutations such as image, thumbnail, progress, or layout updates inside otherwise unchanged episode rows do not reset it. Require the snapshot to remain unchanged across two consecutive animation frames before the deadline.
+3. If `SECTION_EXPAND` reappears during or after stability, return to step 1 within the same deadline.
+4. If `expectedEpisodeCount` is non-null:
+   - When the stable row count equals the expected count, accept the rows.
+   - When the stable row count is greater than the expected count, fail with `count-mismatch`.
+   - When the stable row count is less than the expected count and no expand control is present, **encourage additional loading** within the same deadline: advance only the nearest scrollable ancestor of `episodeSelector` (or the selector itself) via `scrollTop`, and call `scrollIntoView({ block: 'nearest' })` on the last valid row when available. Do **not** scroll `document`, `documentElement`, or `body` — that thrashes the Netflix details modal. Live Netflix large named seasons (for example Stardust Crusaders) can render a partial batch (observed 30 of 48) with no `section-expand`; passive waiting alone does not load the rest.
+   - Keep waiting within the deadline for either more valid rows or a reappearing expand control; re-run the expand path if expand reappears; re-encourage scroll periodically while still incomplete. Do not accept an incomplete declared count. If the deadline expires while still incomplete, fail with `count-mismatch`.
+5. If `expectedEpisodeCount` is null and the expand control is absent after a stable snapshot, accept the stable rows.
+6. Return the current live rows, all of which must satisfy the centralized valid-row definition.
 
-If the expand control persists or reappears, or count validation fails, the season attempt fails. The traverser owns the one-retry wrapper.
+If the expand control never disappears, or declared-count validation fails before the deadline, the season attempt fails. The traverser owns the one-retry wrapper.
 
 Controller failures use `SeasonControllerError` reasons from `types.ts`. During playback, `season-missing`, `strategy-mismatch`, `active-season-mismatch`, and `count-mismatch` prove cached metadata stale. `render-timeout`, `transition-timeout`, and `expansion-failed` are structural playback failures. `unsupported-layout` fails discovery before a complete catalog exists.
 
@@ -178,6 +184,9 @@ Controller failures use `SeasonControllerError` reasons from `types.ts`. During 
 - Integration test: Switched multi-episode season ignores transient zero-row and one-row renders until at least two valid rows exist
 - Integration test: Menu queries remain scoped to the title root
 - Integration test: Abort closes waits without further clicks
-- Integration test: Expansion clicks once and requires disappearance plus stable count
+- Integration test: Expansion clicks each appearance and requires disappearance plus stable count
 - Integration test: Stability ignores transient zero-row and one-row renders for a declared multi-episode season
-- Integration test: Continuous unrelated subtree mutations do not prevent an unchanged complete row snapshot from stabilizing
+- Integration test: Continuous unrelated subtree mutations do not prevent an unchanged complete row identity snapshot from stabilizing
+- Integration test: After expand disappears, incomplete declared counts keep waiting for additional rows within the deadline
+- Integration test: Incomplete declared count with no expand control scrolls to encourage more rows and completes when rows appear
+- Integration test: Named seasons with same-line counts complete discovery through the shared path

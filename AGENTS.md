@@ -173,6 +173,74 @@ knowledge-transfer/
 
 ---
 
+## Production / Deploy Readiness Checklist
+
+When the user asks **"are we ready to deploy?"**, **"ready to publish?"**, **"ship it?"**, or similar, the agent **must** run this checklist against the live repo and `docs/project-todos.md`. Do not answer from memory alone. Report each item as pass / fail / N/A with evidence.
+
+### 1. Open ship gates (tracker)
+
+1. Read `docs/project-todos.md` Current Handoff and Phase Tracker.
+2. List every non-`complete` item that blocks release (especially **Temporary development logs** and any incomplete verification).
+3. If any ship gate is open, answer **not ready** until the user explicitly waives it.
+
+### 2. Development logs (required before store publish)
+
+Verbose pre-publish diagnostics are intentional until publish. Before shipping:
+
+1. Remove or silence non-essential `logInfo` / debug noise from production paths (`src/debug.ts` and all call sites in content, UI, discovery, season-controller, navigator, restart, observer, popup).
+2. Keep concise `logError` / `logWarning` for real operational failures (see `docs/error-handling.md`).
+3. Confirm the popup does not emit noisy development-only logs, or that they are similarly gated.
+4. Update `docs/project-todos.md` Temporary development logs to `complete` only after cleanup and a rebuild.
+5. Update README Known limitations if it still claims verbose logs are present.
+
+### 3. Product and docs consistency
+
+1. `README.md` season support and known limitations match live-validated behavior.
+2. Normative docs (`architecture.md`, module specs, `error-handling.md`, `selectors-reference.md`) do not still claim named seasons as an unsupported first-release limitation if that was fixed.
+3. `knowledge-transfer/` matches current lifecycle (named seasons, scoped list scroll, dropdown readiness wait, cache policy).
+4. Version in `package.json` matches the intended release; Safari marketing version sync is part of `safari:sync` when packaging.
+
+### 4. Automated verification
+
+Run and record outcomes:
+
+1. `npx tsc --noEmit`
+2. `npm test`
+3. `npm run build`
+4. `npm run assert:webextension`
+5. On macOS when shipping Safari: `npm run safari:sync`, `npm run safari:build`, and package assertions as documented in `docs/safari.md` / `knowledge-transfer/build-testing-release.md`
+6. Confirm CI (GitHub Actions) is green for the commit being released when CI is in use
+
+### 5. Manual smoke (do not invent results)
+
+Only claim what the user has confirmed or what was recorded in the tracker:
+
+1. Desktop Chrome: series detect → button → full discovery → random play → `/watch/` → restart-near-start when armed
+2. Cached re-roll after returning from `/watch/` without false season-control failure
+3. Named-season multi-season series (e.g. JoJo) if claiming named-season support
+4. Numeric `Season N` series still works
+5. macOS Safari smoke when shipping Safari
+6. Kids profiles, non-English UI, and mobile remain out of scope unless newly validated
+
+### 6. Packaging and store hygiene
+
+1. Manifest hosts remain Netflix-only; no background service worker unless an approved doc adds one
+2. Icons, popup, content script present in `dist/webextension/`
+3. No secrets, local signing files, or generated Safari resources committed
+4. Privacy policy / store listing / screenshots / permissions justification current if publishing to Chrome Web Store or Safari
+5. Follow existing publish scripts/docs (`npm run publish:chrome` only when the user requests publish and credentials/env are ready)
+
+### 7. Answer format
+
+Respond with:
+
+1. **Ready / Not ready**
+2. A short table or list of checklist results
+3. Exact remaining work if not ready
+4. If ready: the exact next publish commands the user should approve (do not publish without explicit ask)
+
+---
+
 ## Commitment
 
 By following this file, we ensure:
@@ -180,3 +248,4 @@ By following this file, we ensure:
 - Documentation stays accurate and useful
 - The user always knows what's happening and why
 - Changes are predictable and maintainable
+- Deploy readiness is evaluated against a fixed production checklist, not vibes

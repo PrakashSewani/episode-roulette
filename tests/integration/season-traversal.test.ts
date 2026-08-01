@@ -131,7 +131,11 @@ function createNamedDropdownFixture(): HTMLElement {
 }
 
 /** Live Netflix-style menu: same-line `(N Episodes)` suffix; toggle omits the count. */
-function createLiveNamedDropdownFixture(): HTMLElement {
+function createLiveNamedDropdownFixture({
+  expandSecondSeason = false,
+}: {
+  expandSecondSeason?: boolean
+} = {}): HTMLElement {
   const root = document.createElement('div')
   const selector = document.createElement('div')
   selector.dataset.uia = 'episode-selector'
@@ -153,8 +157,10 @@ function createLiveNamedDropdownFixture(): HTMLElement {
     },
     {
       label: 'Diamond Is Unbreakable',
-      count: 2,
-      titles: ['Soft and Wet', 'Love Train'],
+      count: expandSecondSeason ? 3 : 2,
+      titles: expandSecondSeason
+        ? ['Soft and Wet', 'Love Train', 'I Am a Rock']
+        : ['Soft and Wet', 'Love Train'],
     },
   ] as const
 
@@ -178,7 +184,25 @@ function createLiveNamedDropdownFixture(): HTMLElement {
         for (const row of selector.querySelectorAll('[data-uia="titleCard--container"]')) {
           row.remove()
         }
-        season.titles.forEach((title, index) => appendRow(selector, title, index + 1))
+        if (expandSecondSeason && season.label === 'Diamond Is Unbreakable') {
+          appendRow(selector, season.titles[0]!, 1)
+          appendRow(selector, season.titles[1]!, 2)
+          const expand = document.createElement('button')
+          expand.dataset.uia = 'section-expand'
+          expand.addEventListener('click', () => {
+            expand.remove()
+            appendRow(selector, season.titles[2]!, 3)
+            // Continuous chrome mutations must not block identity stability.
+            for (const row of selector.querySelectorAll('[data-uia="titleCard--container"]')) {
+              const chrome = document.createElement('span')
+              chrome.textContent = 'progress'
+              row.append(chrome)
+            }
+          })
+          selector.append(expand)
+        } else {
+          season.titles.forEach((title, index) => appendRow(selector, title, index + 1))
+        }
       })
       menu.append(item)
     }
@@ -275,6 +299,26 @@ describe('season traversal', () => {
     expect(result.episodes.map((episode) => episode.discoveredSeasonEpisodeCount)).toEqual([
       2, 2, 2, 2,
     ])
+  })
+
+  it('expands a named season with declared count despite continuous row chrome mutations', async () => {
+    const result = await discoverEpisodes(
+      '23',
+      createLiveNamedDropdownFixture({ expandSecondSeason: true }),
+      new AbortController().signal,
+    )
+
+    expect(result.totalSeasons).toBe(2)
+    expect(result.episodes.map((episode) => episode.title)).toEqual([
+      'Dio the Invader',
+      'A Letter from the Past',
+      'Soft and Wet',
+      'Love Train',
+      'I Am a Rock',
+    ])
+    expect(result.episodes.filter((episode) => (
+      episode.seasonKey === 'label:diamond is unbreakable'
+    )).map((episode) => episode.discoveredSeasonEpisodeCount)).toEqual([3, 3, 3])
   })
 
   it('re-queries and succeeds on one failed season retry', async () => {

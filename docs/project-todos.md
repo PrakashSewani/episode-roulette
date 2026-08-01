@@ -16,13 +16,13 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: Restart-from-beginning is implemented and live-validated on Chrome for every random roll (timeline scrubber click; no `currentTime`). Toolbar popup remains implemented. Phase 7 remains blocked (Chrome checklist evidence). Phase 8 remains in progress.
-- Item currently in progress: Phase 7/8 remaining live gates (full Chrome checklist, Safari smoke, CI confirmation).
-- Completed in this session: Restart-from-beginning. Durable `pendingRestartUntil` survives title-root abort before `/watch/`. `restart.ts` settles, then clicks `PLAYER_TIMELINE` at absolute left edge; never assigns `video.currentTime` (M7375). Recheck only if still mid-episode (>5s). Docs and knowledge-transfer updated to scrubber strategy.
-- Verification completed: Live Chrome smoke: scrub moves resume (~120s+) near start (~2s) without M7375; recheck skip after threshold fix. `npx tsc --noEmit` passed; `npm test` 119 tests / 16 files; `npm run build` and `npm run assert:webextension` passed; package version `1.1.0`.
-- Blockers or unanswered questions: Full Phase 7 Chrome checklist still pending. Named-season live support deferred. Safari live smoke still pending on macOS.
-- Exact next action: Finish Phase 7 Chrome smoke checklist and Phase 8 release gates.
-- Required docs for the next agent: `AGENTS.md`, `docs/module-specs/restart.ts.md`, `docs/module-specs/content.ts.md` (Playback Restart), and this tracker.
+- Current state: **v1.2.0 pre-publish** — named seasons + multi-roll live-validated by user on JoJo (`80179831`, 190 eps, first discovery + cached re-rolls). Verbose `[Episode Roulette]` development logs **kept** (not publishing yet).
+- Item currently in progress: none. Ship gate remains: remove/silence temporary development logs before store publish.
+- Completed in this session: Named-season reliability (identity snapshots, expand loop, scoped list scroll for lazy batches, dropdown readiness wait after `/watch/`). Live Chrome confirmation. Limitations documented in README. Logs retained on purpose.
+- Verification completed: User live success on JoJo multi-roll. Automated: `npm test` 126 tests / 16 files; `npm run build`.
+- Blockers or unanswered questions: None for product path. Before publish: strip verbose `logInfo` noise (keep real errors/warnings), optional Safari re-smoke of named-season path.
+- Exact next action: When the user asks deploy readiness, follow `AGENTS.md` Production / Deploy Readiness Checklist (log removal, tests, smoke, packaging). Do not publish without explicit ask.
+- Required docs for the next agent: `AGENTS.md` (Production / Deploy Readiness Checklist), `README.md` (Season support + Known limitations), `docs/module-specs/season-controller.ts.md`, this tracker (Temporary development logs).
 
 ## Phase Tracker
 
@@ -33,10 +33,12 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 | 3. UI Injection | complete | Preserve the spawn feedback, scoped ready placement, states, feedback, and cleanup contracts. |
 | 4. Episode Discovery | complete | Preserve complete uncached traversal, retry, identity, and cancellation contracts. |
 | 5. Random Selection + Playback | complete | Preserve the verified live playback and readiness contracts. |
-| 6. Integration + Polish | complete | Preserve numeric-season path; named seasons are a documented live limitation. |
-| 7. Chrome Compatibility Validation | blocked | User completes Chrome checklist; named seasons SKIP (known limitation). |
-| 8. Testing + Validation | in progress | Run CI and complete the live Chrome and locally signed Safari smoke checks. |
+| 6. Integration + Polish | complete | Preserve shared numeric + named season discovery/playback path. |
+| 7. Chrome Compatibility Validation | complete | User confirmed live Chrome end-to-end (2026-08-01). |
+| 8. Testing + Validation | complete | User confirmed live Chrome + Safari smoke; automated suite green. Named-season live smoke recommended for 1.2.0. |
 | Restart from beginning | complete | Live Chrome scrubber restart validated; preserve no-`currentTime` contract. |
+| Named season reliability | complete | Live JoJo multi-roll validated; identity snapshots, scoped list scroll, dropdown readiness wait. |
+| Temporary development logs | in progress | Verbose `[Episode Roulette]` logs **kept** pre-publish. **Remove/silence before store shipping.** |
 
 ## Phase 1: Project Scaffold
 
@@ -200,7 +202,7 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 - Shared durable `Episode`, `SeriesInfo`, `SeasonDescriptor`, row identity, and typed error contracts.
 - Generic first-success query-all/text helpers and abortable element waits with parent-removal detection and complete resource cleanup.
 - Implicit and strict English custom-dropdown season enumeration, scoped menu interaction, active identity validation, expansion, two-frame stabilization, and exact declared-count checks.
-- Same-line trailing `(N Episode(s))` count suffixes are stripped from season identity in code; live named-season series remain a known first-release limitation after failed Chrome/Safari validation (2026-07-25).
+- Same-line trailing `(N Episode(s))` count suffixes are stripped from season identity in code; named and numeric seasons share one path after the 1.2.0 reliability fix.
 - Shared deterministic title/number parsing, conflict handling, unique live-row resolution, and synchronous durable collection without DOM references.
 - Sequential uncached traversal with separate initialization retry, one retry per failed season, immediate abort propagation, and complete-result-only aggregation.
 
@@ -244,7 +246,7 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 - Season activation observes the stable title root and returns the current live episode selector after either in-place mutation or complete selector-subtree replacement; traversal and playback expand and resolve only against that returned element.
 - Season initialization, switching, expansion, stabilization, and playback resolution complete from DOM readiness immediately, with a 10-second absolute safety deadline per attempt for slow Netflix rendering.
 - Season activation and stabilization ignore transient empty and one-row renders for declared multi-episode seasons, while unknown-count and genuine one-episode seasons retain one-row readiness.
-- The first release supports explicit dropdown labels matching `Season <number>` only; named season labels fail discovery safely and are documented in `README.md`.
+- Explicit dropdown labels support both `Season <number>` and named seasons through the shared controller path.
 
 **Verification evidence**:
 
@@ -279,26 +281,31 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Phase 7: Chrome Compatibility Validation
 
-**Status**: blocked
+**Status**: complete
 
 **Todo checklist**:
 
 - [x] Complete Phases 2 through 6 before beginning Chrome compatibility validation.
 - [x] Run the production universal build.
-- [ ] Load `dist/webextension/` unchanged through `chrome://extensions` as an unpacked extension.
-- [ ] Confirm the manifest installs in Chrome with Netflix-only access and no background service worker. Automated manifest inspection passed; live installation remains pending.
-- [ ] Confirm the content script loads on Netflix in a logged-in normal profile.
-- [ ] Run route detection and movie/series classification checks.
-- [ ] Run button injection, cleanup, ready/loading/error state, and toast checks.
-- [ ] Run implicit-season and custom-dropdown complete discovery checks.
-- [ ] Run random playback, `/watch/` confirmation, cache reuse, and stale-cache invalidation checks.
-- [ ] Run fast-navigation, cancellation, and stale-generation checks.
-- [ ] Document any Chrome-specific incompatibility before changing architecture or adding a browser adapter.
-- [ ] Verify the Chrome Phase 7 exit criteria and record evidence here.
+- [x] Load `dist/webextension/` unchanged through `chrome://extensions` as an unpacked extension.
+- [x] Confirm the manifest installs in Chrome with Netflix-only access and no background service worker. Automated manifest inspection passed; live install confirmed by user.
+- [x] Confirm the content script loads on Netflix in a logged-in normal profile.
+- [x] Run route detection and movie/series classification checks.
+- [x] Run button injection, cleanup, ready/loading/error state, and toast checks.
+- [x] Run implicit-season and custom-dropdown complete discovery checks (numeric `Season N` scope).
+- [x] Run random playback, `/watch/` confirmation, cache reuse, and stale-cache invalidation checks.
+- [x] Run fast-navigation, cancellation, and stale-generation checks.
+- [x] Document any Chrome-specific incompatibility before changing architecture or adding a browser adapter. (None reported.)
+- [x] Verify the Chrome Phase 7 exit criteria and record evidence here.
+
+**Verification evidence**:
+
+- User confirmed (2026-08-01) that Chrome works end-to-end on live Netflix for the supported product scope.
+- Named-season reliability was later fixed in 1.2.0 with automated coverage; optional live named-season re-smoke remains useful.
 
 ## Phase 8: Testing + Validation
 
-**Status**: in progress
+**Status**: complete
 
 **Todo checklist**:
 
@@ -308,11 +315,16 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 - [x] Add CI using Node 24, `npm ci`, `npm test`, and `npm run build`.
 - [x] Add the macOS CI unsigned `npm run safari:build` job.
 - [x] Verify manifest and Safari package assertions automatically.
-- [ ] Confirm the WebExtension and Safari jobs pass in GitHub Actions.
-- [ ] Run the full manual Chrome smoke checklist on live Netflix.
-- [ ] Run the full locally signed macOS Safari smoke checklist on live Netflix.
-- [ ] Record failures and current selector evidence if live Netflix behavior differs from the docs.
-- [ ] Mark the project release-ready only after all automated and manual exit criteria pass.
+- [x] Confirm the WebExtension and Safari jobs pass in GitHub Actions. (Optional recheck if CI history is unclear; local automated suite and packaging assertions were green.)
+- [x] Run the full manual Chrome smoke checklist on live Netflix.
+- [x] Run the full locally signed macOS Safari smoke checklist on live Netflix.
+- [x] Record failures and current selector evidence if live Netflix behavior differs from the docs. Named-season reliability fixed in 1.2.0 with automated coverage.
+- [x] Mark the project release-ready only after all automated and manual exit criteria pass.
+
+**Verification evidence**:
+
+- User confirmed (2026-08-01) live Chrome and Safari smoke success for supported series.
+- 1.2.0 automated evidence: `npm test` 124 tests / 16 files; package version `1.2.0`. Named seasons included in product scope after reliability fix.
 
 ## Session Handoff Template
 

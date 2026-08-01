@@ -1,3 +1,4 @@
+import { logError, logInfo, logWarning } from './debug'
 import { detectSeries, getTitleContext } from './netflix/detector'
 import {
   clearTitleObservation,
@@ -113,6 +114,10 @@ function expireDetection(context: OperationContext): void {
     return
   }
 
+  logInfo('Detection deadline expired without series confirmation', {
+    titleId: context.title.titleId,
+    generation: context.generation,
+  })
   clearTitleObservation()
   clearDetectionTimer()
 }
@@ -184,19 +189,25 @@ function waitForPlaybackStart(context: OperationContext): Promise<void> {
 
 function armPendingRestart(): void {
   pendingRestartUntil = performance.now() + PENDING_RESTART_WINDOW_MS
+  logInfo('Armed pending restart window', { windowMs: PENDING_RESTART_WINDOW_MS })
 }
 
 function consumePendingRestart(): boolean {
   const armed = performance.now() < pendingRestartUntil
   pendingRestartUntil = 0
+  logInfo('Consume pending restart', { armed })
   return armed
 }
 
 function clearPendingRestart(): void {
+  if (pendingRestartUntil !== 0) {
+    logInfo('Cleared pending restart arm')
+  }
   pendingRestartUntil = 0
 }
 
 function startRestartSeek(): void {
+  logInfo('Starting seek-to-beginning after /watch/')
   restartController?.abort()
   const controller = new AbortController()
   restartController = controller
@@ -204,6 +215,7 @@ function startRestartSeek(): void {
     if (restartController === controller) {
       restartController = null
     }
+    logInfo('Seek-to-beginning finished')
   })
 }
 
@@ -226,6 +238,10 @@ async function discoverAndCache(
   context: OperationContext,
   root: HTMLElement,
 ): Promise<SeriesInfo> {
+  logInfo('Discovering complete catalog', {
+    titleId: context.title.titleId,
+    generation: context.generation,
+  })
   const catalog = await discoverEpisodes(
     context.title.titleId,
     root,
@@ -233,6 +249,11 @@ async function discoverAndCache(
   )
   assertCurrent(context, root)
   catalogCache.set(context.title.titleId, catalog)
+  logInfo('Catalog cached', {
+    titleId: catalog.id,
+    totalSeasons: catalog.totalSeasons,
+    episodeCount: catalog.episodes.length,
+  })
   return catalog
 }
 
@@ -243,13 +264,23 @@ async function selectAndPlay(
 ): Promise<void> {
   assertCurrent(context, root)
   const episode = pickRandom(catalog.episodes)
+  logInfo('Selected random episode', {
+    seasonKey: episode.seasonKey,
+    seasonLabel: episode.seasonLabel,
+    episodeNumber: episode.episodeNumber,
+    episodeIndex: episode.episodeIndex,
+    title: episode.title,
+    poolSize: catalog.episodes.length,
+  })
   showSelection(context, root, episode)
+  logInfo('Starting native playback resolution')
   await playEpisode(
     episode,
     root,
     context.controller.signal,
     () => assertCurrent(context, root),
   )
+  logInfo('Native episode click completed; waiting for /watch/')
   armPendingRestart()
 }
 
@@ -258,28 +289,54 @@ async function runPlayback(
   root: HTMLElement,
   controller: ButtonController,
 ): Promise<void> {
+  logInfo('Random roll started', {
+    titleId: context.title.titleId,
+    generation: context.generation,
+    buttonState: controller.getState(),
+    cacheHit: catalogCache.has(context.title.titleId),
+  })
   dismissToast()
   controller.setState('loading')
+  logInfo('Button state → loading')
   try {
     let catalog = catalogCache.get(context.title.titleId)
-      ?? await discoverAndCache(context, root)
+    if (catalog !== undefined) {
+      logInfo('Using cached catalog', {
+        titleId: catalog.id,
+        totalSeasons: catalog.totalSeasons,
+        episodeCount: catalog.episodes.length,
+      })
+    } else {
+      catalog = await discoverAndCache(context, root)
+    }
     try {
       await selectAndPlay(context, root, catalog)
     } catch (error) {
       if (!(error instanceof CacheValidationMismatchError)) throw error
+      logWarning('Cache validation mismatch; rediscovering once', error)
       assertCurrent(context, root)
       catalogCache.delete(context.title.titleId)
       catalog = await discoverAndCache(context, root)
       await selectAndPlay(context, root, catalog)
     }
     await waitForPlaybackStart(context)
+    logInfo('Playback confirmed on /watch/')
   } catch (error) {
-    if (isAbortError(error)) return
-    console.error('[Episode Roulette] Random playback failed', error)
+    if (isAbortError(error)) {
+      logInfo('Random roll aborted', {
+        titleId: context.title.titleId,
+        generation: context.generation,
+      })
+      return
+    }
+    logError('Random playback failed', error)
     if (isCurrent(context) && activeRoot === root && buttonController === controller) {
       const message = errorMessage(error)
       controller.setState('error', message)
+      logInfo('Button state → error', { message })
       showErrorToast(message)
+    } else {
+      logWarning('Suppressed error UI; context no longer current')
     }
   }
 }
@@ -288,20 +345,39 @@ async function injectSeriesButton(
   context: OperationContext,
   root: HTMLElement,
 ): Promise<void> {
+  logInfo('Injecting Random Episode button', {
+    titleId: context.title.titleId,
+    generation: context.generation,
+  })
   try {
     const controller = await injectButton(root, context.controller.signal)
     if (!isCurrent(context) || activeRoot !== root) {
+      logInfo('Discarding button; context/root no longer current')
       controller?.remove()
       return
     }
 
     buttonController = controller
-    controller?.onClick(() => {
+    if (controller === null) {
+      logWarning('Button injection returned null (Play placement failed)')
+      return
+    }
+    logInfo('Button ready; click handler attached', {
+      state: controller.getState(),
+    })
+    controller.onClick(() => {
+      logInfo('In-page Random Episode clicked', {
+        state: controller.getState(),
+        titleId: context.title.titleId,
+        generation: context.generation,
+      })
       void runPlayback(context, root, controller)
     })
   } catch (error) {
     if (!isAbortError(error)) {
-      console.error('[Episode Roulette] Failed to inject button', error)
+      logError('Failed to inject button', error)
+    } else {
+      logInfo('Button injection aborted')
     }
   }
 }
@@ -312,9 +388,15 @@ function detectWithinRoot(context: OperationContext, root: HTMLElement): void {
     return
   }
 
-  if (detectSeries(context.title, root).status === 'series') {
+  const result = detectSeries(context.title, root)
+  logInfo('Series detection result', {
+    titleId: context.title.titleId,
+    status: result.status,
+  })
+  if (result.status === 'series') {
     seriesConfirmed = true
     clearDetectionTimer()
+    logInfo('Series confirmed', { titleId: context.title.titleId })
     void injectSeriesButton(context, root)
   }
 }
@@ -327,17 +409,32 @@ function locateAndObserveRoot(context: OperationContext): void {
 
   const root = resolveTitleRoot()
   if (root === null) {
+    logInfo('Title root not found; watching document body', {
+      titleId: context.title.titleId,
+      generation: context.generation,
+    })
     activeRoot = null
     observeForTitleRoot(context.generation)
     return
   }
 
+  logInfo('Title root resolved', {
+    titleId: context.title.titleId,
+    generation: context.generation,
+  })
   activeRoot = root
   observeTitleRoot(root, context.generation)
   detectWithinRoot(context, root)
 }
 
 function invalidateActiveContext(): void {
+  if (activeContext !== null) {
+    logInfo('Invalidating active context', {
+      titleId: activeContext.title.titleId,
+      generation: activeContext.generation,
+      seriesConfirmed,
+    })
+  }
   if (playbackConfirmation !== null) {
     clearPlaybackConfirmation(new DOMException('The operation was aborted.', 'AbortError'))
   }
@@ -354,6 +451,12 @@ function invalidateActiveContext(): void {
 }
 
 function beginTitleContext(title: TitleContext, detectionDeadline: number): void {
+  logInfo('Begin title context', {
+    titleId: title.titleId,
+    source: title.source,
+    url: title.url,
+    generation,
+  })
   invalidateActiveContext()
   const context: OperationContext = {
     title,
@@ -383,6 +486,7 @@ function replaceTitleRoot(context: OperationContext): void {
 
 function handleRouteChange(url: string): void {
   const pathname = new URL(url).pathname
+  logInfo('Route change', { url, pathname })
   if (pathname.startsWith('/watch/')) {
     const fromRandomRoll = consumePendingRestart()
     if (playbackConfirmation !== null) clearPlaybackConfirmation()
@@ -396,13 +500,24 @@ function handleRouteChange(url: string): void {
 
   const title = getTitleContext(url)
   if (title === null) {
+    logInfo('No title context on route; clearing active work')
     // Left title/details without reaching /watch/; drop unused restart arm.
     clearPendingRestart()
     invalidateActiveContext()
     return
   }
 
+  logInfo('Title context from URL', {
+    titleId: title.titleId,
+    source: title.source,
+  })
+
   if (activeContext?.title.titleId === title.titleId) {
+    logInfo('Same title identity retained', {
+      titleId: title.titleId,
+      seriesConfirmed,
+      hasRoot: activeRoot !== null,
+    })
     activeContext.title = title
     if (
       activeRoot !== null
@@ -429,14 +544,29 @@ function handlePageChange(event: PageChangeEvent): void {
 
   const context = activeContext
   if (context === null || event.generation !== context.generation) {
+    logInfo('Ignoring stale page event', {
+      type: event.type,
+      eventGeneration: event.generation,
+      activeGeneration: context?.generation ?? null,
+    })
     return
   }
 
   if (event.type === 'title-root-removed') {
+    logInfo('Title root removed; replacing context', {
+      titleId: context.title.titleId,
+      generation: context.generation,
+    })
     replaceTitleRoot(context)
     return
   }
 
+  logInfo('Title DOM changed', {
+    titleId: context.title.titleId,
+    generation: context.generation,
+    hasRoot: activeRoot !== null,
+    seriesConfirmed,
+  })
   if (activeRoot === null) {
     locateAndObserveRoot(context)
   } else if (!seriesConfirmed) {
@@ -462,14 +592,18 @@ function handleMessage(
   _sender: chrome.runtime.MessageSender,
   sendResponse: (response: PopupMessageResponse) => void,
 ): boolean {
+  logInfo('Popup message received', { type: message.type })
   if (message.type === 'getStatus') {
-    sendResponse({ type: 'status', status: getPopupStatus() })
+    const status = getPopupStatus()
+    logInfo('Popup status response', { status })
+    sendResponse({ type: 'status', status })
     return false
   }
 
   if (message.type === 'roll') {
     const status = getPopupStatus()
     if (status === 'no-series' || status === 'loading') {
+      logWarning('Popup roll rejected', { reason: status })
       sendResponse({ type: 'roll-rejected', reason: status })
       return false
     }
@@ -478,10 +612,12 @@ function handleMessage(
     const root = activeRoot
     const controller = buttonController
     if (context === null || root === null || controller === null) {
+      logWarning('Popup roll rejected: missing context/root/controller')
       sendResponse({ type: 'roll-rejected', reason: 'no-series' })
       return false
     }
 
+    logInfo('Popup roll accepted')
     sendResponse({ type: 'roll-accepted' })
     void runPlayback(context, root, controller)
     return false
@@ -506,10 +642,15 @@ function unregisterMessageListener(): void {
 
 export function start(): void {
   if (started) {
+    logInfo('start() ignored; already started')
     return
   }
 
   started = true
+  logInfo('Episode Roulette loaded', {
+    href: window.location.href,
+    userAgent: navigator.userAgent,
+  })
   injectStyles()
   window.addEventListener('pagehide', stop)
   registerMessageListener()
@@ -521,6 +662,7 @@ export function stop(): void {
     return
   }
 
+  logInfo('Episode Roulette stopping')
   started = false
   window.removeEventListener('pagehide', stop)
   unregisterMessageListener()
@@ -531,6 +673,7 @@ export function stop(): void {
   onStop()
   removeStyles()
   catalogCache.clear()
+  logInfo('Episode Roulette stopped')
 }
 
 start()

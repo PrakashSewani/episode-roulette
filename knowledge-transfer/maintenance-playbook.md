@@ -184,14 +184,17 @@ Symptoms:
 
 Check:
 
-1. Expand control exists and is clicked at most once per attempt.
-2. Expand control disappears.
-3. Valid row identity snapshot changes as episodes render.
+1. Each expand appearance is clicked once; a reappearing expand is clicked again within the same deadline.
+2. Expand control disappears before accepting the season.
+3. Valid row identity snapshot uses durable episode title/number identity, not full `textContent`.
 4. Unrelated image, progress, or layout mutations do not alter the identity snapshot.
 5. Snapshot remains unchanged across two frames.
-6. Exact expected count is enforced when declared.
+6. Declared counts accept only exact matches; under-count scrolls only the nearest list overflow container (never document/body) and keeps waiting; over-count fails immediately.
+7. After `/watch/` remount, wait for the season dropdown before treating missing toggle as strategy mismatch.
 
 Do not accept a partial stable list merely to avoid timeout. Completeness is part of the product promise.
+
+Verbose `[Episode Roulette]` console logs remain until the Temporary development logs ship gate is closed.
 
 ## Episode Identity Failure
 

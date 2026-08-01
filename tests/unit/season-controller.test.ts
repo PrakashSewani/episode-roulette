@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   activateSeason,
@@ -7,6 +7,11 @@ import {
   getActiveSeasonKey,
   getValidEpisodeRows,
 } from '../../src/netflix/season-controller'
+
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
 
 function appendRow(root: HTMLElement, title: string): HTMLElement {
   const row = document.createElement('div')
@@ -516,12 +521,251 @@ describe('season control', () => {
     )).resolves.toHaveLength(2)
     expect(clickSpy).toHaveBeenCalledOnce()
 
+    // Over-count fails immediately without waiting for more rows.
     await expect(expandAndValidateSeason(
+      episodeSelector,
+      { key: 'season 1', label: 'Season 1', seasonNumber: 1, expectedEpisodeCount: 1 },
+      performance.now() + 5_000,
+      new AbortController().signal,
+    )).rejects.toMatchObject({ reason: 'count-mismatch' })
+  })
+
+  it('fails incomplete declared counts after waiting through the deadline', async () => {
+    const episodeSelector = document.createElement('div')
+    document.body.append(episodeSelector)
+    appendRow(episodeSelector, 'One')
+    appendRow(episodeSelector, 'Two')
+
+    await expect(expandAndValidateSeason(
+      episodeSelector,
+      { key: 'season 1', label: 'Season 1', seasonNumber: 1, expectedEpisodeCount: 3 },
+      performance.now() + 100,
+      new AbortController().signal,
+    )).rejects.toMatchObject({ reason: 'count-mismatch' })
+  })
+
+  it('waits for additional rows when declared count is incomplete after expand', async () => {
+    vi.useFakeTimers()
+    const episodeSelector = document.createElement('div')
+    document.body.append(episodeSelector)
+    appendRow(episodeSelector, 'One')
+    appendRow(episodeSelector, 'Two')
+    const expand = document.createElement('button')
+    expand.dataset.uia = 'section-expand'
+    episodeSelector.append(expand)
+    expand.addEventListener('click', () => {
+      expand.remove()
+      appendRow(episodeSelector, 'Three')
+      window.setTimeout(() => {
+        appendRow(episodeSelector, 'Four')
+      }, 200)
+    })
+
+    const operation = expandAndValidateSeason(
+      episodeSelector,
+      {
+        key: 'label:diamond is unbreakable',
+        label: 'Diamond Is Unbreakable',
+        seasonNumber: null,
+        expectedEpisodeCount: 4,
+      },
+      performance.now() + 5_000,
+      new AbortController().signal,
+    )
+
+    await vi.advanceTimersByTimeAsync(100)
+    let settled = false
+    void operation.then(() => { settled = true })
+    await Promise.resolve()
+    expect(settled).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(200)
+    await vi.runAllTimersAsync()
+    await expect(operation).resolves.toHaveLength(4)
+  })
+
+  it('scrolls the nearest list container when declared count is incomplete without expand', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => (
+      window.setTimeout(() => callback(performance.now()), 16)
+    ))
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+      window.clearTimeout(id)
+    })
+    const episodeSelector = document.createElement('div')
+    episodeSelector.style.overflowY = 'auto'
+    episodeSelector.style.height = '40px'
+    // Force a scrollable overflow box for the encourage path.
+    Object.defineProperty(episodeSelector, 'scrollHeight', { configurable: true, get: () => 400 })
+    Object.defineProperty(episodeSelector, 'clientHeight', { configurable: true, get: () => 40 })
+    document.body.append(episodeSelector)
+    appendRow(episodeSelector, 'One')
+    appendRow(episodeSelector, 'Two')
+    const last = appendRow(episodeSelector, 'Three')
+    const scrollIntoView = vi.fn()
+    last.scrollIntoView = scrollIntoView
+    const documentScroll = document.scrollingElement as HTMLElement | null
+    const documentScrollBefore = documentScroll?.scrollTop ?? 0
+
+    // Rows arrive only after the incomplete-count path has scrolled.
+    window.setTimeout(() => {
+      appendRow(episodeSelector, 'Four')
+      appendRow(episodeSelector, 'Five')
+    }, 300)
+
+    const operation = expandAndValidateSeason(
+      episodeSelector,
+      {
+        key: 'label:stardust crusaders',
+        label: 'Stardust Crusaders',
+        seasonNumber: null,
+        expectedEpisodeCount: 5,
+      },
+      performance.now() + 5_000,
+      new AbortController().signal,
+    )
+
+    await vi.advanceTimersByTimeAsync(100)
+    expect(scrollIntoView).toHaveBeenCalled()
+    expect(episodeSelector.scrollTop).toBe(400)
+    expect(documentScroll?.scrollTop ?? 0).toBe(documentScrollBefore)
+
+    await vi.advanceTimersByTimeAsync(250)
+    await vi.runAllTimersAsync()
+    await expect(operation).resolves.toHaveLength(5)
+  })
+
+  it('waits for a late season dropdown before activating a named season', async () => {
+    vi.useFakeTimers()
+    const root = document.createElement('div')
+    const episodeSelector = document.createElement('div')
+    episodeSelector.dataset.uia = 'episode-selector'
+    appendRow(episodeSelector, 'Before')
+    root.append(episodeSelector)
+    document.body.append(root)
+
+    window.setTimeout(() => {
+      const toggle = document.createElement('button')
+      toggle.dataset.uia = 'dropdown-toggle'
+      toggle.setAttribute('aria-haspopup', 'true')
+      toggle.textContent = 'Phantom Blood'
+      episodeSelector.prepend(toggle)
+      toggle.addEventListener('click', () => {
+        const existing = root.querySelector('[data-uia="dropdown-menu"]')
+        if (existing !== null) {
+          existing.remove()
+          return
+        }
+        const menu = document.createElement('div')
+        menu.dataset.uia = 'dropdown-menu'
+        menu.setAttribute('role', 'menu')
+        for (const [label, titles] of [
+          ['Phantom Blood', ['Before']],
+          ['Battle Tendency', ['New York', 'Ultimate']],
+        ] as const) {
+          const item = document.createElement('button')
+          item.dataset.uia = 'dropdown-menu-item'
+          item.setAttribute('role', 'menuitem')
+          item.textContent = label
+          item.addEventListener('click', () => {
+            menu.remove()
+            toggle.textContent = label
+            for (const row of getValidEpisodeRows(episodeSelector)) row.remove()
+            for (const title of titles) appendRow(episodeSelector, title)
+          })
+          menu.append(item)
+        }
+        root.append(menu)
+      })
+    }, 200)
+
+    const activation = activateSeason(
+      root,
+      episodeSelector,
+      {
+        key: 'label:battle tendency',
+        label: 'Battle Tendency',
+        seasonNumber: null,
+        expectedEpisodeCount: 2,
+      },
+      performance.now() + 5_000,
+      new AbortController().signal,
+    )
+
+    await vi.advanceTimersByTimeAsync(250)
+    await vi.runAllTimersAsync()
+    await expect(activation).resolves.toBe(episodeSelector)
+    expect(getActiveSeasonKey(episodeSelector)).toBe('label:battle tendency')
+    expect(getValidEpisodeRows(episodeSelector)).toHaveLength(2)
+  })
+
+  it('clicks a reappearing expand control before accepting the season', async () => {
+    vi.useFakeTimers()
+    const episodeSelector = document.createElement('div')
+    document.body.append(episodeSelector)
+    appendRow(episodeSelector, 'One')
+    let expandClicks = 0
+    const firstExpand = document.createElement('button')
+    firstExpand.dataset.uia = 'section-expand'
+    episodeSelector.append(firstExpand)
+    firstExpand.addEventListener('click', () => {
+      expandClicks += 1
+      firstExpand.remove()
+      appendRow(episodeSelector, 'Two')
+      window.setTimeout(() => {
+        const secondExpand = document.createElement('button')
+        secondExpand.dataset.uia = 'section-expand'
+        secondExpand.addEventListener('click', () => {
+          expandClicks += 1
+          secondExpand.remove()
+          appendRow(episodeSelector, 'Three')
+        })
+        episodeSelector.append(secondExpand)
+      }, 50)
+    })
+
+    const operation = expandAndValidateSeason(
       episodeSelector,
       { key: 'season 1', label: 'Season 1', seasonNumber: 1, expectedEpisodeCount: 3 },
       performance.now() + 5_000,
       new AbortController().signal,
-    )).rejects.toMatchObject({ reason: 'count-mismatch' })
+    )
+    await vi.advanceTimersByTimeAsync(200)
+    await vi.runAllTimersAsync()
+    await expect(operation).resolves.toHaveLength(3)
+    expect(expandClicks).toBe(2)
+  })
+
+  it('ignores continuous row chrome mutations when episode identity is stable', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => (
+      window.setTimeout(() => callback(performance.now()), 16)
+    ))
+    const episodeSelector = document.createElement('div')
+    document.body.append(episodeSelector)
+    const row = appendRow(episodeSelector, 'Soft and Wet')
+    const progress = document.createElement('span')
+    progress.textContent = '12 min left'
+    row.append(progress)
+    const mutationTimer = window.setInterval(() => {
+      progress.textContent = progress.textContent === '12 min left' ? '11 min left' : '12 min left'
+    }, 1)
+
+    const operation = expandAndValidateSeason(
+      episodeSelector,
+      {
+        key: 'label:diamond is unbreakable',
+        label: 'Diamond Is Unbreakable',
+        seasonNumber: null,
+        expectedEpisodeCount: 1,
+      },
+      performance.now() + 5_000,
+      new AbortController().signal,
+    )
+    await vi.advanceTimersByTimeAsync(64)
+    window.clearInterval(mutationTimer)
+
+    await expect(operation).resolves.toHaveLength(1)
   })
 
   it('does not stabilize a declared multi-episode season at zero or one row', async () => {

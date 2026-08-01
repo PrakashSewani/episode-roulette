@@ -218,7 +218,7 @@ The current Netflix implementation supports:
 
 Numeric season labels use keys such as `season 7`. Named labels use keys such as `label:phantom blood` or `label:phantom blood/battle tendency`. The implicit key is `implicit`.
 
-Named labels are parsed in code (including same-line `(N Episodes)` suffix stripping), but **live named-season series are a known first-release limitation** after failed Chrome and Safari validation. First-release product support is numeric `Season N` dropdowns plus implicit single-season lists. Known non-season actions are excluded only through the documented denylist. English count parsing is a separate first-release constraint.
+Named labels and numeric `Season N` labels share one discovery/playback path (live-validated on JoJo and similar arcs). Same-line English `(N Episodes)` suffixes are stripped for identity and recorded as `expectedEpisodeCount`. Row stability uses durable episode identity (normalized title + episode number), not full row `textContent`. When a declared count is incomplete and `section-expand` is absent, the controller scrolls only the nearest episode-list overflow container (never document/body). Season dropdown readiness is waited for within the deadline after Netflix remounts the details UI post-`/watch/`. Known non-season actions are excluded only through the documented denylist. English count parsing remains a first-release constraint. Verbose `[Episode Roulette]` development logs via `src/debug.ts` remain until pre-publish cleanup.
 
 ### Durable Identity
 

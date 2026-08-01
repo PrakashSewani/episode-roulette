@@ -1,3 +1,4 @@
+import { logInfo, logWarning } from '../debug'
 import { resilientQuery, waitForElement } from '../netflix/dom-utils'
 import { PLAYER_TIMELINE, VIDEO_PLAYER } from '../netflix/selectors'
 
@@ -82,7 +83,9 @@ async function scrubToStart(
   video: HTMLVideoElement,
   signal: AbortSignal,
 ): Promise<boolean> {
+  logInfo('scrubToStart check', { currentTime: video.currentTime })
   if (video.currentTime <= RESUME_THRESHOLD_SECONDS) {
+    logInfo('scrubToStart skipped; already near start')
     return false
   }
 
@@ -91,18 +94,22 @@ async function scrubToStart(
 
   const timeline = resolveTimeline()
   if (timeline === null) {
+    logWarning('scrubToStart: timeline not found')
     return false
   }
 
+  logInfo('scrubToStart: clicking timeline left edge')
   clickTimelineStart(timeline)
   return true
 }
 
 export async function seekToBeginning(signal: AbortSignal): Promise<void> {
   if (signal.aborted) {
+    logInfo('seekToBeginning aborted before start')
     return
   }
 
+  logInfo('seekToBeginning start')
   try {
     const video = await waitForElement<HTMLVideoElement>(
       VIDEO_PLAYER.selectors,
@@ -111,9 +118,14 @@ export async function seekToBeginning(signal: AbortSignal): Promise<void> {
       signal,
     )
     if (video === null || signal.aborted) {
+      logWarning('seekToBeginning: video not found or aborted', {
+        found: video !== null,
+        aborted: signal.aborted,
+      })
       return
     }
 
+    logInfo('seekToBeginning: video found', { currentTime: video.currentTime })
     // Never assign video.currentTime — live smoke produced M7375.
     await wait(SETTLE_MS, signal)
     await scrubToStart(video, signal)
@@ -121,10 +133,15 @@ export async function seekToBeginning(signal: AbortSignal): Promise<void> {
     await wait(RECHECK_MS, signal)
     // Only retry when still clearly mid-episode; same absolute-left click once more.
     if (video.currentTime > RESUME_THRESHOLD_SECONDS) {
+      logInfo('seekToBeginning: recheck still mid-episode', {
+        currentTime: video.currentTime,
+      })
       await scrubToStart(video, signal)
     }
+    logInfo('seekToBeginning complete', { currentTime: video.currentTime })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
+      logInfo('seekToBeginning aborted')
       return
     }
     throw error

@@ -62,7 +62,9 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 
 **Detection**: The custom dropdown does not identify the requested season, episode content does not change from the previous snapshot, or the transition wait times out.
 
-**Named-season safety**: Non-empty named labels are parsed and may participate in discovery code paths, but **live named-season series are a known first-release limitation** and may fail complete discovery safely. Only explicitly documented action labels such as `See All Episodes` are ignored. Duplicate normalized labels or empty labels fail complete discovery.
+**Partial large-season lists**: When Netflix declares an episode count and the stable row count is lower with no expand control, treat the list as still loading. Scroll the last valid episode row into view and overflow ancestors to their bottom to encourage lazy rendering, then continue waiting within the season deadline. Do not accept the partial list.
+
+**Named-season safety**: Non-empty named labels participate in the same discovery path as numeric seasons. Only explicitly documented action labels such as `See All Episodes` are ignored. Duplicate normalized labels or empty labels fail complete discovery. Any season that still fails after its one retry fails the entire discovery operation without caching a partial catalog.
 
 ---
 
@@ -171,7 +173,7 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 
 ## Error Logging
 
-All errors are logged to console with prefix `[Episode Roulette]`:
+All errors and temporary development diagnostics use prefix `[Episode Roulette]` via `src/debug.ts`:
 
 ```typescript
 function logError(message: string, details?: unknown): void {
@@ -186,6 +188,8 @@ function logInfo(message: string, details?: unknown): void {
   console.log(`[Episode Roulette] ${message}`, details)
 }
 ```
+
+**Ship gate:** verbose development `logInfo` coverage across lifecycle, discovery, playback, button, and restart is **intentionally kept** while pre-publish debugging continues. Before store release, remove or silence non-essential development logs (tracked in `docs/project-todos.md` as Temporary development logs). Keep concise error/warning logs for real failures.
 
 ---
 

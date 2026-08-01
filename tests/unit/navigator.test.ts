@@ -191,11 +191,14 @@ describe('playEpisode', () => {
   })
 
   it('distinguishes live count mismatch from ordinary resolution failure', async () => {
+    // Over-count is an immediate cache-validation mismatch (incomplete under-count waits).
     const mismatch = createFixture()
-    const secondRow = mismatch.row.cloneNode(true)
+    const secondRow = mismatch.row.cloneNode(true) as HTMLElement
+    secondRow.setAttribute('aria-label', 'Second')
+    secondRow.innerHTML = '<span data-uia="episode-number">E2</span>'
     mismatch.selector.append(secondRow)
     await expect(playEpisode(
-      episode({ discoveredSeasonEpisodeCount: 3 }),
+      episode({ discoveredSeasonEpisodeCount: 1 }),
       mismatch.root,
       new AbortController().signal,
       vi.fn(),

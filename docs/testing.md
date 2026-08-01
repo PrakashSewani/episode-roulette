@@ -255,7 +255,7 @@ describe('resilientQuery', () => {
 - [ ] Handles series with many episodes per season
 - [ ] Enumerates all seasons from Netflix's custom dropdown menu
 - [ ] Ignores non-season dropdown entries such as "See All Episodes"
-- [ ] Named-season live support is a known first-release limitation; live smoke may skip named series (fixture coverage may still exist)
+- [ ] Named-season series complete discovery and playback through the shared dropdown path
 - [ ] Ignores only documented action labels and fails duplicate named identities safely
 - [ ] Confirms the requested season from dropdown toggle text and changed episode content
 - [ ] Expands an initially truncated 10-row episode section

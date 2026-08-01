@@ -1,3 +1,4 @@
+import { logError, logInfo, logWarning } from '../debug'
 import {
   CacheValidationMismatchError,
   type Episode,
@@ -41,6 +42,14 @@ export async function playEpisode(
   signal: AbortSignal,
   assertCurrent: () => void,
 ): Promise<void> {
+  logInfo('playEpisode start', {
+    seasonKey: episode.seasonKey,
+    seasonLabel: episode.seasonLabel,
+    episodeNumber: episode.episodeNumber,
+    episodeIndex: episode.episodeIndex,
+    title: episode.title,
+    discoveredSeasonEpisodeCount: episode.discoveredSeasonEpisodeCount,
+  })
   try {
     const episodeSelector = resolveLiveEpisodeSelector(root)
     if (episodeSelector === null) {
@@ -48,6 +57,7 @@ export async function playEpisode(
     }
     const season = toSeasonDescriptor(episode)
     const deadline = performance.now() + PLAYBACK_TIMEOUT_MS
+    logInfo('Playback activating season', { key: season.key, label: season.label })
     const liveEpisodeSelector = await activateSeason(
       root,
       episodeSelector,
@@ -55,14 +65,25 @@ export async function playEpisode(
       deadline,
       signal,
     )
+    logInfo('Playback expanding season', { key: season.key })
     const rows = await expandAndValidateSeason(
       liveEpisodeSelector,
       season,
       deadline,
       signal,
     )
+    logInfo('Playback resolving episode row', {
+      liveRowCount: rows.length,
+      expectedCount: episode.discoveredSeasonEpisodeCount,
+    })
     const row = resolveEpisodeRow(episode, rows)
     if (row === null) {
+      logWarning('Episode row resolution failed', {
+        title: episode.title,
+        episodeNumber: episode.episodeNumber,
+        episodeIndex: episode.episodeIndex,
+        liveRowCount: rows.length,
+      })
       throw new PlaybackResolutionError(
         'Selected episode could not be resolved uniquely',
       )
@@ -72,10 +93,23 @@ export async function playEpisode(
       throw new DOMException('The operation was aborted.', 'AbortError')
     }
     assertCurrent()
+    logInfo('Clicking resolved episode row', {
+      title: episode.title,
+      episodeNumber: episode.episodeNumber,
+    })
     row.click()
   } catch (error) {
     if (error instanceof SeasonControllerError) {
-      throw mapControllerError(error)
+      const mapped = mapControllerError(error)
+      logError('playEpisode controller failure', {
+        reason: error.reason,
+        message: error.message,
+        mappedName: mapped.name,
+      })
+      throw mapped
+    }
+    if (!(error instanceof DOMException && error.name === 'AbortError')) {
+      logError('playEpisode failed', error)
     }
     throw error
   }

@@ -1,6 +1,8 @@
+import { logInfo, logWarning } from '../debug'
 import type { SeasonDescriptor } from '../types'
 import { SeasonControllerError } from '../types'
 import { isVisible, resilientQuery, resilientQueryAll, waitForElement } from './dom-utils'
+import { parseEpisodeRowIdentity } from './episode-identity'
 import {
   EPISODE_SELECTOR,
   EPISODE_ROW,
@@ -118,11 +120,14 @@ function parseSeasonElement(element: Element): SeasonDescriptor | null {
 }
 
 function snapshotRows(rows: HTMLElement[]): string {
-  return JSON.stringify(rows.map((row, index) => [
-    row.getAttribute('aria-label') ?? '',
-    (row.textContent ?? '').normalize('NFKC').trim().replace(/\s+/gu, ' '),
-    index,
-  ]))
+  return JSON.stringify(rows.map((row, index) => {
+    const identity = parseEpisodeRowIdentity(row, index)
+    return [
+      identity.normalizedTitle ?? '',
+      identity.episodeNumber,
+      index,
+    ]
+  }))
 }
 
 function minimumReadyRowCount(season: SeasonDescriptor): number {
@@ -144,7 +149,7 @@ function waitForCondition(
   root: Node,
   deadline: number,
   signal: AbortSignal,
-  reason: 'render-timeout' | 'transition-timeout' | 'expansion-failed',
+  reason: 'render-timeout' | 'transition-timeout' | 'expansion-failed' | 'count-mismatch',
   condition: () => boolean,
   observeOptions: MutationObserverInit = { childList: true, subtree: true, attributes: true },
 ): Promise<void> {
@@ -200,6 +205,78 @@ export function getValidEpisodeRows(episodeSelector: ParentNode): HTMLElement[] 
     ))
 }
 
+function classifySeasonControl(
+  episodeSelector: HTMLElement,
+): 'dropdown' | 'implicit' | null {
+  if (resilientQuery(SEASON_DROPDOWN_TOGGLE.selectors, episodeSelector) !== null) {
+    return 'dropdown'
+  }
+  if (getValidEpisodeRows(episodeSelector).length > 0) {
+    return 'implicit'
+  }
+  return null
+}
+
+async function waitForSeasonControlReady(
+  episodeSelector: HTMLElement,
+  deadline: number,
+  signal: AbortSignal,
+): Promise<'dropdown' | 'implicit'> {
+  const immediate = classifySeasonControl(episodeSelector)
+  if (immediate !== null) return immediate
+
+  logInfo('Waiting for season control readiness', {
+    remainingMs: remainingTime(deadline),
+  })
+  let ready: 'dropdown' | 'implicit' | null = null
+  try {
+    await waitForCondition(
+      episodeSelector,
+      deadline,
+      signal,
+      'render-timeout',
+      () => {
+        ready = classifySeasonControl(episodeSelector)
+        return ready !== null
+      },
+    )
+  } catch (error) {
+    if (error instanceof SeasonControllerError && error.reason === 'render-timeout') {
+      throw new SeasonControllerError('unsupported-layout', 'No supported season control')
+    }
+    throw error
+  }
+  if (ready === null) {
+    throw new SeasonControllerError('unsupported-layout', 'No supported season control')
+  }
+  logInfo('Season control ready', { strategy: ready })
+  return ready
+}
+
+async function waitForDropdownToggle(
+  episodeSelector: HTMLElement,
+  deadline: number,
+  signal: AbortSignal,
+): Promise<HTMLElement> {
+  const existing = resilientQuery<HTMLElement>(SEASON_DROPDOWN_TOGGLE.selectors, episodeSelector)
+  if (existing !== null) return existing
+
+  logInfo('Waiting for season dropdown toggle', {
+    remainingMs: remainingTime(deadline),
+  })
+  const found = await waitForElement<HTMLElement>(
+    SEASON_DROPDOWN_TOGGLE.selectors,
+    remainingTime(deadline),
+    episodeSelector,
+    signal,
+  )
+  if (found === null) {
+    throw new SeasonControllerError('strategy-mismatch', 'Season dropdown is missing')
+  }
+  logInfo('Season dropdown toggle appeared')
+  return found
+}
+
 export async function enumerateSeasons(
   titleRoot: HTMLElement,
   episodeSelector: HTMLElement,
@@ -207,12 +284,20 @@ export async function enumerateSeasons(
   signal: AbortSignal,
 ): Promise<SeasonDescriptor[]> {
   assertNotAborted(signal)
+  const strategy = await waitForSeasonControlReady(episodeSelector, deadline, signal)
+  if (strategy === 'implicit') {
+    logInfo('enumerateSeasons: implicit single season')
+    return [IMPLICIT_SEASON]
+  }
+
   const toggle = resilientQuery<HTMLElement>(SEASON_DROPDOWN_TOGGLE.selectors, episodeSelector)
   if (toggle === null) {
-    if (getValidEpisodeRows(episodeSelector).length > 0) return [IMPLICIT_SEASON]
     throw new SeasonControllerError('unsupported-layout', 'No supported season control')
   }
 
+  logInfo('enumerateSeasons: opening custom dropdown', {
+    toggleText: toggle.textContent?.trim() ?? '',
+  })
   let menu = resilientQuery<HTMLElement>(SEASON_DROPDOWN_MENU.selectors, titleRoot)
   if (menu === null) {
     toggle.click()
@@ -230,9 +315,16 @@ export async function enumerateSeasons(
   try {
     const descriptors: SeasonDescriptor[] = []
     const keys = new Set<string>()
-    for (const item of resilientQueryAll<HTMLElement>(SEASON_DROPDOWN_ITEM.selectors, menu)) {
+    const items = resilientQueryAll<HTMLElement>(SEASON_DROPDOWN_ITEM.selectors, menu)
+    logInfo('enumerateSeasons: menu items found', { count: items.length })
+    for (const item of items) {
       const descriptor = parseSeasonElement(item)
-      if (descriptor === null) continue
+      if (descriptor === null) {
+        logInfo('enumerateSeasons: ignored menu item', {
+          text: (item.textContent ?? '').trim().slice(0, 80),
+        })
+        continue
+      }
       if (keys.has(descriptor.key)) {
         throw new SeasonControllerError(
           'unsupported-layout',
@@ -245,6 +337,13 @@ export async function enumerateSeasons(
     if (descriptors.length === 0) {
       throw new SeasonControllerError('unsupported-layout', 'No supported seasons found')
     }
+    logInfo('enumerateSeasons: descriptors', {
+      seasons: descriptors.map((season) => ({
+        key: season.key,
+        label: season.label,
+        expectedEpisodeCount: season.expectedEpisodeCount,
+      })),
+    })
     return descriptors
   } finally {
     if (menu.isConnected || toggle.getAttribute('aria-expanded') === 'true') {
@@ -274,8 +373,18 @@ export async function activateSeason(
   signal: AbortSignal,
 ): Promise<HTMLElement> {
   assertNotAborted(signal)
+  if (season.key !== 'implicit') {
+    await waitForDropdownToggle(episodeSelector, deadline, signal)
+  }
+
   const activeKey = getActiveSeasonKey(episodeSelector)
+  logInfo('activateSeason', {
+    requestedKey: season.key,
+    activeKey,
+    remainingMs: remainingTime(deadline),
+  })
   if (activeKey === season.key && episodeSelector.isConnected) {
+    logInfo('activateSeason: already active; no click')
     return episodeSelector
   }
 
@@ -312,10 +421,15 @@ export async function activateSeason(
       }
     })
   if (matchingItems.length !== 1) {
+    logWarning('activateSeason: unique menu match failed', {
+      requestedKey: season.key,
+      matchCount: matchingItems.length,
+    })
     if (menu.isConnected) toggle.click()
     throw new SeasonControllerError('season-missing', `Season not found: ${season.key}`)
   }
 
+  logInfo('activateSeason: clicking menu item', { key: season.key })
   matchingItems[0]!.click()
   let liveEpisodeSelector: HTMLElement | null = null
   await waitForCondition(
@@ -346,7 +460,49 @@ export async function activateSeason(
   if (resolvedEpisodeSelector === null) {
     throw new SeasonControllerError('transition-timeout', 'Season transition did not resolve')
   }
+  logInfo('activateSeason: transition complete', {
+    key: season.key,
+    rowCount: getValidEpisodeRows(resolvedEpisodeSelector).length,
+  })
   return resolvedEpisodeSelector
+}
+
+function isScrollable(element: HTMLElement): boolean {
+  const style = window.getComputedStyle(element)
+  const overflowY = style.overflowY
+  return (
+    (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')
+    && element.scrollHeight > element.clientHeight + 1
+  )
+}
+
+function findNearestScrollable(start: HTMLElement): HTMLElement | null {
+  let current: HTMLElement | null = start
+  while (current !== null) {
+    if (current === document.body || current === document.documentElement) {
+      return null
+    }
+    if (isScrollable(current)) return current
+    current = current.parentElement
+  }
+  return null
+}
+
+/** Encourage Netflix lazy episode loading when declared count is incomplete and expand is absent. */
+function encourageMoreEpisodeRows(
+  episodeSelector: HTMLElement,
+  rows: HTMLElement[],
+): void {
+  // Scope to the episode list only — never scroll document/body (twitches the details modal).
+  const scrollable = findNearestScrollable(episodeSelector)
+  if (scrollable !== null) {
+    scrollable.scrollTop = scrollable.scrollHeight
+  }
+
+  const lastRow = rows[rows.length - 1]
+  if (lastRow !== undefined && typeof lastRow.scrollIntoView === 'function') {
+    lastRow.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }
 }
 
 function waitForStableRows(
@@ -408,30 +564,112 @@ export async function expandAndValidateSeason(
   signal: AbortSignal,
 ): Promise<HTMLElement[]> {
   assertNotAborted(signal)
-  const expand = resilientQuery<HTMLElement>(SECTION_EXPAND.selectors, episodeSelector)
-  if (expand !== null) {
-    expand.click()
-    await waitForCondition(
-      episodeSelector,
-      deadline,
-      signal,
-      'expansion-failed',
-      () => resilientQuery(SECTION_EXPAND.selectors, episodeSelector) === null,
-    )
-  }
+  logInfo('expandAndValidateSeason start', {
+    key: season.key,
+    expectedEpisodeCount: season.expectedEpisodeCount,
+    remainingMs: remainingTime(deadline),
+  })
 
-  const rows = await waitForStableRows(episodeSelector, season, deadline, signal)
-  if (resilientQuery(SECTION_EXPAND.selectors, episodeSelector) !== null) {
-    throw new SeasonControllerError('expansion-failed', 'Expand control is still present')
-  }
-  if (
-    season.expectedEpisodeCount !== null
-    && rows.length !== season.expectedEpisodeCount
-  ) {
-    throw new SeasonControllerError(
-      'count-mismatch',
-      `Expected ${season.expectedEpisodeCount} episodes, found ${rows.length}`,
+  while (true) {
+    assertNotAborted(signal)
+    if (remainingTime(deadline) <= 0) {
+      throw new SeasonControllerError('render-timeout', 'Season expansion timed out')
+    }
+
+    const expand = resilientQuery<HTMLElement>(SECTION_EXPAND.selectors, episodeSelector)
+    if (expand !== null) {
+      logInfo('Clicking section-expand', { key: season.key })
+      expand.click()
+      await waitForCondition(
+        episodeSelector,
+        deadline,
+        signal,
+        'expansion-failed',
+        () => resilientQuery(SECTION_EXPAND.selectors, episodeSelector) === null,
+      )
+      logInfo('section-expand disappeared', { key: season.key })
+    }
+
+    const rows = await waitForStableRows(episodeSelector, season, deadline, signal)
+    logInfo('Stable rows observed', {
+      key: season.key,
+      rowCount: rows.length,
+      expectedEpisodeCount: season.expectedEpisodeCount,
+    })
+    if (resilientQuery(SECTION_EXPAND.selectors, episodeSelector) !== null) {
+      logInfo('section-expand reappeared; looping', { key: season.key })
+      continue
+    }
+
+    if (season.expectedEpisodeCount === null) {
+      return rows
+    }
+
+    if (rows.length === season.expectedEpisodeCount) {
+      logInfo('Declared count matched', {
+        key: season.key,
+        count: rows.length,
+      })
+      return rows
+    }
+
+    if (rows.length > season.expectedEpisodeCount) {
+      throw new SeasonControllerError(
+        'count-mismatch',
+        `Expected ${season.expectedEpisodeCount} episodes, found ${rows.length}`,
+      )
+    }
+
+    // Declared count not yet reached: scroll to encourage lazy load, wait for progress.
+    const incompleteCount = rows.length
+    const incompleteSnapshot = snapshotRows(rows)
+    logInfo('Declared count incomplete; encouraging load then waiting', {
+      key: season.key,
+      found: incompleteCount,
+      expected: season.expectedEpisodeCount,
+      remainingMs: remainingTime(deadline),
+    })
+    encourageMoreEpisodeRows(episodeSelector, rows)
+
+    const progressDeadline = Math.min(
+      deadline,
+      performance.now() + 1_500,
     )
+    try {
+      await waitForCondition(
+        episodeSelector,
+        progressDeadline,
+        signal,
+        'count-mismatch',
+        () => {
+          if (resilientQuery(SECTION_EXPAND.selectors, episodeSelector) !== null) {
+            return true
+          }
+          const currentRows = getValidEpisodeRows(episodeSelector)
+          return currentRows.length !== incompleteCount
+            || snapshotRows(currentRows) !== incompleteSnapshot
+        },
+      )
+    } catch (error) {
+      if (
+        error instanceof SeasonControllerError
+        && error.reason === 'count-mismatch'
+      ) {
+        if (remainingTime(deadline) <= 0) {
+          throw new SeasonControllerError(
+            'count-mismatch',
+            `Expected ${season.expectedEpisodeCount} episodes, found ${incompleteCount}`,
+          )
+        }
+        // Short progress window elapsed without change; loop to scroll again.
+        logInfo('No new rows after scroll encourage; retrying within deadline', {
+          key: season.key,
+          found: incompleteCount,
+          remainingMs: remainingTime(deadline),
+        })
+        continue
+      }
+      throw error
+    }
   }
-  return rows
 }

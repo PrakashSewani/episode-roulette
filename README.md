@@ -23,13 +23,19 @@ Stop spending 10 minutes choosing what to rewatch. Click a button, get a random 
 
 First-release support targets Netflix's observed desktop title-detail layouts: implicit single-season lists and the custom English season dropdown. Kids profiles and non-English Netflix UI require separate validation before support is claimed.
 
-### Season support and limitations
+### Season support
 
-**Supported (validated live):** multi-season series whose Netflix dropdown uses numeric labels such as `Season 1`, `Season 2`, including optional English episode counts on a separate line.
+**Supported (live-validated on desktop Chrome, including JoJo `80179831`):** multi-season series with Netflix's custom dropdown, including numeric labels such as `Season 1` / `Season 2` and named labels (arcs, subtitles, combined labels such as `Phantom Blood/Battle Tendency`, `Part` / `Volume` / `Specials`, etc.), with optional English episode counts on a separate line or as a same-line trailing suffix. Implicit single-season lists without a dropdown are also supported. Large named seasons that load in batches without `section-expand` are completed by scoped list scrolling (episode list only, not the whole page). Season controls are waited for after returning from `/watch/` so cached re-rolls do not false-fail.
 
-**Known limitation — named seasons:** series whose dropdown uses non-numeric labels (arcs, subtitles, combined labels such as `Phantom Blood/Battle Tendency`, `Part`/`Volume`/`Specials`, etc.) are **not** reliable on live Netflix in the first release. Discovery may fail safely with a retryable error rather than producing a partial catalog. Prefer a conventional `Season N` series for random playback. Named-season support remains a future fix once live failures are fully diagnosed.
+Documented Netflix actions such as `See All Episodes` are ignored rather than treated as seasons. Duplicate or empty season identities fail safely. Incomplete discovery never randomizes a partial catalog.
 
-Documented Netflix actions such as `See All Episodes` are ignored rather than treated as seasons. Duplicate or empty season identities fail safely. English Netflix text remains the validated first-release UI scope.
+### Known limitations
+
+- **English Netflix UI only** for episode-count parsing and the action denylist; other locales need separate validation.
+- **Kids / restricted profiles** are not claimed.
+- **First full discovery** on large multi-season titles can take several seconds and briefly scrolls the episode list while loading remaining rows; later rolls reuse the in-memory catalog until the tab is refreshed.
+- **No selection history / no repeat prevention** — each roll is independent uniform random.
+- **Verbose console logs** (`[Episode Roulette] …`) are present for pre-publish debugging; remove or silence before store release (see `docs/project-todos.md`).
 
 ## Tech Stack
 

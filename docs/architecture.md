@@ -236,15 +236,15 @@ Native `<select>`, tab bars, and accordions are not core-release requirements un
 
 These selectors were verified on Netflix desktop in July 2026 and remain centralized fallbacks rather than permanent assumptions.
 
-**Season identity scope**: Numeric labels retain canonical keys such as `season 7`. Non-numeric dropdown labels are parsed as named seasons with key `label:<normalized label>` and `seasonNumber: null`; trailing English `(N Episode(s))` suffixes are stripped from identity text. **First-release product support and live smoke cover only `Season <number>` dropdown series.** Live Netflix named-season series (for example JoJo arcs) remain a documented limitation after failed Chrome and Safari validation; discovery is expected to fail safely rather than randomize a partial catalog until a future fix is verified live. Known actions such as `See All Episodes` are ignored through an explicit denylist; newly observed action labels must be documented before being added. Duplicate normalized season identities fail safely.
+**Season identity scope**: Numeric labels retain canonical keys such as `season 7`. Non-numeric dropdown labels are parsed as named seasons with key `label:<normalized label>` and `seasonNumber: null`; trailing English `(N Episode(s))` suffixes are stripped from identity text. Named and numeric seasons share one discovery/playback path. Known actions such as `See All Episodes` are ignored through an explicit denylist; newly observed action labels must be documented before being added. Duplicate normalized season identities fail safely. Incomplete discovery still fails safely without caching a partial catalog.
 
 **Language scope**: Season names are identity text and need not contain English numbering. Optional expected-count parsing and the documented action denylist remain English Netflix UI contracts; additional locales require separate validation.
 
 ### 10. Expand Truncated Episode Sections
 
-**Decision**: A Netflix season is not complete while `[data-uia="section-expand"]` exists in its episode selector. Discovery clicks the expand control and waits until it disappears and the episode-row count stabilizes.
+**Decision**: A Netflix season is not complete while `[data-uia="section-expand"]` exists in its episode selector. Discovery clicks each expand appearance, waits until the control disappears, stabilizes on durable row identity (not full `textContent`), and when Netflix declares an episode count requires that exact count before accepting the season. If rows are still incomplete with no expand control, discovery scrolls only the nearest overflow container of the episode selector (never the document) to encourage lazy loading, then continues waiting within the season deadline for more rows or another expand appearance. Season dropdown readiness is also waited for within the deadline when Netflix remounts the details UI after `/watch/`.
 
-**Rationale**: Netflix currently renders only the first 10 rows for a season in the detail modal. For an observed 17-episode season, clicking `section-expand` rendered all 17 rows and removed the control. Collecting before expansion would create a biased, incomplete pool.
+**Rationale**: Netflix currently renders only the first 10 rows for a season in the detail modal. For an observed 17-episode season, clicking `section-expand` rendered all 17 rows and removed the control. Live JoJo Stardust Crusaders (2026-08-01) rendered 30 of 48 rows with no expand control; passive waiting timed out. Document-level scrolling thrashed the modal. Cached re-rolls after returning from playback failed when the dropdown was missing for a few hundred ms; waiting for the control avoids false cache invalidation.
 
 ### 11. Abortable, Generation-Guarded Lifecycle
 
