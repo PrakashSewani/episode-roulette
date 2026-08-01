@@ -570,9 +570,24 @@ export async function expandAndValidateSeason(
     remainingMs: remainingTime(deadline),
   })
 
+  const incompleteCountMismatch = (found: number): SeasonControllerError => (
+    new SeasonControllerError(
+      'count-mismatch',
+      `Expected ${season.expectedEpisodeCount} episodes, found ${found}`,
+    )
+  )
+
   while (true) {
     assertNotAborted(signal)
     if (remainingTime(deadline) <= 0) {
+      const found = getValidEpisodeRows(episodeSelector).length
+      if (
+        season.expectedEpisodeCount !== null
+        && found > 0
+        && found < season.expectedEpisodeCount
+      ) {
+        throw incompleteCountMismatch(found)
+      }
       throw new SeasonControllerError('render-timeout', 'Season expansion timed out')
     }
 
@@ -590,7 +605,23 @@ export async function expandAndValidateSeason(
       logInfo('section-expand disappeared', { key: season.key })
     }
 
-    const rows = await waitForStableRows(episodeSelector, season, deadline, signal)
+    let rows: HTMLElement[]
+    try {
+      rows = await waitForStableRows(episodeSelector, season, deadline, signal)
+    } catch (error) {
+      // Deadline during incomplete declared-count load → count-mismatch, not generic timeout.
+      if (
+        error instanceof SeasonControllerError
+        && error.reason === 'render-timeout'
+        && season.expectedEpisodeCount !== null
+      ) {
+        const found = getValidEpisodeRows(episodeSelector).length
+        if (found > 0 && found < season.expectedEpisodeCount) {
+          throw incompleteCountMismatch(found)
+        }
+      }
+      throw error
+    }
     logInfo('Stable rows observed', {
       key: season.key,
       rowCount: rows.length,
@@ -614,10 +645,7 @@ export async function expandAndValidateSeason(
     }
 
     if (rows.length > season.expectedEpisodeCount) {
-      throw new SeasonControllerError(
-        'count-mismatch',
-        `Expected ${season.expectedEpisodeCount} episodes, found ${rows.length}`,
-      )
+      throw incompleteCountMismatch(rows.length)
     }
 
     // Declared count not yet reached: scroll to encourage lazy load, wait for progress.
@@ -656,10 +684,7 @@ export async function expandAndValidateSeason(
         && error.reason === 'count-mismatch'
       ) {
         if (remainingTime(deadline) <= 0) {
-          throw new SeasonControllerError(
-            'count-mismatch',
-            `Expected ${season.expectedEpisodeCount} episodes, found ${incompleteCount}`,
-          )
+          throw incompleteCountMismatch(incompleteCount)
         }
         // Short progress window elapsed without change; loop to scroll again.
         logInfo('No new rows after scroll encourage; retrying within deadline', {
