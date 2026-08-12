@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import netflixRuntime from '../../src/providers/netflix'
+import primeRuntime from '../../src/providers/prime-video'
 import { getProvider, getProviders } from '../../src/providers'
 import { getCatalogKey } from '../../src/types'
 import type { Episode } from '../../src/types'
@@ -21,14 +22,17 @@ function episode(): Episode {
 }
 
 describe('provider runtime registry', () => {
-  afterEach(() => netflixRuntime.stop())
+  afterEach(() => {
+    netflixRuntime.stop()
+    primeRuntime.stop()
+  })
 
   it('dispatches only supported exact hosts', () => {
     expect(getProvider('https://www.netflix.com/title/123')?.id).toBe('netflix')
     expect(getProvider('https://netflix.com/title/123')?.id).toBe('netflix')
-    expect(getProvider('https://www.primevideo.com/detail/abc')).toBeNull()
+    expect(getProvider('https://www.primevideo.com/detail/abc')?.id).toBe('prime-video')
     expect(getProvider('https://www.amazon.com/title/123')).toBeNull()
-    expect(getProviders().map((provider) => provider.id)).toEqual(['netflix'])
+    expect(getProviders().map((provider) => provider.id)).toEqual(['netflix', 'prime-video'])
   })
 
   it('keeps equal provider-local IDs in separate cache namespaces', () => {

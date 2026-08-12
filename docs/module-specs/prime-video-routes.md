@@ -18,4 +18,4 @@ A series is confirmed only when the scoped root contains at least one `li[data-t
 
 ## Season navigation
 
-`[data-testid="dp-season-selector"] a[href*="/detail/"]` links to season-specific opaque detail IDs. Selecting a season changes the detail URL and replaces the displayed episode catalog. The provider must wait for the requested detail identity and new catalog before collecting.
+`[data-testid="dp-season-selector"] a[href*="/detail/"]` links to season-specific opaque detail IDs. Authenticated Reacher exposed four numeric season links; navigating from Season 4 to the observed Season 3 detail ID changed the URL, selected Season 3, and replaced the displayed eight-row episode catalog. The provider must wait for the requested detail identity and new catalog before collecting.

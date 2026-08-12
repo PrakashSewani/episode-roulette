@@ -7,10 +7,10 @@ export default defineManifest({
   name: 'Episode Roulette',
   description: 'Play a random episode from a Netflix series.',
   version: packageJson.version,
-  host_permissions: ['*://*.netflix.com/*'],
+  host_permissions: ['*://*.netflix.com/*', '*://www.primevideo.com/*'],
   content_scripts: [
     {
-      matches: ['*://*.netflix.com/*'],
+      matches: ['*://*.netflix.com/*', '*://www.primevideo.com/*'],
       js: ['src/content.ts'],
     },
   ],

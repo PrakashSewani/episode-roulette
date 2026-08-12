@@ -8,7 +8,7 @@ const buildRoot = path.join(projectRoot, 'dist', 'webextension')
 const safariRoot = path.join(projectRoot, 'safari')
 const safariResources = path.join(safariRoot, 'Extension', 'Resources')
 const packageJson = JSON.parse(await readFile(path.join(projectRoot, 'package.json'), 'utf8'))
-const netflixPattern = '*://*.netflix.com/*'
+const approvedHostPatterns = ['*://*.netflix.com/*', '*://www.primevideo.com/*']
 const forbiddenPermissions = new Set([
   'cookies',
   'declarativeNetRequest',
@@ -68,12 +68,16 @@ async function assertDeclaredFile(root, value, label) {
   if (!(await exists(targetPath))) fail(`${label} is missing: ${value}`)
 }
 
-function assertNetflixPatterns(patterns, label) {
+function assertApprovedPatterns(patterns, label) {
   if (!Array.isArray(patterns) || patterns.length === 0) {
-    fail(`${label} must contain the Netflix match pattern.`)
+    fail(`${label} must contain an approved host pattern.`)
   }
-  if (patterns.some((pattern) => pattern !== netflixPattern)) {
-    fail(`${label} contains access outside Netflix.`)
+  if (patterns.some((pattern) => !approvedHostPatterns.includes(pattern))) {
+    fail(`${label} contains access outside the approved provider hosts.`)
+  }
+  if (new Set(patterns).size !== approvedHostPatterns.length
+    || approvedHostPatterns.some((pattern) => !patterns.includes(pattern))) {
+    fail(`${label} must contain exactly the approved provider hosts.`)
   }
 }
 
@@ -93,8 +97,8 @@ async function assertManifest(root) {
   if (Object.hasOwn(manifest, 'background') || containsKey(manifest, 'service_worker')) {
     fail('Manifest must not declare a background runtime or service worker.')
   }
-  if (JSON.stringify(manifest.host_permissions) !== JSON.stringify([netflixPattern])) {
-    fail('Host permissions must contain only Netflix.')
+  if (JSON.stringify(manifest.host_permissions) !== JSON.stringify(approvedHostPatterns)) {
+    fail('Host permissions must contain exactly the approved provider hosts.')
   }
   if ((manifest.optional_host_permissions?.length ?? 0) !== 0) {
     fail('Optional host permissions are not allowed.')
@@ -106,10 +110,10 @@ async function assertManifest(root) {
     fail('The first release must not request extension permissions.')
   }
   if (!Array.isArray(manifest.content_scripts) || manifest.content_scripts.length === 0) {
-    fail('Manifest must declare a Netflix content script.')
+    fail('Manifest must declare the approved provider content script.')
   }
   for (const script of manifest.content_scripts) {
-    assertNetflixPatterns(script.matches, 'Content-script matches')
+    assertApprovedPatterns(script.matches, 'Content-script matches')
     if (!Array.isArray(script.js) || script.js.length === 0) {
       fail('Every content script must declare JavaScript.')
     }
@@ -118,7 +122,7 @@ async function assertManifest(root) {
     }
   }
   for (const group of manifest.web_accessible_resources ?? []) {
-    assertNetflixPatterns(group.matches, 'Web-accessible resource matches')
+    assertApprovedPatterns(group.matches, 'Web-accessible resource matches')
     for (const resource of group.resources ?? []) {
       if (resource.includes('*')) fail(`Wildcard resource cannot be asserted: ${resource}`)
       await assertDeclaredFile(root, resource, 'Web-accessible resource')

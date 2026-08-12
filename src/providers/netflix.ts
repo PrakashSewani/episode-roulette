@@ -202,6 +202,22 @@ const netflixRuntime: ProviderRuntime = {
     })
   },
 
+  isInternalNavigation() {
+    return false
+  },
+
+  getPendingPlayback() {
+    return null
+  },
+
+  resumePendingPlayback(_episode, _root, _signal, _assertCurrent) {
+    return Promise.reject(new PlaybackResolutionError('No pending Netflix playback'))
+  },
+
+  hasPendingOperation() {
+    return false
+  },
+
   notifyRouteChange(url) {
     if (new URL(url).pathname.startsWith('/watch/')) {
       clearPlaybackWaiter()

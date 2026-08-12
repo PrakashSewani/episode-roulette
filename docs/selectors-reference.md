@@ -180,10 +180,22 @@ Playback capture update — 2026-08-12:
 - A `<video aria-hidden="true">` element exists inside the player surface. Its `blob:` source is session-specific and must never be stored or used as durable episode identity.
 - The capture does not expose a stable Prime play/pause button or timeline/scrubber selector. Playback confirmation should wait for the player root and episode metadata to appear, then require the loading overlay to be absent or otherwise observe a stronger ready/playing predicate from a live capture.
 
+Authenticated Brave evidence update — 2026-08-12:
+
+- Current authenticated environment exposed Prime Video navigation including `Prime Video`, `My Stuff`, and native `Watch now` controls.
+- Reacher Season 4 loaded at `/detail/0K16R3PLUFGC2JUE457C26O4OD?...` with one detail wrapper, one main detail root, one season selector, and eight episode rows.
+- Rows 1–3 each exposed two `a[data-testid="episodes-playbutton"]` controls in the row DOM, with accessible labels `Play S4 E1`, `Play S4 E2`, and `Play S4 E3`. Rows 4–8 exposed no play controls and carried `COMING SOON` markers plus scheduled availability text. The eligibility rule remains row-level native play-control presence plus exclusion markers.
+- The season selector exposed four numeric seasons. Each link used an opaque `/detail/<id>` href with a referral query; the query is not identity. Season 4 was the active link. Navigating to the observed Season 3 link changed the detail identity to `/detail/0H1T1C23B07HLZPPHJSSPMYSL7?...`, selected Season 3, and replaced the catalog with eight Season 3 rows and native play controls.
+- Native playback of Season 4 Episode 1 preserved the exact detail URL and opened `#dv-web-player` / `div[aria-label="Web Player"]`. Matching metadata appeared as `S4 E1 City of Brotherly Love` in `.atvwebplayersdk-episode-info` and `.atvwebplayersdk-episode-timing-container`.
+- After approximately 9.7 seconds, `.atvwebplayersdk-loading-overlay[role="status"]` still contained `Loading`, the player video reported `readyState: 0`, and no stronger ready/playing signal was observed. This session therefore confirms player-open and metadata matching, but not completed player readiness.
+- Observed Prime placement candidate: the provider-owned main play action was `a[data-testid="dp-atf-play-button"][role="button"]` inside `div.dv-dp-node-playback`; this is not yet approved as the Episode Roulette placement anchor because it launches the first/current episode rather than a random episode.
+
 Not yet observed:
 
 - Resume/start-over behavior and timeline selectors.
 - Whether all Prime-native content uses the same detail/episode hooks.
-- Root replacement timing, lazy loading beyond the supplied four visible cards, and behavior for unavailable/rental/channel/bonus items.
+- Root replacement timing and lazy loading beyond the supplied eight-row season.
+- Behavior and stable markers for unavailable/rental/channel/bonus items beyond the observed `COMING SOON` rows.
+- A completed player-ready predicate after native playback.
 
 These observations are evidence only. They become normative after the Prime provider contract and implementation phase are approved.

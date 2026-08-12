@@ -41,6 +41,10 @@ interface ProviderRuntime {
   discoverEpisodes(context: TitleContext, root: HTMLElement, signal: AbortSignal): Promise<SeriesInfo>
   playEpisode(episode: Episode, root: HTMLElement, signal: AbortSignal, assertCurrent: () => void): Promise<void>
   waitForPlaybackConfirmation(episode: Episode, signal: AbortSignal): Promise<void>
+  isInternalNavigation(url: string): boolean
+  getPendingPlayback(): Episode | null
+  resumePendingPlayback(episode: Episode, root: HTMLElement, signal: AbortSignal, assertCurrent: () => void): Promise<void>
+  hasPendingOperation(): boolean
   notifyRouteChange(url: string): void
 }
 ```

@@ -272,6 +272,34 @@ async function runPlayback(
   }
 }
 
+async function resumePendingPlayback(
+  context: OperationContext,
+  root: HTMLElement,
+  controller: ButtonController,
+  episode: Episode,
+  provider: ProviderRuntime,
+): Promise<void> {
+  controller.setState('loading')
+  try {
+    await provider.resumePendingPlayback(
+      episode,
+      root,
+      context.controller.signal,
+      () => assertCurrent(context, root),
+    )
+    await provider.waitForPlaybackConfirmation(episode, context.controller.signal)
+    assertCurrent(context, root)
+    controller.setState('ready')
+  } catch (error) {
+    if (isAbortError(error)) return
+    if (isCurrent(context) && activeRoot === root && buttonController === controller) {
+      const message = errorMessage(error)
+      controller.setState('error', message)
+      showErrorToast(message)
+    }
+  }
+}
+
 async function injectSeriesButton(
   context: OperationContext,
   root: HTMLElement,
@@ -297,6 +325,9 @@ async function injectSeriesButton(
     }
 
     buttonController = controller
+    if (controller !== null && provider.hasPendingOperation()) {
+      controller.setState('loading')
+    }
     if (controller === null) {
       logWarning('Button injection returned null (Play placement failed)')
       return
@@ -312,6 +343,18 @@ async function injectSeriesButton(
       })
       void runPlayback(context, root, controller)
     })
+    const pendingEpisode = provider.getPendingPlayback()
+    if (pendingEpisode !== null) {
+      const currentPendingSeason = pendingEpisode.seasonKey.replace(/^detail:/u, '')
+      const currentDetailId = new URL(window.location.href).pathname.match(/^\/detail\/([^/]+)/u)?.[1]
+      if (currentDetailId === currentPendingSeason) {
+        void runPlayback(context, root, controller)
+      } else {
+        void resumePendingPlayback(context, root, controller, pendingEpisode, provider)
+      }
+    } else if (provider.hasPendingOperation()) {
+      void runPlayback(context, root, controller)
+    }
   } catch (error) {
     if (!isAbortError(error)) {
       logError('Failed to inject button', error)
@@ -453,6 +496,22 @@ function handleRouteChange(url: string): void {
     return
   }
 
+  if (
+    activeContext !== null
+    && activeProvider === provider
+    && provider.isInternalNavigation(url)
+  ) {
+    activeProvider = provider
+    activeContext.title = { ...activeContext.title, url }
+    activeRoot = provider.resolveTitleRoot()
+    if (activeRoot !== null) {
+      provider.observeTitleRoot(activeRoot, activeContext.generation)
+    } else {
+      provider.observeForTitleRoot(activeContext.generation)
+    }
+    return
+  }
+
   logInfo('Title context from URL', {
     provider: title.provider,
     titleId: title.titleId,
@@ -504,6 +563,21 @@ function handlePageChange(event: PageChangeEvent): void {
   }
 
   if (event.type === 'title-root-removed') {
+    if (activeProvider?.isInternalNavigation(event.url)) {
+      logInfo('Provider-internal root replacement; refreshing root', {
+        provider: context.title.provider,
+        titleId: context.title.titleId,
+        generation: context.generation,
+      })
+      activeRoot = activeProvider.resolveTitleRoot()
+      if (activeRoot !== null) {
+        activeProvider.observeTitleRoot(activeRoot, context.generation)
+      } else {
+        activeProvider.observeForTitleRoot(context.generation)
+      }
+      return
+    }
+
     logInfo('Title root removed; replacing context', {
       titleId: context.title.titleId,
       generation: context.generation,
