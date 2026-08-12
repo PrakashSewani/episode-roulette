@@ -31,6 +31,7 @@ function createRow({
 
 function episode(overrides: Partial<Episode> = {}): Episode {
   return {
+    provider: 'netflix',
     seriesId: '1',
     seasonKey: 'season 1',
     seasonLabel: 'Season 1',
@@ -38,6 +39,7 @@ function episode(overrides: Partial<Episode> = {}): Episode {
     episodeIndex: 0,
     episodeNumber: 1,
     title: 'Pilot',
+    normalizedTitle: 'pilot',
     discoveredSeasonEpisodeCount: 1,
     ...overrides,
   }
@@ -77,14 +79,14 @@ describe('episode identity', () => {
       createRow({ title: 'Second', number: '2' }),
     ]
     expect(resolveEpisodeRow(episode({ discoveredSeasonEpisodeCount: 2 }), rows)).toBe(rows[0])
-    expect(resolveEpisodeRow(episode({ episodeNumber: null, title: 'Second', discoveredSeasonEpisodeCount: 2 }), rows)).toBe(rows[1])
+    expect(resolveEpisodeRow(episode({ episodeNumber: null, title: 'Second', normalizedTitle: 'second', discoveredSeasonEpisodeCount: 2 }), rows)).toBe(rows[1])
   })
 
   it('fails on ambiguous titles and gates index fallback by complete count', () => {
     const rows = [createRow({ title: 'Same' }), createRow({ title: 'Same' })]
-    expect(resolveEpisodeRow(episode({ episodeNumber: null, title: 'Same', discoveredSeasonEpisodeCount: 2 }), rows)).toBeNull()
-    expect(resolveEpisodeRow(episode({ episodeNumber: null, title: 'Unknown Episode', episodeIndex: 1, discoveredSeasonEpisodeCount: 2 }), rows)).toBe(rows[1])
-    expect(resolveEpisodeRow(episode({ episodeNumber: 9, title: 'Unknown Episode', episodeIndex: 1, discoveredSeasonEpisodeCount: 2 }), rows)).toBe(rows[1])
-    expect(resolveEpisodeRow(episode({ episodeNumber: null, title: 'Unknown Episode', episodeIndex: 1, discoveredSeasonEpisodeCount: 3 }), rows)).toBeNull()
+    expect(resolveEpisodeRow(episode({ episodeNumber: null, title: 'Same', normalizedTitle: 'same', discoveredSeasonEpisodeCount: 2 }), rows)).toBeNull()
+    expect(resolveEpisodeRow(episode({ episodeNumber: null, title: 'Unknown Episode', normalizedTitle: null, episodeIndex: 1, discoveredSeasonEpisodeCount: 2 }), rows)).toBe(rows[1])
+    expect(resolveEpisodeRow(episode({ episodeNumber: 9, title: 'Unknown Episode', normalizedTitle: null, episodeIndex: 1, discoveredSeasonEpisodeCount: 2 }), rows)).toBe(rows[1])
+    expect(resolveEpisodeRow(episode({ episodeNumber: null, title: 'Unknown Episode', normalizedTitle: null, episodeIndex: 1, discoveredSeasonEpisodeCount: 3 }), rows)).toBeNull()
   })
 })

@@ -17,6 +17,8 @@ interface ButtonPlacement {
 }
 ```
 
+`PageChangeCallback` is the existing neutral page-event callback from `src/types.ts`. `start()` owns provider observer registration and `stop()` owns provider observer teardown.
+
 `spawnRoot` is where the shared owner renders its temporary loading indicator. `place()` inserts the ready operation button at the provider-approved anchor. A provider must return `null` when its placement anchor is not available; the shared owner must not guess a selector or placement.
 
 ## Contract shape
@@ -27,16 +29,19 @@ The eventual TypeScript contract must expose equivalent capabilities to:
 interface ProviderRuntime {
   readonly id: ProviderId
   matches(url: string): boolean
+  start(callback: PageChangeCallback): void
+  stop(): void
   getTitleContext(url: string): TitleContext | null
   resolveTitleRoot(): HTMLElement | null
-  detectSeries(root: HTMLElement): DetectionResult
+  detectSeries(context: TitleContext, root: HTMLElement): DetectionResult
   observeForTitleRoot(generation: number): void
   observeTitleRoot(root: HTMLElement, generation: number): void
   clearObservation(): void
   waitForButtonPlacement(root: HTMLElement, signal: AbortSignal): Promise<ButtonPlacement | null>
-  discoverEpisodes(context: TitleContext, signal: AbortSignal): Promise<SeriesInfo>
-  playEpisode(episode: Episode, signal: AbortSignal, assertCurrent: () => void): Promise<void>
+  discoverEpisodes(context: TitleContext, root: HTMLElement, signal: AbortSignal): Promise<SeriesInfo>
+  playEpisode(episode: Episode, root: HTMLElement, signal: AbortSignal, assertCurrent: () => void): Promise<void>
   waitForPlaybackConfirmation(episode: Episode, signal: AbortSignal): Promise<void>
+  notifyRouteChange(url: string): void
 }
 ```
 

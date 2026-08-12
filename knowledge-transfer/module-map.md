@@ -7,9 +7,8 @@ manifest.ts
   -> content.ts
 
 content.ts
-  -> observer.ts
-  -> detector.ts
-  -> selectors.ts
+  -> providers/index.ts
+  -> provider runtime
   -> button.ts / styles.ts / feedback.ts
   -> popup/popup.ts (via chrome.runtime.onMessage)
   -> season-traverser.ts
@@ -35,6 +34,26 @@ shared modules
 The practical high-risk center is the triangle formed by `content.ts`, `season-controller.ts`, and `episode-identity.ts`: lifecycle correctness, Netflix interaction correctness, and durable/live identity correctness.
 
 ## Runtime Modules
+
+### `src/providers/index.ts` and `src/providers/netflix.ts`
+
+Role:
+
+- Select a provider by exact host
+- Adapt provider-qualified contexts to the existing Netflix modules
+- Own provider observer lifecycle, placement, discovery, native playback, and playback confirmation delegation
+- Keep Prime absent from the registry until Phase 10
+
+High-risk changes:
+
+- Matching broad hosts or unsupported routes
+- Adding provider conditionals throughout shared modules
+- Bypassing provider-qualified cache keys
+- Losing abort or root-scoping guarantees during delegation
+
+Primary tests:
+
+- `tests/unit/providers.test.ts`
 
 ### `src/manifest.ts`
 

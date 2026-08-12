@@ -1,28 +1,19 @@
 import { logError, logInfo, logWarning } from './debug'
-import { detectSeries, getTitleContext } from './netflix/detector'
-import {
-  clearTitleObservation,
-  observeForTitleRoot,
-  observeTitleRoot,
-  onStart,
-  onStop,
-} from './netflix/observer'
-import {
-  PLAY_BUTTON,
-  TITLE_DETAILS_METADATA,
-  TITLE_DETAILS_ROOT,
-} from './netflix/selectors'
+import { getProvider } from './providers'
 import {
   CacheValidationMismatchError,
   DiscoveryIncompleteError,
+  getCatalogKey,
   NoEpisodesError,
   PlaybackResolutionError,
+  type CatalogKey,
   type Episode,
   type OperationContext,
   type PageChangeEvent,
   type PopupMessage,
   type PopupMessageResponse,
   type PopupStatus,
+  type ProviderRuntime,
   type SeriesInfo,
   type TitleContext,
 } from './types'
@@ -30,75 +21,29 @@ import type { ButtonController } from './types'
 import { dismissToast, showErrorToast, showStatusToast } from './ui/feedback'
 import { injectButton } from './ui/button'
 import { injectStyles, removeStyles } from './ui/styles'
-import { discoverEpisodes } from './discovery/season-traverser'
-import { playEpisode } from './engine/navigator'
 import { pickRandom } from './engine/randomizer'
 import { seekToBeginning } from './engine/restart'
 
 const DETECTION_TIMEOUT_MS = 5_000
-const PLAYBACK_CONFIRMATION_TIMEOUT_MS = 5_000
 const PENDING_RESTART_WINDOW_MS = 15_000
 
 let started = false
 let generation = 0
 let activeContext: OperationContext | null = null
+let activeProvider: ProviderRuntime | null = null
+let startedProvider: ProviderRuntime | null = null
 let activeRoot: HTMLElement | null = null
 let detectionTimer: number | null = null
 let seriesConfirmed = false
 let buttonController: ButtonController | null = null
 let restartController: AbortController | null = null
 let pendingRestartUntil = 0
-const catalogCache = new Map<string, SeriesInfo>()
-
-interface PlaybackConfirmation {
-  context: OperationContext
-  timer: number
-  resolve: () => void
-  reject: (error: Error) => void
-  abort: () => void
-}
-
-let playbackConfirmation: PlaybackConfirmation | null = null
-
-function isVisible(element: HTMLElement): boolean {
-  const style = window.getComputedStyle(element)
-  const hasLayoutBox = [...element.getClientRects()].some(
-    (rect) => rect.width > 0 && rect.height > 0,
-  )
-
-  return hasLayoutBox
-    && style.display !== 'none'
-    && style.visibility !== 'hidden'
-}
-
-function containsAny(root: ParentNode, selectors: string[]): boolean {
-  return selectors.some((selector) => root.querySelector(selector) !== null)
-}
-
-function resolveTitleRoot(): HTMLElement | null {
-  const candidates = new Set<HTMLElement>()
-
-  for (const selector of TITLE_DETAILS_ROOT.selectors) {
-    for (const match of document.querySelectorAll<HTMLElement>(selector)) {
-      candidates.add(match)
-    }
-  }
-
-  const validCandidates = [...candidates].filter((candidate) => (
-    candidate.isConnected
-    && isVisible(candidate)
-    && (
-      containsAny(candidate, PLAY_BUTTON.selectors)
-      || containsAny(candidate, TITLE_DETAILS_METADATA.selectors)
-    )
-  ))
-
-  return validCandidates.length === 1 ? validCandidates[0] ?? null : null
-}
+const catalogCache = new Map<CatalogKey, SeriesInfo>()
 
 function isCurrent(context: OperationContext): boolean {
   return !context.controller.signal.aborted
     && activeContext?.generation === context.generation
+    && activeContext.title.provider === context.title.provider
     && activeContext.title.titleId === context.title.titleId
 }
 
@@ -118,7 +63,7 @@ function expireDetection(context: OperationContext): void {
     titleId: context.title.titleId,
     generation: context.generation,
   })
-  clearTitleObservation()
+  activeProvider?.clearObservation()
   clearDetectionTimer()
 }
 
@@ -153,38 +98,6 @@ function formatSelection(episode: Episode): string {
 function showSelection(context: OperationContext, root: HTMLElement, episode: Episode): void {
   assertCurrent(context, root)
   showStatusToast(formatSelection(episode))
-}
-
-function clearPlaybackConfirmation(error?: Error): void {
-  const confirmation = playbackConfirmation
-  if (confirmation === null) return
-  playbackConfirmation = null
-  window.clearTimeout(confirmation.timer)
-  confirmation.context.controller.signal.removeEventListener('abort', confirmation.abort)
-  // Timeout/failure means playback never started; do not keep a stale restart arm.
-  // Abort/success leave pendingRestart for the /watch/ consumer (title root often dies first).
-  if (error !== undefined && error.name !== 'AbortError') {
-    clearPendingRestart()
-  }
-  if (error === undefined) confirmation.resolve()
-  else confirmation.reject(error)
-}
-
-function waitForPlaybackStart(context: OperationContext): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const abort = (): void => {
-      if (playbackConfirmation?.context === context) {
-        clearPlaybackConfirmation(new DOMException('The operation was aborted.', 'AbortError'))
-      }
-    }
-    const timer = window.setTimeout(() => {
-      if (playbackConfirmation?.context === context) {
-        clearPlaybackConfirmation(new PlaybackResolutionError('Playback did not start'))
-      }
-    }, PLAYBACK_CONFIRMATION_TIMEOUT_MS)
-    playbackConfirmation = { context, timer, resolve, reject, abort }
-    context.controller.signal.addEventListener('abort', abort, { once: true })
-  })
 }
 
 function armPendingRestart(): void {
@@ -238,18 +151,24 @@ async function discoverAndCache(
   context: OperationContext,
   root: HTMLElement,
 ): Promise<SeriesInfo> {
+  const provider = activeProvider
+  if (provider === null) {
+    throw new DiscoveryIncompleteError('No provider is active')
+  }
   logInfo('Discovering complete catalog', {
+    provider: provider.id,
     titleId: context.title.titleId,
     generation: context.generation,
   })
-  const catalog = await discoverEpisodes(
-    context.title.titleId,
+  const catalog = await provider.discoverEpisodes(
+    context.title,
     root,
     context.controller.signal,
   )
   assertCurrent(context, root)
-  catalogCache.set(context.title.titleId, catalog)
+  catalogCache.set(getCatalogKey(context.title.provider, context.title.titleId), catalog)
   logInfo('Catalog cached', {
+    provider: catalog.provider,
     titleId: catalog.id,
     totalSeasons: catalog.totalSeasons,
     episodeCount: catalog.episodes.length,
@@ -262,9 +181,14 @@ async function selectAndPlay(
   root: HTMLElement,
   catalog: SeriesInfo,
 ): Promise<void> {
+  const provider = activeProvider
+  if (provider === null) {
+    throw new PlaybackResolutionError('No provider is active')
+  }
   assertCurrent(context, root)
   const episode = pickRandom(catalog.episodes)
   logInfo('Selected random episode', {
+    provider: provider.id,
     seasonKey: episode.seasonKey,
     seasonLabel: episode.seasonLabel,
     episodeNumber: episode.episodeNumber,
@@ -274,14 +198,17 @@ async function selectAndPlay(
   })
   showSelection(context, root, episode)
   logInfo('Starting native playback resolution')
-  await playEpisode(
+  await provider.playEpisode(
     episode,
     root,
     context.controller.signal,
     () => assertCurrent(context, root),
   )
-  logInfo('Native episode click completed; waiting for /watch/')
-  armPendingRestart()
+  logInfo('Native episode click completed; waiting for provider confirmation')
+  if (provider.id === 'netflix') {
+    armPendingRestart()
+  }
+  await provider.waitForPlaybackConfirmation(episode, context.controller.signal)
 }
 
 async function runPlayback(
@@ -289,19 +216,22 @@ async function runPlayback(
   root: HTMLElement,
   controller: ButtonController,
 ): Promise<void> {
+  const cacheKey = getCatalogKey(context.title.provider, context.title.titleId)
   logInfo('Random roll started', {
+    provider: context.title.provider,
     titleId: context.title.titleId,
     generation: context.generation,
     buttonState: controller.getState(),
-    cacheHit: catalogCache.has(context.title.titleId),
+    cacheHit: catalogCache.has(cacheKey),
   })
   dismissToast()
   controller.setState('loading')
   logInfo('Button state → loading')
   try {
-    let catalog = catalogCache.get(context.title.titleId)
+    let catalog = catalogCache.get(cacheKey)
     if (catalog !== undefined) {
       logInfo('Using cached catalog', {
+        provider: catalog.provider,
         titleId: catalog.id,
         totalSeasons: catalog.totalSeasons,
         episodeCount: catalog.episodes.length,
@@ -315,20 +245,21 @@ async function runPlayback(
       if (!(error instanceof CacheValidationMismatchError)) throw error
       logWarning('Cache validation mismatch; rediscovering once', error)
       assertCurrent(context, root)
-      catalogCache.delete(context.title.titleId)
+      catalogCache.delete(cacheKey)
       catalog = await discoverAndCache(context, root)
       await selectAndPlay(context, root, catalog)
     }
-    await waitForPlaybackStart(context)
-    logInfo('Playback confirmed on /watch/')
+    logInfo('Provider playback confirmed')
   } catch (error) {
     if (isAbortError(error)) {
       logInfo('Random roll aborted', {
+        provider: context.title.provider,
         titleId: context.title.titleId,
         generation: context.generation,
       })
       return
     }
+    clearPendingRestart()
     logError('Random playback failed', error)
     if (isCurrent(context) && activeRoot === root && buttonController === controller) {
       const message = errorMessage(error)
@@ -349,8 +280,16 @@ async function injectSeriesButton(
     titleId: context.title.titleId,
     generation: context.generation,
   })
+  const provider = activeProvider
+  if (provider === null) {
+    return
+  }
   try {
-    const controller = await injectButton(root, context.controller.signal)
+    const controller = await injectButton(
+      root,
+      provider.waitForButtonPlacement(root, context.controller.signal),
+      context.controller.signal,
+    )
     if (!isCurrent(context) || activeRoot !== root) {
       logInfo('Discarding button; context/root no longer current')
       controller?.remove()
@@ -388,7 +327,11 @@ function detectWithinRoot(context: OperationContext, root: HTMLElement): void {
     return
   }
 
-  const result = detectSeries(context.title, root)
+  const provider = activeProvider
+  if (provider === null) {
+    return
+  }
+  const result = provider.detectSeries(context.title, root)
   logInfo('Series detection result', {
     titleId: context.title.titleId,
     status: result.status,
@@ -407,14 +350,18 @@ function locateAndObserveRoot(context: OperationContext): void {
     return
   }
 
-  const root = resolveTitleRoot()
+  const provider = activeProvider
+  if (provider === null) {
+    return
+  }
+  const root = provider.resolveTitleRoot()
   if (root === null) {
     logInfo('Title root not found; watching document body', {
       titleId: context.title.titleId,
       generation: context.generation,
     })
     activeRoot = null
-    observeForTitleRoot(context.generation)
+    provider.observeForTitleRoot(context.generation)
     return
   }
 
@@ -423,7 +370,7 @@ function locateAndObserveRoot(context: OperationContext): void {
     generation: context.generation,
   })
   activeRoot = root
-  observeTitleRoot(root, context.generation)
+  provider.observeTitleRoot(root, context.generation)
   detectWithinRoot(context, root)
 }
 
@@ -435,19 +382,17 @@ function invalidateActiveContext(): void {
       seriesConfirmed,
     })
   }
-  if (playbackConfirmation !== null) {
-    clearPlaybackConfirmation(new DOMException('The operation was aborted.', 'AbortError'))
-  }
   activeContext?.controller.abort()
+  activeProvider?.clearObservation()
   generation += 1
   buttonController?.remove()
   buttonController = null
   dismissToast()
   activeContext = null
+  activeProvider = null
   activeRoot = null
   seriesConfirmed = false
   clearDetectionTimer()
-  clearTitleObservation()
 }
 
 function beginTitleContext(title: TitleContext, detectionDeadline: number): void {
@@ -458,6 +403,7 @@ function beginTitleContext(title: TitleContext, detectionDeadline: number): void
     generation,
   })
   invalidateActiveContext()
+  activeProvider = getProvider(title.url)
   const context: OperationContext = {
     title,
     generation,
@@ -486,10 +432,11 @@ function replaceTitleRoot(context: OperationContext): void {
 
 function handleRouteChange(url: string): void {
   const pathname = new URL(url).pathname
-  logInfo('Route change', { url, pathname })
+  const provider = getProvider(url)
+  logInfo('Route change', { url, pathname, provider: provider?.id ?? null })
   if (pathname.startsWith('/watch/')) {
     const fromRandomRoll = consumePendingRestart()
-    if (playbackConfirmation !== null) clearPlaybackConfirmation()
+    provider?.notifyRouteChange(url)
     if (fromRandomRoll) startRestartSeek()
     invalidateActiveContext()
     return
@@ -498,40 +445,44 @@ function handleRouteChange(url: string): void {
   restartController?.abort()
   restartController = null
 
-  const title = getTitleContext(url)
-  if (title === null) {
-    logInfo('No title context on route; clearing active work')
-    // Left title/details without reaching /watch/; drop unused restart arm.
+  const title = provider?.getTitleContext(url) ?? null
+  if (title === null || provider === null) {
+    logInfo('No supported provider title context on route; clearing active work')
     clearPendingRestart()
     invalidateActiveContext()
     return
   }
 
   logInfo('Title context from URL', {
+    provider: title.provider,
     titleId: title.titleId,
     source: title.source,
   })
 
-  if (activeContext?.title.titleId === title.titleId) {
+  if (
+    activeContext?.title.provider === title.provider
+    && activeContext.title.titleId === title.titleId
+  ) {
     logInfo('Same title identity retained', {
+      provider: title.provider,
       titleId: title.titleId,
       seriesConfirmed,
       hasRoot: activeRoot !== null,
     })
     activeContext.title = title
+    activeProvider = provider
     if (
       activeRoot !== null
       && activeRoot.isConnected
       && (seriesConfirmed || performance.now() < activeContext.detectionDeadline)
     ) {
-      observeTitleRoot(activeRoot, activeContext.generation)
+      provider.observeTitleRoot(activeRoot, activeContext.generation)
     } else if (!seriesConfirmed && performance.now() < activeContext.detectionDeadline) {
       locateAndObserveRoot(activeContext)
     }
     return
   }
 
-  // New title means the prior roll's pending restart no longer applies.
   clearPendingRestart()
   beginTitleContext(title, performance.now() + DETECTION_TIMEOUT_MS)
 }
@@ -654,7 +605,11 @@ export function start(): void {
   injectStyles()
   window.addEventListener('pagehide', stop)
   registerMessageListener()
-  onStart(handlePageChange)
+  const provider = getProvider(window.location.href)
+  if (provider !== null) {
+    startedProvider = provider
+    provider.start(handlePageChange)
+  }
 }
 
 export function stop(): void {
@@ -670,7 +625,8 @@ export function stop(): void {
   restartController?.abort()
   restartController = null
   invalidateActiveContext()
-  onStop()
+  startedProvider?.stop()
+  startedProvider = null
   removeStyles()
   catalogCache.clear()
   logInfo('Episode Roulette stopped')

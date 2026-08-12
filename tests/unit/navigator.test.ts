@@ -5,6 +5,7 @@ import type { Episode } from '../../src/types'
 
 function episode(overrides: Partial<Episode> = {}): Episode {
   return {
+    provider: 'netflix',
     seriesId: '1',
     seasonKey: 'implicit',
     seasonLabel: 'Episodes',
@@ -12,6 +13,7 @@ function episode(overrides: Partial<Episode> = {}): Episode {
     episodeIndex: 0,
     episodeNumber: 1,
     title: 'Pilot',
+    normalizedTitle: 'pilot',
     discoveredSeasonEpisodeCount: 1,
     ...overrides,
   }
@@ -111,7 +113,7 @@ describe('playEpisode', () => {
     await playEpisode(
       episode({
         seasonKey: 'season 2', seasonLabel: 'Season 2', seasonNumber: 2,
-        title: 'Selected', discoveredSeasonEpisodeCount: 1,
+        title: 'Selected', normalizedTitle: 'selected', discoveredSeasonEpisodeCount: 1,
       }),
       root,
       new AbortController().signal,
@@ -167,7 +169,7 @@ describe('playEpisode', () => {
         seasonKey: 'label:battle tendency',
         seasonLabel: 'Battle Tendency',
         seasonNumber: null,
-        title: 'New York JoJo',
+        title: 'New York JoJo', normalizedTitle: 'new york jojo',
       }),
       root,
       new AbortController().signal,
@@ -206,7 +208,7 @@ describe('playEpisode', () => {
 
     const unresolved = createFixture()
     await expect(playEpisode(
-      episode({ title: 'Missing', episodeNumber: 9 }),
+      episode({ title: 'Missing', normalizedTitle: 'missing', episodeNumber: 9 }),
       unresolved.root,
       new AbortController().signal,
       vi.fn(),

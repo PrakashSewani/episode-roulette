@@ -16,13 +16,13 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: **v1.2.0 pre-publish** — named seasons + multi-roll live-validated by user on JoJo (`80179831`, 190 eps, first discovery + cached re-rolls). Verbose `[Episode Roulette]` development logs **kept** (not publishing yet).
-- Item currently in progress: Phase 9 Multi-Provider Core Contract — provider-qualified shared types, runtime seam, Netflix delegation, and isolation tests. Prime DOM implementation remains deferred to Phase 10.
-- Completed in this session: User supplied authenticated India/Brave/English Reacher captures. Recorded Prime detail, season, episode, eligibility, and playback observations in `docs/selectors-reference.md`; raw HTML captures were removed because they contained account/profile, session telemetry, and blob media URLs.
-- Verification completed: Prime captures show `/detail/<opaque-id>` season navigation, `[data-testid="DVWebNode-detail-wrapper"]`, `main[data-testid="detailpage-main"]`, `[data-testid="dp-season-selector"]`, `li[data-testid="episode-list-item"]`, and `[data-testid="episodes-playbutton"]`. Reacher Season 4 showed 8 rows; only episodes 1–3 exposed play controls, while episodes 4–8 were marked `COMING SOON`. Episode playback preserved the detail URL and opened `#dv-web-player` with `div[aria-label="Web Player"]`, a loading status overlay, episode metadata, and native control IDs.
-- Blockers or unanswered questions: Resume/start-over behavior, timeline selectors, lazy loading beyond supplied captures, behavior for unavailable/rental/channel/bonus items, and whether the observed hooks generalize across Prime-native content remain unobserved. Before publish: strip verbose `logInfo` noise (keep real errors/warnings).
-- Exact next action: Implement Phase 9 provider-qualified shared types, runtime seam, Netflix delegation, and isolation tests. Do not write Prime DOM code until Phase 9 exits.
-- Required docs for the next agent: `AGENTS.md`, `knowledge-transfer/provider-expansion.md`, `docs/selectors-reference.md` Prime observation section, this tracker, and the approved Prime provider specs once created.
+- Current state: **v1.2.0 pre-publish** — named seasons + multi-roll live-validated by user on JoJo (`80179831`, 190 eps, first discovery + cached re-rolls). Brave live validation also confirmed random episodes work for both indexed/numeric and named Netflix seasons. Verbose `[Episode Roulette]` development logs **kept** (not publishing yet).
+- Item currently in progress: none. Phase 9 Multi-Provider Core Contract is complete; Phase 10 Prime DOM implementation remains deferred.
+- Completed in this session: Reviewed and corrected the multi-provider architecture, data model, provider contract, Prime evidence/specs, error rules, testing scope, Safari scope, and knowledge-transfer material; committed the documentation baseline as `37d2c3c`. Implemented provider-qualified shared records/cache keys, exact-host provider registry, Netflix adapter delegation, provider-owned placement/playback confirmation, and regression coverage. Recorded Brave live validation for indexed/numeric and named Netflix seasons.
+- Verification completed: `npx tsc --noEmit` passed; `npm test` passed with 17 test files / 132 tests; `npm run build` passed; `npm run assert:webextension` passed; `git diff --check` passed. Phase 9 provider tests cover exact host dispatch, unsupported-host isolation, provider-qualified cache keys, Netflix context qualification, scoped placement, route confirmation, and AbortSignal cancellation. No Prime DOM source or manifest host was added.
+- Blockers or unanswered questions: Safari `npm run safari:build` / `npm run assert:safari` could not run because `xcodebuild` is unavailable under active developer directory `/Library/Developer/CommandLineTools`; do not change system Xcode selection without approval. Prime resume/start-over behavior, timeline selectors, lazy loading beyond supplied captures, behavior for unavailable/rental/channel/bonus items, Prime placement, and whether observed hooks generalize across Prime-native content remain unobserved. Before publish: strip verbose `logInfo` noise (keep real errors/warnings).
+- Exact next action: Before Phase 10 source work, review the Phase 10 Prime specs and capture/fixture requirements; then implement Prime routes/selectors/discovery/identity/playback only against the approved evidence.
+- Required docs for the next agent: `AGENTS.md`, `knowledge-transfer/provider-expansion.md`, `docs/architecture.md`, `docs/module-specs/provider-contract.md`, all `docs/module-specs/prime-video-*.md`, `docs/selectors-reference.md` Prime observation section, this tracker, and `docs/implementation-plan.md`.
 
 ## Phase Tracker
 
@@ -39,7 +39,7 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 | Restart from beginning | complete | Live Chrome scrubber restart validated; preserve no-`currentTime` contract. |
 | Named season reliability | complete | Live JoJo multi-roll validated; identity snapshots, scoped list scroll, dropdown readiness wait. |
 | Temporary development logs | in progress | Verbose `[Episode Roulette]` logs **kept** pre-publish. **Remove/silence before store shipping.** |
-| 9. Multi-Provider Core Contract | in progress | Define and implement provider-qualified types, runtime seam, Netflix delegation, and isolation tests before Prime source work. |
+| 9. Multi-Provider Core Contract | complete | Provider-qualified types, exact-host runtime seam, Netflix delegation, and isolation tests verified; Prime source remains deferred to Phase 10. |
 | 10. Prime Video Chrome Provider | not started | Blocked until Phase 9 exits; implement only against approved Prime specs. |
 | 11. Prime Cross-Browser and Release Validation | not started | Validate Chrome after Brave smoke; Safari Prime remains deferred unless separately approved. |
 
@@ -328,6 +328,29 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 - User confirmed (2026-08-01) live Chrome and Safari smoke success for supported series.
 - 1.2.0 automated evidence: `npm test` 124 tests / 16 files; package version `1.2.0`. Named seasons included in product scope after reliability fix.
+
+## Phase 9: Multi-Provider Core Contract
+
+**Status**: complete
+
+**Implemented**:
+
+- Provider-qualified `ProviderId`, `CatalogKey`, `TitleContext`, `Episode`, and `SeriesInfo` shared models.
+- Exact-host provider registry with Netflix as the only registered runtime; unsupported and Prime hosts remain inactive until Phase 10.
+- Netflix adapter delegating existing detector, observer, discovery, navigator, placement, and `/watch/` confirmation behavior.
+- Shared orchestrator cache keyed by provider-qualified catalog identity, with provider/title generation guards and provider-owned playback confirmation.
+- Shared button placement capability preserving immediate spawn feedback and provider-specific ready-button placement.
+- Netflix durable episode records now include normalized title identity without DOM or session data.
+
+**Verification evidence**:
+
+- `npx tsc --noEmit` passed.
+- `npm test` passed: 17 test files, 132 tests.
+- `npm run build` passed.
+- `npm run assert:webextension` passed.
+- `git diff --check` passed.
+- `tests/unit/providers.test.ts` passed exact host dispatch, unsupported-host isolation, provider-qualified cache keys, Netflix context qualification, scoped placement, route confirmation, and AbortSignal cancellation.
+- Safari verification is blocked on this machine because `xcodebuild` is unavailable under `/Library/Developer/CommandLineTools`; no system developer-directory change was made.
 
 ## Session Handoff Template
 

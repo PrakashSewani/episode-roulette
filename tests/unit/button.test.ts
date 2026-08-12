@@ -1,13 +1,37 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { injectButton } from '../../src/ui/button'
+import type { ButtonPlacement } from '../../src/types'
 import { createTitleDetails } from '../fixtures/title-details'
 
 function getButton(root: ParentNode): HTMLButtonElement {
   return root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')!
 }
 
+function placementFor(root: HTMLElement): ButtonPlacement {
+  const playButton = root.querySelector<HTMLElement>('[data-uia="play-button"]')!
+  return {
+    spawnRoot: root,
+    place(button) {
+      playButton.parentElement!.insertBefore(button, playButton.nextSibling)
+    },
+  }
+}
+
+function deferredPlacement(): {
+  promise: Promise<ButtonPlacement | null>
+  resolve: (placement: ButtonPlacement | null) => void
+} {
+  let resolve!: (placement: ButtonPlacement | null) => void
+  const promise = new Promise<ButtonPlacement | null>((nextResolve) => {
+    resolve = nextResolve
+  })
+  return { promise, resolve }
+}
+
 async function flushMutations(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
   await Promise.resolve()
   await Promise.resolve()
 }
@@ -25,7 +49,7 @@ describe('button UI', () => {
     document.body.append(root)
     const playButton = root.querySelector('[data-uia="play-button"]')!
 
-    const controller = await injectButton(root, new AbortController().signal)
+    const controller = await injectButton(root, Promise.resolve(placementFor(root)), new AbortController().signal)
     const button = getButton(root)
 
     expect(controller).not.toBeNull()
@@ -42,8 +66,8 @@ describe('button UI', () => {
     document.body.append(root)
     const signal = new AbortController().signal
 
-    const first = await injectButton(root, signal)
-    const second = await injectButton(root, signal)
+    const first = await injectButton(root, Promise.resolve(placementFor(root)), signal)
+    const second = await injectButton(root, Promise.resolve(placementFor(root)), signal)
 
     expect(second).toBe(first)
     expect(root.querySelectorAll('[data-uia="random-episode-btn"]')).toHaveLength(1)
@@ -53,7 +77,8 @@ describe('button UI', () => {
   it('shows disabled spawn feedback until the scoped Play button appears', async () => {
     const root = createTitleDetails({ metadata: true })
     document.body.append(root)
-    const pending = injectButton(root, new AbortController().signal)
+    const deferred = deferredPlacement()
+    const pending = injectButton(root, deferred.promise, new AbortController().signal)
     const indicator = getButton(root)
 
     expect(indicator.dataset.phase).toBe('spawn')
@@ -67,6 +92,7 @@ describe('button UI', () => {
     playButton.dataset.uia = 'play-button'
     container.append(playButton)
     root.append(container)
+    deferred.resolve(placementFor(root))
     await flushMutations()
 
     const controller = await pending
@@ -82,7 +108,7 @@ describe('button UI', () => {
   it('ignores clicks without a handler and while loading', async () => {
     const root = createTitleDetails()
     document.body.append(root)
-    const controller = await injectButton(root, new AbortController().signal)
+    const controller = await injectButton(root, Promise.resolve(placementFor(root)), new AbortController().signal)
     const button = getButton(root)
     const handler = vi.fn()
 
@@ -101,7 +127,7 @@ describe('button UI', () => {
   it('keeps error enabled and transitions to loading before retry', async () => {
     const root = createTitleDetails()
     document.body.append(root)
-    const controller = await injectButton(root, new AbortController().signal)
+    const controller = await injectButton(root, Promise.resolve(placementFor(root)), new AbortController().signal)
     const button = getButton(root)
     const handler = vi.fn(() => {
       expect(button.dataset.state).toBe('loading')
@@ -124,14 +150,20 @@ describe('button UI', () => {
     vi.useFakeTimers()
     const root = document.createElement('div')
     document.body.append(root)
-    const missing = injectButton(root, new AbortController().signal)
+    const missing = injectButton(
+      root,
+      new Promise<ButtonPlacement | null>((resolve) => {
+        window.setTimeout(() => resolve(null), 5_000)
+      }),
+      new AbortController().signal,
+    )
     expect(getButton(root).dataset.phase).toBe('spawn')
     vi.advanceTimersByTime(5_000)
     await expect(missing).resolves.toBeNull()
     expect(root.querySelector('[data-uia="random-episode-btn"]')).toBeNull()
 
     const abortController = new AbortController()
-    const aborted = injectButton(root, abortController.signal)
+    const aborted = injectButton(root, new Promise<ButtonPlacement | null>(() => {}), abortController.signal)
     expect(getButton(root).dataset.phase).toBe('spawn')
     abortController.abort()
     await expect(aborted).rejects.toMatchObject({ name: 'AbortError' })
@@ -143,8 +175,12 @@ describe('button UI', () => {
     const newRoot = createTitleDetails()
     document.body.append(oldRoot, newRoot)
     const oldController = new AbortController()
-    const pendingOld = injectButton(oldRoot, oldController.signal)
-    const current = await injectButton(newRoot, new AbortController().signal)
+    const pendingOld = injectButton(oldRoot, Promise.resolve(null), oldController.signal)
+    const current = await injectButton(
+      newRoot,
+      Promise.resolve(placementFor(newRoot)),
+      new AbortController().signal,
+    )
 
     oldRoot.innerHTML = '<div><button data-uia="play-button"></button></div>'
     await Promise.resolve()

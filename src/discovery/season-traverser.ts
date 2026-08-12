@@ -174,6 +174,7 @@ export async function discoverEpisodes(
     episodeCount: episodes.length,
   })
   return {
+    provider: 'netflix',
     id: seriesId,
     totalSeasons: seasons.length,
     episodes,

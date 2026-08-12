@@ -27,8 +27,8 @@ describe('SPA observer', () => {
     vi.advanceTimersByTime(500)
 
     expect(events).toEqual([
-      { type: 'route-changed', url: 'http://localhost:3000/browse?jbv=1' },
-      { type: 'route-changed', url: 'http://localhost:3000/browse?jbv=2' },
+      { type: 'route-changed', url: 'https://www.netflix.com/browse?jbv=1' },
+      { type: 'route-changed', url: 'https://www.netflix.com/browse?jbv=2' },
     ])
   })
 
@@ -44,8 +44,8 @@ describe('SPA observer', () => {
     window.dispatchEvent(new HashChangeEvent('hashchange'))
 
     expect(events).toEqual([
-      { type: 'route-changed', url: 'http://localhost:3000/title/20' },
-      { type: 'route-changed', url: 'http://localhost:3000/title/21#episodes' },
+      { type: 'route-changed', url: 'https://www.netflix.com/title/20' },
+      { type: 'route-changed', url: 'https://www.netflix.com/title/21#episodes' },
     ])
   })
 
@@ -118,7 +118,7 @@ describe('SPA observer', () => {
 
     expect(events).toEqual([{
       type: 'route-changed',
-      url: 'http://localhost:3000/title/42',
+      url: 'https://www.netflix.com/title/42',
     }])
   })
 })

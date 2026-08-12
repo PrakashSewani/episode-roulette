@@ -59,7 +59,7 @@ export function resolveEpisodeRow(
   rows: HTMLElement[],
 ): HTMLElement | null {
   const identities = rows.map((row, index) => parseEpisodeRowIdentity(row, index))
-  const normalizedTitle = usableNormalizedTitle(episode.title)
+  const normalizedTitle = episode.normalizedTitle ?? usableNormalizedTitle(episode.title)
 
   if (episode.episodeNumber !== null && normalizedTitle !== null) {
     const matches = identities.flatMap((identity, index) => (

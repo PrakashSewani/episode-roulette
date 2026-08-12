@@ -125,6 +125,7 @@ When the active root is removed or changes parent for the same title, `content.t
 function isCurrent(context: OperationContext): boolean {
   return !context.controller.signal.aborted
     && activeContext?.generation === context.generation
+    && activeContext.title.provider === context.title.provider
     && activeContext.title.titleId === context.title.titleId
 }
 ```
@@ -151,6 +152,8 @@ Before Phase 6 cache integration, each valid button click performs one fresh com
 ```typescript
 const catalogCache = new Map<CatalogKey, SeriesInfo>()
 ```
+
+The active provider supplies the current root, placement, discovery, native playback, and playback-confirmation operations. `content.ts` passes the active root into provider discovery and playback so provider work remains scoped to the root already validated by the lifecycle.
 
 No other module reads, writes, clears, or retains catalog entries.
 
@@ -236,7 +239,7 @@ Cleanup first aborts and increments the generation, then calls `observer.clearTi
 
 If episodic UI is confirmed, immediately show the disabled spawn indicator and begin scoped Play-button lookup. Replace it with the ready operation button when placement succeeds. If the five-second detection deadline ends without episodic UI, treat the title as non-series and do not show an error. Only a new title identity may begin a fresh cycle.
 
-Button injection calls `injectButton(titleRoot, context.controller.signal)`. The function owns the temporary spawn indicator during its wait. A `null` result means the scoped Netflix Play button did not appear within 5 seconds and no UI is retained. An `AbortError` exits silently after indicator cleanup. Before storing the returned controller, `content.ts` calls `assertCurrent(context)`.
+Button injection calls `injectButton(titleRoot, provider.waitForButtonPlacement(titleRoot, context.controller.signal), context.controller.signal)`. The function owns the temporary spawn indicator while the provider placement promise is pending. A `null` result means provider placement was unavailable and no UI is retained. An `AbortError` exits silently after indicator cleanup. Before storing the returned controller, `content.ts` calls `assertCurrent(context)`.
 
 Discovery and playback receive the active context's `AbortSignal`. Their returned values are ignored unless the context is still current.
 

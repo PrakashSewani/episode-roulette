@@ -32,26 +32,15 @@ Phase 3 injects the enabled ready button without registering an operation handle
 ## Placement Strategy
 
 1. Append a disabled `Loading Episode Roulette...` indicator to the supplied active title-details root immediately
-2. Position the indicator as a lower-left overlay owned entirely by the extension; do not require an unverified Netflix action-container selector
-3. Wait up to 5 seconds for Netflix's Play button within the supplied active title-details root
-4. Get its parent container
-5. Remove the temporary indicator and insert the ready operation button as a sibling after Play
-6. If lookup times out, cancellation occurs, or placement is invalid, remove the temporary indicator without showing an error
-7. Ensure both forms are visible and accessible
+2. Ask the selected provider for a placement capability while the indicator remains visible
+3. Remove the temporary indicator and let the provider place the ready operation button
+4. If placement is unavailable, cancellation occurs, or placement is invalid, remove the temporary indicator without showing an error
+5. Ensure both forms are visible and accessible
 
 ```typescript
-import { resilientQuery } from '../netflix/dom-utils'
-import { PLAY_BUTTON } from '../netflix/selectors'
-
-const playButton = await waitForElement(
-  PLAY_BUTTON.selectors,
-  5000,
-  titleDetailsRoot,
-  signal,
-) as HTMLElement | null
-if (playButton) {
-  const container = playButton.parentElement
-  container?.insertBefore(createButton(), playButton.nextSibling)
+const placement = await provider.waitForButtonPlacement(titleDetailsRoot, signal)
+if (placement !== null) {
+  placement.place(createButton())
 }
 ```
 
@@ -72,6 +61,7 @@ import { ButtonState } from '../types'
  */
 export function injectButton(
   root: HTMLElement,
+  placementPromise: Promise<ButtonPlacement | null>,
   signal: AbortSignal,
 ): Promise<ButtonController | null>
 

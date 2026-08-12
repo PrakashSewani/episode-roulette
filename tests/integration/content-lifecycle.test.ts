@@ -5,6 +5,8 @@ import { createTitleDetails } from '../fixtures/title-details'
 async function flushPromises(): Promise<void> {
   await Promise.resolve()
   await Promise.resolve()
+  await Promise.resolve()
+  await Promise.resolve()
 }
 
 const observerHarness = vi.hoisted(() => ({

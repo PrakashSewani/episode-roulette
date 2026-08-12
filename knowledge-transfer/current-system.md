@@ -5,9 +5,10 @@
 Episode Roulette is a content-script-only browser extension. `src/manifest.ts` currently registers `src/content.ts` on Netflix pages; Phase 9 adds provider dispatch without duplicating the orchestrator, and Phase 10 adds Prime Video India desktop support. The Prime provider is approved but not yet implemented. Safari Prime remains deferred.
 
 ```text
-Netflix page
+Supported provider page
   -> content.ts orchestration
-     -> observer.ts reports neutral route/DOM changes
+     -> providers/index.ts selects exact-host runtime
+     -> provider adapter reports neutral route/DOM changes
      -> detector.ts extracts identity and confirms episodic DOM
      -> button.ts and feedback.ts own extension UI
      -> season-traverser.ts discovers a complete catalog

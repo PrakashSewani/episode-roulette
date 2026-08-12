@@ -10,9 +10,29 @@ export type PageChangeEvent =
 
 export type PageChangeCallback = (event: PageChangeEvent) => void
 
-export interface TitleContext {
+export type ProviderId = 'netflix' | 'prime-video'
+
+export type CatalogKey = `${ProviderId}:${string}`
+
+export function getCatalogKey(provider: ProviderId, titleId: string): CatalogKey {
+  return `${provider}:${titleId}`
+}
+
+export interface DetectionResult {
+  status: 'unconfirmed' | 'series'
   titleId: string
-  source: 'jbv' | 'title-path'
+  signals: string[]
+}
+
+export interface ButtonPlacement {
+  readonly spawnRoot: HTMLElement
+  place(button: HTMLButtonElement): void
+}
+
+export interface TitleContext {
+  provider: ProviderId
+  titleId: string
+  source: 'jbv' | 'title-path' | 'prime-detail'
   url: string
 }
 
@@ -24,6 +44,7 @@ export interface OperationContext {
 }
 
 export interface Episode {
+  provider: ProviderId
   seriesId: string
   seasonKey: string
   seasonLabel: string
@@ -31,10 +52,12 @@ export interface Episode {
   episodeIndex: number
   episodeNumber: number | null
   title: string
+  normalizedTitle: string | null
   discoveredSeasonEpisodeCount: number
 }
 
 export interface SeriesInfo {
+  provider: ProviderId
   id: string
   totalSeasons: number
   episodes: Episode[]
@@ -100,6 +123,24 @@ export interface ButtonController {
   getState(): ButtonState
   onClick(handler: () => void): void
   remove(): void
+}
+
+export interface ProviderRuntime {
+  readonly id: ProviderId
+  matches(url: string): boolean
+  start(callback: PageChangeCallback): void
+  stop(): void
+  getTitleContext(url: string): TitleContext | null
+  resolveTitleRoot(): HTMLElement | null
+  detectSeries(context: TitleContext, root: HTMLElement): DetectionResult
+  observeForTitleRoot(generation: number): void
+  observeTitleRoot(root: HTMLElement, generation: number): void
+  clearObservation(): void
+  waitForButtonPlacement(root: HTMLElement, signal: AbortSignal): Promise<ButtonPlacement | null>
+  discoverEpisodes(context: TitleContext, root: HTMLElement, signal: AbortSignal): Promise<SeriesInfo>
+  playEpisode(episode: Episode, root: HTMLElement, signal: AbortSignal, assertCurrent: () => void): Promise<void>
+  waitForPlaybackConfirmation(episode: Episode, signal: AbortSignal): Promise<void>
+  notifyRouteChange(url: string): void
 }
 
 export type PopupStatus = 'no-series' | 'ready' | 'loading' | 'error'

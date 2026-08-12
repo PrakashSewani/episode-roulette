@@ -1,11 +1,7 @@
 import { logInfo, logWarning } from '../debug'
-import { waitForElement } from '../netflix/dom-utils'
-import { PLAY_BUTTON } from '../netflix/selectors'
-import type { ButtonController, ButtonState } from '../types'
+import type { ButtonController, ButtonPlacement, ButtonState } from '../types'
 
 const BUTTON_SELECTOR = '[data-uia="random-episode-btn"]'
-const PLAY_BUTTON_TIMEOUT_MS = 5_000
-
 interface OwnedButton {
   root: HTMLElement
   element: HTMLButtonElement
@@ -80,6 +76,37 @@ function applyState(
   }
 }
 
+function createAbortError(): DOMException {
+  return new DOMException('The operation was aborted.', 'AbortError')
+}
+
+function waitForPlacement(
+  placementPromise: Promise<ButtonPlacement | null>,
+  signal: AbortSignal,
+): Promise<ButtonPlacement | null> {
+  if (signal.aborted) {
+    return Promise.reject(createAbortError())
+  }
+
+  return new Promise((resolve, reject) => {
+    const abort = (): void => {
+      signal.removeEventListener('abort', abort)
+      reject(createAbortError())
+    }
+    signal.addEventListener('abort', abort, { once: true })
+    placementPromise.then(
+      (placement) => {
+        signal.removeEventListener('abort', abort)
+        resolve(placement)
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', abort)
+        reject(error)
+      },
+    )
+  })
+}
+
 function createController(
   root: HTMLElement,
   button: HTMLButtonElement,
@@ -147,8 +174,10 @@ function createController(
 
 export async function injectButton(
   root: HTMLElement,
+  placementPromise: Promise<ButtonPlacement | null>,
   signal: AbortSignal,
 ): Promise<ButtonController | null> {
+
   if (
     ownedButton !== null
     && ownedButton.root === root
@@ -177,7 +206,11 @@ export async function injectButton(
     orphan.remove()
   }
 
-  logInfo('Showing spawn indicator; waiting for Play button')
+  if (signal.aborted) {
+    throw new DOMException('The operation was aborted.', 'AbortError')
+  }
+
+  logInfo('Showing spawn indicator')
   const indicator = createSpawnIndicator()
   root.append(indicator)
 
@@ -188,21 +221,15 @@ export async function injectButton(
   }
   const promise = (async (): Promise<ButtonController | null> => {
     try {
-      const playButton = await waitForElement<HTMLElement>(
-        PLAY_BUTTON.selectors,
-        PLAY_BUTTON_TIMEOUT_MS,
-        root,
-        signal,
-      )
+      const placement = await waitForPlacement(placementPromise, signal)
       if (pendingButton !== pending) {
         logInfo('Pending button injection superseded')
         return null
       }
-      if (playButton === null) {
-        logWarning('Netflix Play button not found within timeout')
+      if (placement === null) {
+        logWarning('Provider button placement was unavailable')
         return null
       }
-
       if (signal.aborted) {
         throw new DOMException('The operation was aborted.', 'AbortError')
       }
@@ -217,22 +244,15 @@ export async function injectButton(
           return ownedButton.controller
         }
         if (ownedButton.element.isConnected) {
-          logWarning('Owned button connected on another root after wait; skip')
+          logWarning('Owned button connected on another root; skip inject')
           return null
         }
         ownedButton.controller.remove()
       }
 
-      const container = playButton.parentElement
-      if (container === null) {
-        logWarning('Netflix Play button has no parent container')
-        return null
-      }
-
-      indicator.remove()
       const button = createButton()
-      container.insertBefore(button, playButton.nextSibling)
-      logInfo('Inserted ready button next to Play')
+      placement.place(button)
+      logInfo('Inserted ready button through provider placement')
       return createController(root, button)
     } finally {
       indicator.remove()

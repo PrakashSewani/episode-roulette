@@ -10,6 +10,7 @@ export function collectEpisodes(
     const identity = parseEpisodeRowIdentity(row, episodeIndex)
 
     return {
+      provider: 'netflix',
       seriesId,
       seasonKey: season.key,
       seasonLabel: season.label,
@@ -17,6 +18,7 @@ export function collectEpisodes(
       episodeIndex,
       episodeNumber: identity.episodeNumber,
       title: identity.title,
+      normalizedTitle: identity.normalizedTitle,
       discoveredSeasonEpisodeCount: rows.length,
     }
   })

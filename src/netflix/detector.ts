@@ -1,14 +1,12 @@
-import type { TitleContext } from '../types'
+import type { DetectionResult, TitleContext } from '../types'
 import { EPISODE_SELECTOR } from './selectors'
 import { getValidEpisodeRows } from './season-controller'
 
-export interface DetectionResult {
-  status: 'unconfirmed' | 'series'
-  titleId: string
-  signals: string[]
+export type NetflixTitleContext = Omit<TitleContext, 'provider'> & {
+  source: 'jbv' | 'title-path'
 }
 
-export function getTitleContext(url: string): TitleContext | null {
+export function getTitleContext(url: string): NetflixTitleContext | null {
   const parsedUrl = new URL(url)
 
   if (parsedUrl.pathname.startsWith('/watch/')) {
@@ -29,7 +27,7 @@ export function getTitleContext(url: string): TitleContext | null {
 }
 
 export function detectSeries(
-  context: TitleContext,
+  context: NetflixTitleContext,
   root: ParentNode,
 ): DetectionResult {
   for (const selector of EPISODE_SELECTOR.selectors) {

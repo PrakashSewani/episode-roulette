@@ -365,6 +365,9 @@ src/
 ├── manifest.ts              # Canonical cross-browser WebExtension manifest
 ├── content.ts               # Content script entry point
 ├── types.ts                 # Shared TypeScript interfaces
+├── providers/
+│   ├── index.ts             # Exact-host provider registry
+│   └── netflix.ts           # Netflix provider adapter
 ├── netflix/
 │   ├── observer.ts          # SPA navigation detection
 │   ├── detector.ts          # Title identity and scoped series detection

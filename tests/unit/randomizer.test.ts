@@ -5,6 +5,7 @@ import type { Episode } from '../../src/types'
 
 function episode(index: number): Episode {
   return {
+    provider: 'netflix',
     seriesId: '1',
     seasonKey: 'season 1',
     seasonLabel: 'Season 1',
@@ -12,6 +13,7 @@ function episode(index: number): Episode {
     episodeIndex: index,
     episodeNumber: index + 1,
     title: `Episode ${index + 1}`,
+    normalizedTitle: `episode ${index + 1}`,
     discoveredSeasonEpisodeCount: 3,
   }
 }

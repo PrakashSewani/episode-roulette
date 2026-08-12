@@ -20,14 +20,14 @@ describe('episode collector', () => {
 
     expect(result).toEqual([
       {
-        seriesId: '99', seasonKey: 'season 2', seasonLabel: 'Season 2',
+        provider: 'netflix', seriesId: '99', seasonKey: 'season 2', seasonLabel: 'Season 2',
         seasonNumber: 2, episodeIndex: 0, episodeNumber: 1, title: 'First',
-        discoveredSeasonEpisodeCount: 2,
+        normalizedTitle: 'first', discoveredSeasonEpisodeCount: 2,
       },
       {
-        seriesId: '99', seasonKey: 'season 2', seasonLabel: 'Season 2',
+        provider: 'netflix', seriesId: '99', seasonKey: 'season 2', seasonLabel: 'Season 2',
         seasonNumber: 2, episodeIndex: 1, episodeNumber: null,
-        title: 'Unknown Episode', discoveredSeasonEpisodeCount: 2,
+        title: 'Unknown Episode', normalizedTitle: null, discoveredSeasonEpisodeCount: 2,
       },
     ])
     expect(JSON.stringify(result)).not.toContain('HTMLElement')
