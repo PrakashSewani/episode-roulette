@@ -2,9 +2,9 @@
 
 ## Status
 
-This document is a future-planning guide. It is not approved multi-provider architecture and does not authorize Amazon Prime Video implementation.
+This document remains a planning and migration guide. Prime Video architecture and Phase 10 scope are now approved in the authoritative `docs/` files, but Prime source implementation is not complete or release-ready.
 
-The current approved product is Netflix-only. Before adding another provider, the user must approve updated authoritative documentation, phase scope, permissions, data contracts, tests, and release criteria.
+Approved initial scope: authenticated desktop Prime Video in India, English UI, Brave/Chromium validation. Safari Prime is deferred. Implementation must follow Phases 9–11 in `docs/implementation-plan.md` and the provider specs under `docs/module-specs/`.
 
 The goal of this playbook is to prevent a future agent from either duplicating the whole application or prematurely rewriting working Netflix code into speculative abstractions.
 
@@ -86,21 +86,14 @@ A strong future option is separate host-bound entries with one shared lifecycle 
 
 ### Provider Identity and Cache Keys
 
-The current `Map<string, SeriesInfo>` can collide when two providers use the same local title ID.
-
-Approve an explicit provider identity, for example:
+The approved Phase 9 contract uses provider-qualified identity:
 
 ```typescript
 type ProviderId = 'netflix' | 'prime-video'
+type CatalogKey = `${ProviderId}:${string}`
 ```
 
-Then decide:
-
-- Whether `TitleContext` carries `provider`
-- Whether `Episode` carries `provider`
-- Whether `SeriesInfo.id` remains provider-local
-- How cache keys become provider-qualified
-- Whether a provider needs an opaque durable episode identity
+`TitleContext`, `Episode`, and `SeriesInfo` carry `provider`; `SeriesInfo.id` and `Episode.seriesId` remain provider-local; cache entries use `CatalogKey`; and provider-owned durable episode identity remains explicit without DOM, media, credential, or session data. Future providers must document the same decisions before implementation.
 
 Do not add an unstructured bag of provider metadata without a documented reason.
 

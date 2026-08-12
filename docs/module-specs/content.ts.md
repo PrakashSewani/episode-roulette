@@ -149,7 +149,7 @@ Before Phase 6 cache integration, each valid button click performs one fresh com
 `content.ts` owns:
 
 ```typescript
-const catalogCache = new Map<string, SeriesInfo>()
+const catalogCache = new Map<CatalogKey, SeriesInfo>()
 ```
 
 No other module reads, writes, clears, or retains catalog entries.

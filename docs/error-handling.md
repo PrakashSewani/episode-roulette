@@ -209,6 +209,14 @@ Immediately after a guarded random selection, show a polite five-second status t
 
 ---
 
+## Prime Video Provider Rules
+
+- A Prime detail route without a valid `episode-list-item` with a native `episodes-playbutton` remains unconfirmed; movies and non-episodic pages do not inject the button.
+- Prime cards marked `COMING SOON`, unavailable, rental-only, purchase-only, or requiring an unapproved channel are excluded from the eligible catalog. If eligibility cannot be determined, discovery fails atomically rather than randomizing an uncertain card.
+- Selecting a Prime season must resolve the requested season detail identity and wait for its episode catalog to replace the prior catalog. URL changes alone do not prove that the catalog is ready.
+- Prime playback confirmation must not rely on URL changes. The provider waits for `#dv-web-player` / `div[aria-label="Web Player"]`, matching episode metadata, and a completed loading state. If the live predicate cannot be established before the provider timeout, playback fails retryably without caching session media data.
+- Prime restart behavior is not implemented or promised until a native start-over/timeline interaction is observed and documented. The Netflix timeline implementation must not be reused by assumption.
+
 ## Error Recovery
 
 Phase 5's uncached integration boundary logs non-abort discovery or playback failures and returns the current button to `ready` for explicit retry. It does not yet show typed error states or toasts. The persistent error state, exact user-facing message dispatch, stale-cache invalidation, and `/watch/` timeout handling are added in Phase 6.

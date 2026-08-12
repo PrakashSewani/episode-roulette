@@ -17,12 +17,12 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 ## Current Handoff
 
 - Current state: **v1.2.0 pre-publish** — named seasons + multi-roll live-validated by user on JoJo (`80179831`, 190 eps, first discovery + cached re-rolls). Verbose `[Episode Roulette]` development logs **kept** (not publishing yet).
-- Item currently in progress: none. Ship gate remains: remove/silence temporary development logs before store publish.
-- Completed in this session: Named-season reliability (identity snapshots, expand loop, scoped list scroll for lazy batches, dropdown readiness wait after `/watch/`). Live Chrome confirmation. Limitations documented in README. Logs retained on purpose.
-- Verification completed: User live success on JoJo multi-roll. Automated: `npm test` 126 tests / 16 files; `npm run build`.
-- Blockers or unanswered questions: None for product path. Before publish: strip verbose `logInfo` noise (keep real errors/warnings), optional Safari re-smoke of named-season path.
-- Exact next action: When the user asks deploy readiness, follow `AGENTS.md` Production / Deploy Readiness Checklist (log removal, tests, smoke, packaging). Do not publish without explicit ask.
-- Required docs for the next agent: `AGENTS.md` (Production / Deploy Readiness Checklist), `README.md` (Season support + Known limitations), `docs/module-specs/season-controller.ts.md`, this tracker (Temporary development logs).
+- Item currently in progress: Phase 9 Multi-Provider Core Contract — provider-qualified shared types, runtime seam, Netflix delegation, and isolation tests. Prime DOM implementation remains deferred to Phase 10.
+- Completed in this session: User supplied authenticated India/Brave/English Reacher captures. Recorded Prime detail, season, episode, eligibility, and playback observations in `docs/selectors-reference.md`; raw HTML captures were removed because they contained account/profile, session telemetry, and blob media URLs.
+- Verification completed: Prime captures show `/detail/<opaque-id>` season navigation, `[data-testid="DVWebNode-detail-wrapper"]`, `main[data-testid="detailpage-main"]`, `[data-testid="dp-season-selector"]`, `li[data-testid="episode-list-item"]`, and `[data-testid="episodes-playbutton"]`. Reacher Season 4 showed 8 rows; only episodes 1–3 exposed play controls, while episodes 4–8 were marked `COMING SOON`. Episode playback preserved the detail URL and opened `#dv-web-player` with `div[aria-label="Web Player"]`, a loading status overlay, episode metadata, and native control IDs.
+- Blockers or unanswered questions: Resume/start-over behavior, timeline selectors, lazy loading beyond supplied captures, behavior for unavailable/rental/channel/bonus items, and whether the observed hooks generalize across Prime-native content remain unobserved. Before publish: strip verbose `logInfo` noise (keep real errors/warnings).
+- Exact next action: Implement Phase 9 provider-qualified shared types, runtime seam, Netflix delegation, and isolation tests. Do not write Prime DOM code until Phase 9 exits.
+- Required docs for the next agent: `AGENTS.md`, `knowledge-transfer/provider-expansion.md`, `docs/selectors-reference.md` Prime observation section, this tracker, and the approved Prime provider specs once created.
 
 ## Phase Tracker
 
@@ -39,6 +39,9 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 | Restart from beginning | complete | Live Chrome scrubber restart validated; preserve no-`currentTime` contract. |
 | Named season reliability | complete | Live JoJo multi-roll validated; identity snapshots, scoped list scroll, dropdown readiness wait. |
 | Temporary development logs | in progress | Verbose `[Episode Roulette]` logs **kept** pre-publish. **Remove/silence before store shipping.** |
+| 9. Multi-Provider Core Contract | in progress | Define and implement provider-qualified types, runtime seam, Netflix delegation, and isolation tests before Prime source work. |
+| 10. Prime Video Chrome Provider | not started | Blocked until Phase 9 exits; implement only against approved Prime specs. |
+| 11. Prime Cross-Browser and Release Validation | not started | Validate Chrome after Brave smoke; Safari Prime remains deferred unless separately approved. |
 
 ## Phase 1: Project Scaffold
 

@@ -209,8 +209,55 @@ No background service worker is registered in Chrome or Safari. All core behavio
 
 ---
 
+## Phase 9: Multi-Provider Core Contract
+
+**Goal**: Add provider identity and a single provider-runtime seam without changing Netflix behavior.
+
+**Deliverables**:
+- Provider-qualified `TitleContext`, `Episode`, `SeriesInfo`, and cache keys.
+- Shared provider runtime contract selected by exact host.
+- Netflix adapter delegating to the existing Netflix detector, observer, discovery, navigator, and `/watch/` confirmation.
+- Shared orchestrator tests for provider selection, cache isolation, cancellation, complete catalogs, randomization, and provider playback confirmation.
+
+**Exit criteria**: All existing Netflix tests pass unchanged in behavior; provider-qualified cache isolation and dispatch tests pass; no Prime DOM behavior is implemented in this phase.
+
+---
+
+## Phase 10: Prime Video Chrome Provider
+
+**Goal**: Add random episode selection for authenticated Prime Video India desktop Brave/Chromium with English UI.
+
+**Modules/specs**:
+- Prime route/root detection and selectors.
+- Prime complete eligible-catalog discovery.
+- Prime episode identity and live matching.
+- Prime native playback and URL-preserving player confirmation.
+- Prime-specific placement through the shared button owner.
+
+**Approved behavior**:
+- Exact `www.primevideo.com` host scope only, with no broad Amazon permissions.
+- Prime detail routes use opaque `/detail/<id>` identities.
+- Season links navigate to season detail identities and replace the displayed catalog.
+- Only rows with a native `episodes-playbutton` and no unavailable/`COMING SOON` marker are eligible.
+- Discovery is complete-or-fail and never randomizes partial data.
+- Playback waits for the matching `#dv-web-player` / `div[aria-label="Web Player"]` overlay and completed loading state; URL changes are not confirmation.
+- Prime restart-from-beginning is excluded until separately observed and approved.
+
+**Exit criteria**: Prime fixtures pass; manifest/package assertions pass; authenticated India/English live Brave smoke confirms movie exclusion, complete eligible discovery across supported seasons, repeated random rolls, safe native playback, player confirmation, cancellation, and teardown; the full Netflix suite remains green. Chrome stable validation follows the Brave smoke before release.
+
+---
+
+## Phase 11: Prime Cross-Browser and Release Validation
+
+**Goal**: Validate Prime in Chrome and decide whether to expand Safari scope.
+
+**Exit criteria**: Current desktop Chrome live smoke passes with behavior equivalent to Brave, Netflix regressions remain green, and Safari Prime is either separately validated against new approved evidence or remains explicitly deferred.
+
+---
+
 ## Notes
 
-- **Do not implement stretch goals** (exclude seasons, repeat prevention, keyboard shortcuts, etc.) until core is complete and approved.
+- **Do not implement stretch goals** (Prime restart, exclude-season controls, repeat prevention, keyboard shortcuts, or weighting) until core Prime support is complete and approved.
 - **Approved dependencies/tools**: runtime/build dependencies listed in Phase 1, `vitest` and `jsdom` as development-only test dependencies, and Apple Xcode plus `safari-web-extension-converter` for Safari packaging.
 - **Do not change architecture** without updating `docs/architecture.md` first.
+- Prime phases are ordered after the completed Netflix phases and the temporary development-log ship gate may remain open only under the documented sequencing approval; Netflix regression remains mandatory.

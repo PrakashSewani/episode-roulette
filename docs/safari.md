@@ -2,7 +2,7 @@
 
 ## Scope
 
-Episode Roulette supports macOS Safari through Safari Web Extensions. Chrome and Safari share the same TypeScript content-script source, Netflix selectors, discovery logic, UI, cache behavior, and automated tests.
+Episode Roulette supports macOS Safari through Safari Web Extensions. Chrome and Safari share the same TypeScript content-script source and Netflix behavior. Prime Video is currently approved only for desktop Brave/Chromium in India; Safari Prime support is deferred until separate cross-browser evidence and approval.
 
 iOS and iPadOS Safari are outside first-release scope.
 
@@ -74,11 +74,13 @@ Authoritative ownership:
 
 ## Manifest and Permissions
 
-Safari consumes the same mirrored WebExtension manifest and content script as Chrome through the committed Xcode wrapper, subject only to Safari runtime support. Required website access is limited to:
+Safari consumes the same mirrored WebExtension manifest and content script as Chrome through the committed Xcode wrapper, subject only to Safari runtime support. Current required website access is limited to Netflix:
 
 ```text
 *://*.netflix.com/*
 ```
+
+Prime host access is not yet present in the manifest. When Phase 10 changes it, the exact approved `www.primevideo.com` pattern must be mirrored and asserted; Safari Prime remains deferred for live validation.
 
 No background page or service worker is required. No native messaging, network interception, cookies permission, browsing-history permission, or broad website access is allowed.
 

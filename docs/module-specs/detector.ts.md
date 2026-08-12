@@ -53,6 +53,9 @@ Examples:
 
 ```typescript
 interface TitleContext {
+  /** Provider identity is added by the Phase 9 Netflix adapter. */
+  provider: 'netflix'
+
   /** Active Netflix title ID. */
   titleId: string
 

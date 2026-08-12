@@ -330,6 +330,41 @@ When a test fails, document:
 
 ---
 
+## Prime Video Validation Scope
+
+The approved initial Prime environment is authenticated desktop Brave/Chromium in India with English UI. Brave is the user validation browser; the first implementation must use standard WebExtension APIs and remain portable to Chrome. macOS Safari Prime support is deferred.
+
+Automated Prime fixtures must be provider-specific and based on the captured Reacher structure:
+
+- detail wrapper and main root detection;
+- movie/non-episodic exclusion;
+- season links that navigate to opaque `/detail/<id>` routes;
+- season catalog replacement;
+- episode rows with `data-testid="episode-list-item"`;
+- playable rows with `data-testid="episodes-playbutton"`;
+- `COMING SOON` rows without a native play control;
+- delayed catalog rendering and root replacement;
+- durable episode identity and ambiguous/missing identity failure;
+- complete eligible catalog and atomic failure;
+- in-page `#dv-web-player` confirmation with loading-state handling;
+- cancellation and stale-generation suppression.
+
+Prime manual smoke must verify:
+
+- movie exclusion and live-validated series button placement;
+- one- and multi-season discovery;
+- season URL navigation and catalog replacement;
+- exclusion of `COMING SOON` and non-entitled cards;
+- complete eligible catalog before randomization;
+- repeated independent random selection with repeats allowed;
+- safe live episode resolution and native click;
+- URL-preserving player overlay confirmation;
+- cancellation, detail-root replacement, and teardown.
+
+Prime restart-from-beginning is explicitly out of scope until native controls are observed and documented. Prime support is not complete until the Chrome/Brave live smoke passes and the full Netflix regression suite remains green.
+
+---
+
 ## Continuous Integration
 
 Automated unit and fixture integration tests must run non-interactively in CI on every pull request.

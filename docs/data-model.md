@@ -6,41 +6,59 @@ All shared TypeScript interfaces used across modules.
 
 ---
 
+### Provider Identity
+
+```typescript
+type ProviderId = 'netflix' | 'prime-video'
+
+type CatalogKey = `${ProviderId}:${string}`
+```
+
+`ProviderId` is part of every title context, series catalog, and durable episode record. Provider-local IDs remain opaque strings. `CatalogKey` is the only cache key format; a local ID shared by two providers must never collide.
+
+Prime Video uses the opaque `/detail/<id>` identifier as its provider-local series/season identity. A Prime episode must retain a provider-owned durable identity sufficient for live re-resolution, such as its season detail ID plus episode number and normalized title. It must not retain DOM elements, blob media URLs, or account/session identifiers.
+
+---
+
 ### Episode
 
 Represents a single discoverable episode.
 
 ```typescript
 interface Episode {
-  /** Confirmed Netflix series title ID. */
+  /** Provider owning this record. */
+  provider: ProviderId
+
+  /** Provider-local series identity. */
   seriesId: string
 
-  /** Normalized durable key derived from the Netflix season label. */
+  /** Provider-specific durable season identity. */
   seasonKey: string
 
-  /** Netflix season label as displayed, for example "Season 7". */
+  /** Season label as displayed, for example "Season 7". */
   seasonLabel: string
 
-  /** Parsed season number when the label is numeric. */
+  /** Parsed season number when the provider exposes one. */
   seasonNumber: number | null
 
-  /** Zero-based position in the fully expanded season list. */
+  /** Zero-based position in the fully expanded eligible season list. */
   episodeIndex: number
 
-  /** Parsed episode number when Netflix exposes one. */
+  /** Parsed episode number when the provider exposes one. */
   episodeNumber: number | null
 
-  /** Episode title (e.g., "The One Where...") */
+  /** Episode title as displayed. */
   title: string
 
-  /** Complete row count observed for the season during discovery. */
+  /** Normalized title used as a durable matching signal when available. */
+  normalizedTitle: string | null
+
+  /** Complete eligible row count observed for the season during discovery. */
   discoveredSeasonEpisodeCount: number
 }
 ```
 
-`Episode` contains durable metadata only. It must never retain Netflix `HTMLElement` references or invent an episode URL from the current title-details URL.
-
-`seasonKey` is strategy-specific. Explicit numeric seasons use `season <parsed positive integer>` with no leading zeroes. Named seasons use `label:<normalized label>`, where normalization is NFKC, trimmed, whitespace-collapsed, and lowercased with `en-US`. Named seasons store `seasonNumber: null`; an episode count is optional. The implicit single-season strategy always uses key `implicit` and display label `Episodes`.
+`Episode` contains durable metadata only. It must never retain provider DOM references, blob media URLs, credentials, or session identifiers. `seasonKey` is the provider-specific durable season identity; Netflix uses normalized season keys and Prime Video uses the season detail identity.
 
 ---
 
@@ -50,13 +68,16 @@ Aggregated information about a series and its episodes.
 
 ```typescript
 interface SeriesInfo {
-  /** Netflix series ID (from URL) */
+  /** Provider owning this catalog. */
+  provider: ProviderId
+
+  /** Provider-local series identity. */
   id: string
 
-  /** Total number of seasons discovered */
+  /** Total number of seasons discovered. */
   totalSeasons: number
 
-  /** All discovered episodes across all seasons */
+  /** All discovered eligible episodes across all seasons. */
   episodes: Episode[]
 
   /** Diagnostic timestamp; cache has no TTL. */
@@ -149,14 +170,28 @@ type PageChangeEvent =
 
 `route-changed` events have no generation because they initiate context replacement. `title-dom-changed` and `title-root-removed` carry a generation, and stale generations are suppressed before callback delivery.
 
+### DetectionResult
+
+Provider-scoped classification returned from a DOM snapshot. It does not own waiting, observation, or lifecycle state.
+
+```typescript
+interface DetectionResult {
+  status: 'unconfirmed' | 'series'
+  titleId: string
+  signals: string[]
+}
+```
+
 ### TitleContext
 
-Identity for the active Netflix title details. It does not imply that the title is a series.
+Identity for the active provider title details. It does not imply that the title is a series.
 
 ```typescript
 interface TitleContext {
+  provider: ProviderId
+  /** Provider-local title identity. */
   titleId: string
-  source: 'jbv' | 'title-path'
+  source: 'jbv' | 'title-path' | 'prime-detail'
   url: string
 }
 ```
@@ -210,10 +245,12 @@ interface SelectorConfig {
 ```typescript
 // season-traverser.ts produces this
 const seriesInfo: SeriesInfo = {
+  provider: 'netflix',
   id: '80057281',
   totalSeasons: 10,
   episodes: [
     {
+      provider: 'netflix',
       seriesId: '80057281',
       seasonKey: 'season 1',
       seasonLabel: 'Season 1',
@@ -221,6 +258,7 @@ const seriesInfo: SeriesInfo = {
       episodeIndex: 0,
       episodeNumber: 1,
       title: 'The One Where Monica Gets a Roommate',
+      normalizedTitle: 'the one where monica gets a roommate',
       discoveredSeasonEpisodeCount: 24
     },
     // ... more episodes

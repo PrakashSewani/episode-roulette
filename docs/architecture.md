@@ -2,7 +2,9 @@
 
 ## System Overview
 
-Episode Roulette is a WebExtension for Chrome and macOS Safari that operates as a shared content script injected into Netflix's web page. It identifies the active Netflix title-details context, confirms series from the rendered episodic DOM, injects a UI button, discovers episodes via DOM traversal, and triggers random playback using Netflix's own interactions.
+Episode Roulette is a WebExtension for Chrome and macOS Safari that operates as a shared content script injected into supported provider pages. The current implementation remains Netflix-only; the approved next provider scope adds Prime Video on authenticated desktop Chrome in the India region with English UI. The orchestrator identifies the active provider/title context, confirms series from rendered episodic DOM, injects one shared UI button, discovers a complete eligible catalog through provider-native DOM interactions, and triggers random playback using provider-native controls.
+
+Prime Video is an approved planned provider, not yet implemented. Safari Prime support remains out of scope until the Chrome provider contract and live validation are complete.
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -171,7 +173,7 @@ Each module has a single responsibility. Modules communicate through:
 
 ### 6. In-Memory Caching
 
-**Decision**: `content.ts` exclusively owns complete episode catalogs in content-script memory, keyed by Netflix series ID, until the Netflix tab reloads or closes. Closing an overlay or opening another title does not clear a valid catalog. `season-traverser.ts` always performs uncached discovery and returns a complete catalog without retaining it.
+**Decision**: `content.ts` exclusively owns complete episode catalogs in content-script memory, keyed by provider-qualified `CatalogKey`, until the tab reloads or closes. Closing an overlay or opening another title does not clear a valid catalog. Provider discovery always performs uncached discovery and returns a complete catalog without retaining it.
 
 **Rationale**: Avoids re-traversing every season on repeated clicks without tracking what the user watched or changing selection probability.
 
@@ -305,7 +307,58 @@ The Xcode wrapper is generated once, normalized to the documented project/resour
 
 ---
 
-## File Structure
+## Multi-Provider Contract — Approved Prime Scope
+
+### Provider selection
+
+`content.ts` remains the sole lifecycle orchestrator and selects one provider runtime from the exact current host and route. Unsupported hosts activate nothing. The first implementation may use one shared content-script entry with host dispatch; it must not create a second orchestrator.
+
+The approved host scope is the India Prime Video web application at `www.primevideo.com`. Do not add broad Amazon retail hosts, `<all_urls>`, cookies, webRequest, history, native messaging, or a background runtime. The exact manifest match and permission patterns must be verified by package assertions before Prime implementation is complete.
+
+### Shared ownership
+
+The shared orchestrator owns:
+
+- provider-qualified title context and operation generation;
+- AbortController cancellation and stale-side-effect guards;
+- one in-memory complete-catalog cache;
+- uniform random selection with no history or weighting;
+- shared button state, feedback, and cleanup;
+- one stale-catalog refresh policy;
+- provider playback-confirmation waiting through the selected runtime.
+
+A provider runtime owns:
+
+- URL identity and title-root discovery;
+- scoped series detection and provider observation behavior;
+- selectors and episode eligibility;
+- complete catalog discovery and season navigation;
+- durable episode identity and live episode matching;
+- native episode action;
+- playback confirmation predicate and optional restart capability.
+
+Do not add provider conditionals throughout shared modules. Netflix is migrated behind this contract by delegation before Prime implementation; existing Netflix behavior and selectors remain unchanged during that migration.
+
+### Prime Video observed contract
+
+Prime detail pages use `/detail/<opaque-id>` routes. Season links point to separate detail IDs; selecting a season replaces the rendered catalog and changes the URL. Observed stable hooks are:
+
+- `[data-testid="DVWebNode-detail-wrapper"]`;
+- `main[data-testid="detailpage-main"]`;
+- `[data-testid="dp-season-selector"]`;
+- `button[data-testid="btf-episodes-tab"][role="tab"]`;
+- `li[data-testid="episode-list-item"]`;
+- `a[data-testid="episodes-playbutton"][role="button"]`;
+- `#dv-web-player` and `div[aria-label="Web Player"]`.
+
+A Prime episode is eligible only when its episode row exposes the native `episodes-playbutton` control and is not marked as unavailable or `COMING SOON`. The presence of an episode card alone is insufficient. The Prime provider must preserve complete-catalog atomicity and discard partial catalogs.
+
+Prime playback preserves the detail URL and opens an in-page player. URL transition is not a confirmation signal. The initial confirmation predicate waits for the player root, episode metadata, and removal of the loading status overlay; this predicate must be validated against a live authenticated roll before release. Session-specific blob media URLs are never durable metadata.
+
+### Cache identity
+
+All cached catalogs use a provider-qualified key. Provider-local opaque IDs remain local to the provider; equal IDs across providers must never share cache entries. `Episode` and `SeriesInfo` carry the provider identity required to enforce this isolation.
+
 
 ```
 src/

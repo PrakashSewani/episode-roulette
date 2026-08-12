@@ -2,7 +2,7 @@
 
 ## System Shape
 
-Episode Roulette is a content-script-only browser extension. `src/manifest.ts` registers `src/content.ts` on Netflix pages. The content script observes Netflix SPA navigation, finds the active title-details root, confirms episodic content, injects UI, and coordinates discovery and playback.
+Episode Roulette is a content-script-only browser extension. `src/manifest.ts` currently registers `src/content.ts` on Netflix pages; Phase 9 adds provider dispatch without duplicating the orchestrator, and Phase 10 adds Prime Video India desktop support. The Prime provider is approved but not yet implemented. Safari Prime remains deferred.
 
 ```text
 Netflix page
@@ -304,7 +304,7 @@ Discovery, randomizer, identity, and navigator modules retain no catalog or play
 
 ## Cache Policy
 
-The cache is `Map<string, SeriesInfo>` keyed by Netflix title ID.
+The cache is `Map<CatalogKey, SeriesInfo>` keyed by provider-qualified title identity.
 
 - Complete catalogs only
 - No TTL

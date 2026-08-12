@@ -53,7 +53,7 @@ import { SeriesInfo, Episode } from '../types'
 
 /**
  * Discover all episodes for the current series without reading or writing cache.
- * @param seriesId - Netflix series ID
+ * @param seriesId - Netflix provider-local series ID
  * @param root - Active Netflix title-details root
  * @param signal - Cancels traversal immediately
  * @returns Promise resolving to SeriesInfo with all episodes

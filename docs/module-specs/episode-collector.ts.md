@@ -22,7 +22,7 @@ import { Episode, SeasonDescriptor } from '../types'
 
 /**
  * Collect all episodes from a fully expanded season.
- * @param seriesId - Netflix series ID
+ * @param seriesId - Netflix provider-local series ID
  * @param season - Active durable season descriptor
  * @param rows - Complete validated live rows from season-controller.ts
  * @returns Array of Episode objects found in the DOM

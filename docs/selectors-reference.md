@@ -128,3 +128,62 @@ Live Safari inspection of Netflix title `80179831` (JoJo's Bizarre Adventure) co
 **Live status (validated 2026-08-01, title `80179831` JoJo):** Named-season dropdowns use the same selectors as numeric seasons. Menu items often put the English count on the same line as the arc label; the closed toggle omits the count. Stability uses durable episode identity (title/number), not full row `textContent`. Large arcs can load in batches without `section-expand` (Stardust Crusaders: 30 of 48, then 48 after scoped list scroll). After `/watch/` remount, the season dropdown may be absent briefly; activation/enumeration wait for the toggle within the season deadline. Document/body scrolling must not be used for lazy load (twitches the modal).
 
 **Disclaimer**: These selectors are based on observation and may change. The extension is designed to handle this via fallback selectors and easy updates to `selectors.ts`.
+
+---
+
+## Prime Video Observation — India / Brave / English — 2026-08-12
+
+Source: sanitized user-provided captures of Prime Video's authenticated Reacher detail page and a season-selected detail page. The raw captures remain untracked and must not be committed because they contain account/profile and session telemetry.
+
+Observed route behavior:
+
+- Series detail uses an opaque path of the form `/detail/<content-id>`.
+- Reacher Season 4 loaded at `/detail/0K16R3PLUFGC2JUE457C26O4OD`.
+- Selecting Season 3 navigated to `/detail/0H1T1C23B07HLZPPHJSSPMYSL7` with a Prime season-selection referral query.
+- Season selection replaces the displayed season catalog; the supplied capture contained four visible episode cards for the selected season.
+
+Observed stable hooks:
+
+| Name | Selector | Notes |
+|---|---|---|
+| Detail wrapper | `[data-testid="DVWebNode-detail-wrapper"]` | Prime title detail boundary observed in both captures |
+| Main detail root | `main[data-testid="detailpage-main"]` | Candidate scoped title root |
+| Season selector | `[data-testid="dp-season-selector"]` | Contains current season and season links |
+| Season link | `[data-testid="dp-season-selector"] a[href*="/detail/"]` | Season navigation uses provider detail URLs; verify against authenticated live DOM before implementation |
+| Episodes tab | `button[data-testid="btf-episodes-tab"][role="tab"]` | Selected tab had `aria-selected="true"` |
+| Episode row | `li[data-testid="episode-list-item"]` | One row per rendered episode card |
+| Episode play control | `a[data-testid="episodes-playbutton"][role="button"]` | Accessible label observed as `Play S1 E1`, `Play S4 E1`, etc. |
+| Episode runtime | `[data-testid="episode-runtime"]` | Runtime text such as `56min` or `46min` |
+| Episode release date | `[data-testid="episode-release-date"]` | Release date text |
+| Main play control | `a[data-testid="dp-atf-play-button"][role="button"]` | Accessible label identifies the first/current episode, not necessarily a random-episode target |
+
+Eligibility evidence:
+
+- Reacher Season 4 rendered eight episode rows in the supplied full capture.
+- Episodes 1–3 exposed `episodes-playbutton` controls.
+- Episodes 4–8 were marked `COMING SOON` and had no episode play control in the capture.
+- The public/detail content also exposed Prime subscription/trial messaging, so row presence alone is not sufficient proof of playability or entitlement.
+- The initial evidence supports filtering to rows with a native episode play control and excluding `COMING SOON` rows, but authenticated entitlement behavior still requires live confirmation.
+
+Playback evidence update — 2026-08-12:
+
+- Selecting an episode does not change the Prime detail URL. The reported pre-click and post-click URL remained `/detail/0PW27PB7O60V7NZOIXFYF68ZG8` with the same query string.
+- A URL transition cannot be used as Prime playback confirmation. Confirmation must use a stable player DOM signal or another observed playback-state predicate.
+
+Playback capture update — 2026-08-12:
+
+- Episode playback opens an in-page overlay without changing the `/detail/<opaque-id>` URL.
+- Player root: `#dv-web-player` with `div[aria-label="Web Player"]`.
+- Loading state: `.atvwebplayersdk-loading-overlay[role="status"]` inside the player container.
+- Player metadata: `.atvwebplayersdk-title-text`, `.atvwebplayersdk-episode-info`, and `.atvwebplayersdk-episode-timing-container`.
+- Stable native controls observed by ID: `#atvwebplayersdk-close-player-button`, `#atvwebplayersdk-captions-toggle-button`, `#atvwebplayersdk-mute-toggle-button`, `#atvwebplayersdk-volume-slider`, `#atvwebplayersdk-fullscreen-toggle-button`, and `#atvwebplayersdk-settings-button`.
+- A `<video aria-hidden="true">` element exists inside the player surface. Its `blob:` source is session-specific and must never be stored or used as durable episode identity.
+- The capture does not expose a stable Prime play/pause button or timeline/scrubber selector. Playback confirmation should wait for the player root and episode metadata to appear, then require the loading overlay to be absent or otherwise observe a stronger ready/playing predicate from a live capture.
+
+Not yet observed:
+
+- Resume/start-over behavior and timeline selectors.
+- Whether all Prime-native content uses the same detail/episode hooks.
+- Root replacement timing, lazy loading beyond the supplied four visible cards, and behavior for unavailable/rental/channel/bonus items.
+
+These observations are evidence only. They become normative after the Prime provider contract and implementation phase are approved.

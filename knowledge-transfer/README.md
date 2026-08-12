@@ -67,7 +67,7 @@ Use `knowledge-transfer/new-agent-checklist.md` as the operational start and end
 | What selectors were observed live? | `docs/selectors-reference.md` |
 | How does current code realize the design? | This folder plus source inspection |
 | What commands produce release artifacts? | `package.json`, scripts, CI, and `docs/safari.md` |
-| Is Amazon Prime Video approved architecture? | No. `provider-expansion.md` is a planning guide only |
+| Is Amazon Prime Video approved architecture? | Yes, for the documented India/English desktop Chrome/Brave scope; implementation is still incomplete. See `docs/architecture.md` and `docs/module-specs/` |
 
 ## Update Rule
 
