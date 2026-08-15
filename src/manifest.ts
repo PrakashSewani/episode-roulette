@@ -5,7 +5,7 @@ import packageJson from '../package.json'
 export default defineManifest({
   manifest_version: 3,
   name: 'Episode Roulette',
-  description: 'Play a random episode from a Netflix series.',
+  description: 'Play a random episode from any season of a Netflix or Prime Video series.',
   version: packageJson.version,
   host_permissions: ['*://*.netflix.com/*', '*://www.primevideo.com/*'],
   content_scripts: [
