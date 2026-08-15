@@ -13,9 +13,11 @@ function parseEpisodeNumber(label: string): number | null {
 
 export function isPrimeRowEligible(row: HTMLElement): boolean {
   if (row.querySelector(PRIME_EPISODE_PLAY) === null) return false
-  return !/coming\s+soon|unavailable|rent|purchase|subscribe|join\s+prime/iu.test(
-    row.textContent ?? '',
-  )
+  // The play-control presence is the primary eligibility signal. Guard only
+  // against the observed unavailable marker; broad keyword checks against the
+  // full row text false-positive on episode synopses (e.g. a description
+  // mentioning "rent" on a fully playable Smallville episode).
+  return !/coming\s+soon/iu.test(row.textContent ?? '')
 }
 
 export function parsePrimeEpisodeIdentity(

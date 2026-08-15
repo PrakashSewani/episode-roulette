@@ -41,7 +41,7 @@ async function waitForCatalog(
   )
   if (rows === null) throw new DiscoveryIncompleteError('Prime episode catalog did not render')
 
-  let previous = ''
+  let previous = -1
   let stable = 0
   while (performance.now() < deadline) {
     assertNotAborted(signal)
@@ -50,12 +50,15 @@ async function waitForCatalog(
       await new Promise<void>((resolve) => window.setTimeout(resolve, 50))
       continue
     }
-    const snapshot = currentRows.map((row) => row.textContent?.trim() ?? '').join('\u0000')
-    if (snapshot === previous) stable += 1
-    else stable = 0
-    previous = snapshot
     const eligible = getEligibleRows(root)
     const unresolved = currentRows.some((row) => !isPrimeRowEligible(row) && !/COMING\s+SOON/iu.test(row.textContent ?? ''))
+    // Stabilize on the total row count, not full row text: Prime keeps
+    // mutating row internals (hover copies, lazy thumbnails) on long seasons
+    // (Smallville 21 rows), so full-text snapshots never match twice. The
+    // count still catches progressive rendering (rows appearing over time).
+    if (currentRows.length === previous) stable += 1
+    else stable = 0
+    previous = currentRows.length
     if (stable >= 1 && eligible.length > 0 && !unresolved) return eligible
     await new Promise<void>((resolve) => window.setTimeout(resolve, 50))
   }
