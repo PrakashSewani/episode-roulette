@@ -198,12 +198,17 @@ async function selectAndPlay(
   })
   showSelection(context, root, episode)
   logInfo('Starting native playback resolution')
-  await provider.playEpisode(
+  const clicked = await provider.playEpisode(
     episode,
     root,
     context.controller.signal,
     () => assertCurrent(context, root),
   )
+  // When the provider navigated to a season instead of clicking the episode
+  // (Prime multi-season), confirmation happens on the target page through the
+  // pending-playback resume. Waiting here would start a confirmation waiter
+  // that clears the pending marker when the navigation aborts this context.
+  if (!clicked) return
   logInfo('Native episode click completed; waiting for provider confirmation')
   if (provider.id === 'netflix') {
     armPendingRestart()
@@ -281,12 +286,13 @@ async function resumePendingPlayback(
 ): Promise<void> {
   controller.setState('loading')
   try {
-    await provider.resumePendingPlayback(
+    const clicked = await provider.resumePendingPlayback(
       episode,
       root,
       context.controller.signal,
       () => assertCurrent(context, root),
     )
+    if (!clicked) return
     await provider.waitForPlaybackConfirmation(episode, context.controller.signal)
     assertCurrent(context, root)
     controller.setState('ready')
@@ -341,17 +347,16 @@ async function injectSeriesButton(
         titleId: context.title.titleId,
         generation: context.generation,
       })
+      // Fresh user roll: discard any stale pending state from a previous
+      // aborted or failed roll so discovery restarts cleanly.
+      provider.resetPendingOperations()
       void runPlayback(context, root, controller)
     })
     const pendingEpisode = provider.getPendingPlayback()
     if (pendingEpisode !== null) {
-      const currentPendingSeason = pendingEpisode.seasonKey.replace(/^detail:/u, '')
-      const currentDetailId = new URL(window.location.href).pathname.match(/^\/detail\/([^/]+)/u)?.[1]
-      if (currentDetailId === currentPendingSeason) {
-        void runPlayback(context, root, controller)
-      } else {
-        void resumePendingPlayback(context, root, controller, pendingEpisode, provider)
-      }
+      // Resume the exact pending episode; never re-randomize, which would
+      // navigate to another season and restart the trailer autoplay.
+      void resumePendingPlayback(context, root, controller, pendingEpisode, provider)
     } else if (provider.hasPendingOperation()) {
       void runPlayback(context, root, controller)
     }
@@ -644,6 +649,7 @@ function handleMessage(
 
     logInfo('Popup roll accepted')
     sendResponse({ type: 'roll-accepted' })
+    activeProvider?.resetPendingOperations()
     void runPlayback(context, root, controller)
     return false
   }

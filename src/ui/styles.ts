@@ -134,6 +134,38 @@ const CSS = `
 .ep-roulette-btn[data-state="error"]:hover::before {
   opacity: 1;
 }
+
+/* Prime Video theme: match the observed white "Watch now" play pill */
+.ep-roulette-btn[data-provider="prime-video"] {
+  background: #ffffff;
+  color: #00050d;
+  border-radius: 8px;
+  padding: 8px 21px;
+  margin: 8px 0;
+  min-height: 62px;
+  height: 62px;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  font-family: "Amazon Ember", "Amazon Arabic Ember", Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.ep-roulette-btn[data-provider="prime-video"] .ep-roulette-icon {
+  font-size: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ep-roulette-btn[data-provider="prime-video"]:hover {
+  background: #e6e6e6;
+}
+
+.ep-roulette-btn[data-provider="prime-video"][data-state="loading"] {
+  opacity: 0.6;
+}
 `
 
 export function injectStyles(): void {

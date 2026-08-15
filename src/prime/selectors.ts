@@ -7,6 +7,7 @@ export const PRIME_EPISODE_PLAY = 'a[data-testid="episodes-playbutton"][role="bu
 export const PRIME_MAIN_PLAY = 'a[data-testid="dp-atf-play-button"][role="button"]'
 export const PRIME_PLAYER = '#dv-web-player'
 export const PRIME_PLAYER_SURFACE = 'div[aria-label="Web Player"]'
+export const PRIME_PLAYER_CLOSE = '#dv-web-player button[aria-label="Close player"]'
 export const PRIME_LOADING = '.atvwebplayersdk-loading-overlay[role="status"]'
 export const PRIME_PLAYER_TITLE = '.atvwebplayersdk-title-text'
 export const PRIME_PLAYER_EPISODE_INFO = '.atvwebplayersdk-episode-info'

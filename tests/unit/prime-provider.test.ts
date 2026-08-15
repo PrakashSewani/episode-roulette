@@ -84,16 +84,73 @@ describe('Prime provider', () => {
     expect(click).toHaveBeenCalledOnce()
   })
 
-  it('confirms player metadata only after loading completes', async () => {
+  it('confirms playback when the player video is ready despite the persistent loading overlay', async () => {
+    let settled = false
     const pending = primeRuntime.waitForPlaybackConfirmation(episode(), new AbortController().signal)
+    void pending.then(() => { settled = true })
     document.body.append(createPrimePlayer('S4 E1 Episode 1', true))
+    await vi.waitFor(() => expect(settled).toBe(true))
+  })
+
+  it('does not confirm while the episode video is not playing', async () => {
+    const pending = primeRuntime.waitForPlaybackConfirmation(episode(), new AbortController().signal)
+    document.body.append(createPrimePlayer('S4 E1 Episode 1', true, true, false))
     await Promise.resolve()
     let settled = false
     void pending.then(() => { settled = true })
     await new Promise((resolve) => window.setTimeout(resolve, 120))
     expect(settled).toBe(false)
-    document.querySelector('.atvwebplayersdk-loading-overlay')?.remove()
+    const video = document.querySelector('video')!
+    Object.defineProperty(video, 'paused', { configurable: true, value: false })
     await vi.waitFor(() => expect(settled).toBe(true))
+  })
+
+  it('does not confirm while only the short trailer video is playing', async () => {
+    const pending = primeRuntime.waitForPlaybackConfirmation(episode(), new AbortController().signal)
+    const player = createPrimePlayer('S4 E1 Episode 1', true, true, true)
+    const video = player.querySelector('video')!
+    Object.defineProperty(video, 'duration', { configurable: true, value: 30 })
+    document.body.append(player)
+    await new Promise((resolve) => window.setTimeout(resolve, 120))
+    let settled = false
+    void pending.then(() => { settled = true })
+    await new Promise((resolve) => window.setTimeout(resolve, 120))
+    expect(settled).toBe(false)
+    Object.defineProperty(video, 'duration', { configurable: true, value: 3200 })
+    await vi.waitFor(() => expect(settled).toBe(true))
+  })
+
+  it('closes an open player and waits for dismissal before the native episode click', async () => {
+    const root = createPrimeDetail({ playableCount: 3 })
+    const player = createPrimePlayer('S4 E1 Episode 1')
+    document.body.append(root, player)
+    const action = root.querySelector<HTMLElement>('[data-testid="episodes-playbutton"]')!
+    const click = vi.spyOn(action, 'click')
+    const close = document.querySelector<HTMLElement>('button[aria-label="Close player"]')!
+    const closeClick = vi.spyOn(close, 'click')
+    const pending = primeRuntime.playEpisode(episode('detail:season-4'), root, new AbortController().signal, () => {})
+    await Promise.resolve()
+    expect(closeClick).toHaveBeenCalledOnce()
+    expect(click).not.toHaveBeenCalled()
+    // Simulate Prime's async dismissal: hide the player, then the click proceeds
+    player.style.display = 'none'
+    await pending
+    expect(click).toHaveBeenCalledOnce()
+  })
+
+  it('pauses a hidden autoplaying trailer before the native episode click', async () => {
+    const root = createPrimeDetail({ playableCount: 3 })
+    const player = createPrimePlayer('S4 E1 Episode 1')
+    player.style.display = 'none'
+    const video = player.querySelector('video')!
+    Object.defineProperty(video, 'paused', { configurable: true, value: false })
+    const pause = vi.spyOn(video, 'pause')
+    document.body.append(root, player)
+    const action = root.querySelector<HTMLElement>('[data-testid="episodes-playbutton"]')!
+    const click = vi.spyOn(action, 'click')
+    await primeRuntime.playEpisode(episode('detail:season-4'), root, new AbortController().signal, () => {})
+    expect(pause).toHaveBeenCalledOnce()
+    expect(click).toHaveBeenCalledOnce()
   })
 
   it('persists a pending playback marker across provider reload boundaries', async () => {

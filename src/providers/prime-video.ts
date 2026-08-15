@@ -5,7 +5,6 @@ import type {
   PageChangeCallback,
   ProviderRuntime,
   SeriesInfo,
-  TitleContext,
 } from '../types'
 import { waitForElement } from '../netflix/dom-utils'
 import { discoverPrimeEpisodes } from '../prime/discovery'
@@ -15,10 +14,10 @@ import {
   PRIME_DETAIL_ROOT,
   PRIME_EPISODE_PLAY,
   PRIME_EPISODE_ROW,
-  PRIME_LOADING,
   PRIME_MAIN_PLAY,
   PRIME_MAIN_ROOT,
   PRIME_PLAYER,
+  PRIME_PLAYER_CLOSE,
   PRIME_PLAYER_EPISODE_INFO,
   PRIME_PLAYER_SURFACE,
   PRIME_PLAYER_TIMING,
@@ -39,6 +38,9 @@ import {
 } from '../prime/pending'
 
 const PLAYBACK_TIMEOUT_MS = 15_000
+// The pending marker must survive complete multi-season discovery (up to 60s
+// per discovery pending window); the confirmation timeout is separate.
+const PENDING_PLAYBACK_TTL_MS = 60_000
 
 const knownDetailIds = new Set<string>()
 
@@ -76,17 +78,12 @@ function clearPlayback(error?: Error): void {
   else waiter.reject(error)
 }
 
-function currentPrimeContext(): TitleContext | null {
-  return getPrimeTitleContext(window.location.href)
-}
-
 function readPendingPlayback(): PendingPlayback | null {
   const raw = window.sessionStorage.getItem(PENDING_PLAYBACK_KEY)
   if (raw === null) return null
   try {
     const pending = JSON.parse(raw) as PendingPlayback
-    const detailId = getPrimeDetailId(window.location.href) ?? pending.detailId
-    if (pending.detailId !== detailId || pending.expiresAt <= Date.now()) {
+    if (pending.expiresAt <= Date.now()) {
       window.sessionStorage.removeItem(PENDING_PLAYBACK_KEY)
       return null
     }
@@ -102,7 +99,7 @@ function writePendingPlayback(episode: Episode, detailId: string): void {
     seriesId: episode.seriesId,
     detailId,
     episode,
-    expiresAt: Date.now() + PLAYBACK_TIMEOUT_MS,
+    expiresAt: Date.now() + PENDING_PLAYBACK_TTL_MS,
   } satisfies PendingPlayback))
 }
 
@@ -119,6 +116,47 @@ function isMatchingEpisodeInfo(episode: Episode): boolean {
   const normalized = text.normalize('NFKC').replace(/\s+/gu, ' ').toLocaleLowerCase('en-US')
   return normalized.includes(episode.normalizedTitle ?? '')
     && (episode.episodeNumber === null || new RegExp(`\\bE${episode.episodeNumber}\\b`, 'iu').test(text))
+}
+
+function isPlaybackVideoReady(): boolean {
+  // The episode video is the long player video (episode durations observed
+  // 2583–3341 s); the trailer is short (30–122 s). Confirmation must require
+  // the episode video to be playing, not merely any loaded video.
+  return [...document.querySelectorAll<HTMLVideoElement>('video')]
+    .some((video) => (
+      (video.duration || 0) > 300
+      && video.readyState >= 3
+      && !video.paused
+      && !video.ended
+    ))
+}
+
+function isPlayerVisible(): boolean {
+  const player = document.querySelector<HTMLElement>(PRIME_PLAYER)
+  if (player === null || !player.isConnected) return false
+  const style = window.getComputedStyle(player)
+  return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0'
+}
+
+async function closeOpenPlayer(signal: AbortSignal): Promise<void> {
+  if (isPlayerVisible()) {
+    document.querySelector<HTMLElement>(PRIME_PLAYER_CLOSE)?.click()
+    // Prime hides the player asynchronously (fade-out). The episode-row click
+    // must wait until the player is actually dismissed; otherwise Prime treats
+    // the click as a trailer preview into the still-open player.
+    const deadline = performance.now() + 3_000
+    while (isPlayerVisible() && performance.now() < deadline) {
+      if (signal.aborted) throw new DOMException('The operation was aborted.', 'AbortError')
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 100))
+    }
+  }
+  // Prime keeps the player shell mounted and may be autoplaying a trailer in
+  // the hidden player after season navigation. Pause any playing video so the
+  // episode-row click starts the selected episode rather than continuing the
+  // trailer.
+  for (const video of document.querySelectorAll<HTMLVideoElement>('video')) {
+    if (!video.paused) video.pause()
+  }
 }
 
 const primeRuntime: ProviderRuntime = {
@@ -182,6 +220,7 @@ const primeRuntime: ProviderRuntime = {
         if (!mainPlay.isConnected || !root.contains(mainPlay)) {
           throw new PlaybackResolutionError('Prime main play action is no longer available')
         }
+        button.dataset.provider = 'prime-video'
         placementContainer.insertBefore(button, mainPlay.nextSibling)
       },
     }
@@ -213,7 +252,9 @@ const primeRuntime: ProviderRuntime = {
       }
       writePendingPlayback(episode, selectedSeasonId)
       link.click()
-      return
+      // Navigated to the selected season; the episode click happens on the
+      // target page through resumePendingPlayback. Do not confirm here.
+      return false
     }
 
     const rows = [...currentRoot.querySelectorAll<HTMLElement>(PRIME_EPISODE_ROW)]
@@ -225,8 +266,11 @@ const primeRuntime: ProviderRuntime = {
     }
     if (signal.aborted) throw new DOMException('The operation was aborted.', 'AbortError')
     assertCurrent()
+    await closeOpenPlayer(signal)
+    assertCurrent()
     writePendingPlayback(episode, selectedSeasonId)
     action.click()
+    return true
   },
 
   waitForPlaybackConfirmation(episode, signal): Promise<void> {
@@ -237,12 +281,25 @@ const primeRuntime: ProviderRuntime = {
       const timer = window.setTimeout(() => clearPlayback(new PlaybackResolutionError('Playback did not start')), PLAYBACK_TIMEOUT_MS)
       playbackWaiter = { episode, timer, signal, resolve, reject, abort }
       signal.addEventListener('abort', abort, { once: true })
+      let seenPlaying = false
       const check = (): void => {
         if (playbackWaiter?.episode !== episode) return
+        const videoPlaying = isPlaybackVideoReady()
+        // The episode video played at least once; a later player close (user
+        // closed the player) resolves so the button returns to ready instead
+        // of stuck loading.
+        if (videoPlaying) seenPlaying = true
+        const player = document.querySelector<HTMLElement>(PRIME_PLAYER)
+        const playerClosed = player === null || !player.isConnected
+          || window.getComputedStyle(player).display === 'none'
+        if (seenPlaying && playerClosed) {
+          clearPlayback()
+          return
+        }
         const ready = document.querySelector(PRIME_PLAYER) !== null
           && document.querySelector(PRIME_PLAYER_SURFACE) !== null
           && isMatchingEpisodeInfo(episode)
-          && document.querySelector(PRIME_LOADING) === null
+          && videoPlaying
         if (ready) clearPlayback()
         else window.setTimeout(check, 100)
       }
@@ -268,8 +325,14 @@ const primeRuntime: ProviderRuntime = {
       || window.sessionStorage.getItem(PENDING_DISCOVERY_KEY) !== null
   },
 
+  resetPendingOperations() {
+    window.sessionStorage.removeItem(PENDING_PLAYBACK_KEY)
+    window.sessionStorage.removeItem(PENDING_DISCOVERY_KEY)
+  },
+
   notifyRouteChange() {
-    if (currentPrimeContext() === null) clearPlayback()
+    // Never clear the pending playback marker here: it must survive season
+    // navigation and transient non-detail routes until consumed or expired.
   },
 }
 

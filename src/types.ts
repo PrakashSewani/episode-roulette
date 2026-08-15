@@ -138,12 +138,13 @@ export interface ProviderRuntime {
   clearObservation(): void
   waitForButtonPlacement(root: HTMLElement, signal: AbortSignal): Promise<ButtonPlacement | null>
   discoverEpisodes(context: TitleContext, root: HTMLElement, signal: AbortSignal): Promise<SeriesInfo>
-  playEpisode(episode: Episode, root: HTMLElement, signal: AbortSignal, assertCurrent: () => void): Promise<void>
+  playEpisode(episode: Episode, root: HTMLElement, signal: AbortSignal, assertCurrent: () => void): Promise<boolean>
   waitForPlaybackConfirmation(episode: Episode, signal: AbortSignal): Promise<void>
   isInternalNavigation(url: string): boolean
   getPendingPlayback(): Episode | null
-  resumePendingPlayback(episode: Episode, root: HTMLElement, signal: AbortSignal, assertCurrent: () => void): Promise<void>
+  resumePendingPlayback(episode: Episode, root: HTMLElement, signal: AbortSignal, assertCurrent: () => void): Promise<boolean>
   hasPendingOperation(): boolean
+  resetPendingOperations(): void
   notifyRouteChange(url: string): void
 }
 

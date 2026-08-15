@@ -69,6 +69,16 @@ function applyState(
     button.removeAttribute('aria-busy')
   }
 
+  const text = button.querySelector<HTMLElement>('.ep-roulette-text')
+  if (text !== null) {
+    if (state === 'loading') {
+      text.textContent = 'Loading Episode Roulette'
+      button.setAttribute('aria-label', 'Loading Episode Roulette')
+    } else {
+      text.textContent = 'Random Episode'
+    }
+  }
+
   if (state === 'error' && errorMessage) {
     button.dataset.error = errorMessage
   } else {

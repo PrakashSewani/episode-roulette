@@ -163,6 +163,7 @@ const netflixRuntime: ProviderRuntime = {
         if (container === null || !playButton.isConnected || !root.contains(playButton)) {
           throw new PlaybackResolutionError('Netflix Play button is no longer available')
         }
+        button.dataset.provider = 'netflix'
         container.insertBefore(button, playButton.nextSibling)
       },
     }
@@ -174,7 +175,7 @@ const netflixRuntime: ProviderRuntime = {
   },
 
   playEpisode(episode, root, signal, assertCurrent) {
-    return playEpisode(episode, root, signal, assertCurrent)
+    return playEpisode(episode, root, signal, assertCurrent).then(() => true)
   },
 
   waitForPlaybackConfirmation(episode, signal): Promise<void> {
@@ -213,9 +214,12 @@ const netflixRuntime: ProviderRuntime = {
   resumePendingPlayback(_episode, _root, _signal, _assertCurrent) {
     return Promise.reject(new PlaybackResolutionError('No pending Netflix playback'))
   },
-
   hasPendingOperation() {
     return false
+  },
+
+  resetPendingOperations() {
+    // Netflix has no pending markers.
   },
 
   notifyRouteChange(url) {

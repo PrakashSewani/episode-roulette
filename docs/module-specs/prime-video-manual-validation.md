@@ -13,7 +13,8 @@ Authenticated desktop Brave/Chromium, India region, English UI, normal non-Kids 
 - `COMING SOON`, unavailable, rental, purchase, and unapproved-channel items are excluded.
 - Repeated random rolls are independent and repeats are allowed.
 - Selected episode is re-resolved uniquely before native click.
-- Playback opens the in-page `#dv-web-player` overlay and passes the approved player confirmation predicate.
+- Any open `#dv-web-player` is closed immediately before the native episode-row click so Prime starts the episode rather than a trailer preview.
+- Playback opens the in-page `#dv-web-player` overlay, shows matching episode metadata, and the player `<video>` reaches `readyState >= 3` (not `ended`) within the confirmation deadline. The permanent loading overlay must not gate confirmation.
 - URL-preserving playback does not falsely time out.
 - Navigation, root replacement, cancellation, and page teardown leave no stale UI or cache writes.
 - Netflix automated and live regression checks remain green.

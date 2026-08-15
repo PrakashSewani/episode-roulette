@@ -73,6 +73,8 @@ export function createPrimeDetail({
 export function createPrimePlayer(
   episodeInfo = 'S4 E1 Episode 1',
   loading = false,
+  videoReady = true,
+  playing = true,
 ): HTMLElement {
   const player = document.createElement('div')
   player.id = 'dv-web-player'
@@ -84,7 +86,13 @@ export function createPrimePlayer(
   const timing = document.createElement('div')
   timing.className = 'atvwebplayersdk-episode-timing-container'
   timing.textContent = episodeInfo
-  surface.append(info, timing)
+  const video = document.createElement('video')
+  Object.defineProperty(video, 'readyState', { configurable: true, value: videoReady ? 4 : 0 })
+  Object.defineProperty(video, 'duration', { configurable: true, value: 3200 })
+  Object.defineProperty(video, 'paused', { configurable: true, value: !playing })
+  const close = document.createElement('button')
+  close.setAttribute('aria-label', 'Close player')
+  surface.append(info, timing, video, close)
   if (loading) {
     const overlay = document.createElement('div')
     overlay.className = 'atvwebplayersdk-loading-overlay'
