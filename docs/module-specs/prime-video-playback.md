@@ -37,4 +37,10 @@ Playback is initiated only through the current episode row's `a[data-testid="epi
 
 ## Restart
 
-Start-over behavior is out of scope for Phase 10. Do not reuse Netflix timeline selectors or assign `video.currentTime` without a separate approved Prime observation and specification.
+Prime partially-watched episodes resume at saved server-side offsets: episode rows show `Resume Sx Ey` labels and the play-control href carries `?t=<offset>`, but Prime ignores `t=0`/removed-`t` variants and starts at the saved position regardless (live-verified 2026-08-15: `t=131` and `t=0` both started S3 E4 at its resume position).
+
+Live observation found **no DOM seek bar, timeline slider, or time display** in the current player build: no `role="slider"`/`progressbar`, no `aria-valuenow`, no wide-thin seek-bar element, no `atvwebplayersdk` timeline classes, and no visible time text even with controls revealed. The only slider is the Volume `input[type="range"]`. Player controls (Pause, Skip ±10 s, Next Episode) appear only under trusted pointer activity and are not reliably scriptable.
+
+**Approved Prime restart mechanism**: assign `video.currentTime = 0` on the playing episode `<video>` (duration > 300 s, `readyState >= 3`, not paused) after playback confirmation. Live-verified 2026-08-15: setting `currentTime = 0` on the playing S3 E4 video snapped to 0 and playback continued from t:0 → t:1 while still playing. This is Prime-specific; the Netflix `M7375` restriction on `currentTime` does not apply to Prime (verified). Never reuse Netflix timeline selectors on Prime.
+
+The restart is armed only for provider `prime-video` after a successful native episode click; it must run after confirmation, be abortable, and skip when the episode already starts at/near 0.

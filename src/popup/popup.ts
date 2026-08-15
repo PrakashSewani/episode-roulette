@@ -1,10 +1,7 @@
 import type { PopupMessage, PopupMessageResponse, PopupStatus } from '../types'
 
-const PREFIX = '[Episode Roulette][popup]'
-
-function log(message: string, details?: unknown): void {
-  if (details === undefined) console.log(`${PREFIX} ${message}`)
-  else console.log(`${PREFIX} ${message}`, details)
+function log(_message: string, _details?: unknown): void {
+  // Silenced in production builds.
 }
 
 const statusEl = document.getElementById('status') as HTMLParagraphElement | null

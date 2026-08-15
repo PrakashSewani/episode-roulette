@@ -214,6 +214,7 @@ async function selectAndPlay(
     armPendingRestart()
   }
   await provider.waitForPlaybackConfirmation(episode, context.controller.signal)
+  await provider.restartPlayback(episode, context.controller.signal)
 }
 
 async function runPlayback(
@@ -294,6 +295,7 @@ async function resumePendingPlayback(
     )
     if (!clicked) return
     await provider.waitForPlaybackConfirmation(episode, context.controller.signal)
+    await provider.restartPlayback(episode, context.controller.signal)
     assertCurrent(context, root)
     controller.setState('ready')
   } catch (error) {

@@ -307,6 +307,21 @@ const primeRuntime: ProviderRuntime = {
     })
   },
 
+  restartPlayback(_episode, signal): Promise<void> {
+    if (signal.aborted) return Promise.reject(new DOMException('The operation was aborted.', 'AbortError'))
+    // Prime resumes partially-watched episodes at server-side saved offsets.
+    // The player has no scriptable timeline (verified 2026-08-15); assigning
+    // currentTime = 0 on the playing episode video is the approved mechanism.
+    const episodeVideo = [...document.querySelectorAll<HTMLVideoElement>('video')].find((video) => (
+      (video.duration || 0) > 300 && video.readyState >= 3 && !video.paused
+    ))
+    if (episodeVideo === undefined || episodeVideo.currentTime <= 5) {
+      return Promise.resolve()
+    }
+    episodeVideo.currentTime = 0
+    return Promise.resolve()
+  },
+
   isInternalNavigation(url) {
     const detailId = getPrimeDetailId(url)
     return detailId !== null && knownDetailIds.has(detailId)

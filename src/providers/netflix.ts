@@ -186,7 +186,6 @@ const netflixRuntime: ProviderRuntime = {
     if (signal.aborted) {
       return Promise.reject(new DOMException('The operation was aborted.', 'AbortError'))
     }
-
     return new Promise((resolve, reject) => {
       const abort = (): void => {
         if (playbackWaiter?.episode === episode) {
@@ -205,6 +204,11 @@ const netflixRuntime: ProviderRuntime = {
 
   isInternalNavigation() {
     return false
+  },
+
+  restartPlayback(_episode, _signal) {
+    // Netflix restart is the /watch/-route seek-to-beginning flow.
+    return Promise.resolve()
   },
 
   getPendingPlayback() {

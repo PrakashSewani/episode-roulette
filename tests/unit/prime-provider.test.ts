@@ -168,4 +168,26 @@ describe('Prime provider', () => {
     controller.abort()
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
   })
+
+  it('restarts playback to the beginning by seeking the playing episode video', async () => {
+    const video = document.createElement('video')
+    Object.defineProperty(video, 'duration', { configurable: true, value: 3200 })
+    Object.defineProperty(video, 'readyState', { configurable: true, value: 4 })
+    Object.defineProperty(video, 'paused', { configurable: true, value: false })
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 243, writable: true })
+    document.body.append(video)
+    await primeRuntime.restartPlayback(episode(), new AbortController().signal)
+    expect(video.currentTime).toBe(0)
+  })
+
+  it('skips restart when the episode is already near the start', async () => {
+    const video = document.createElement('video')
+    Object.defineProperty(video, 'duration', { configurable: true, value: 3200 })
+    Object.defineProperty(video, 'readyState', { configurable: true, value: 4 })
+    Object.defineProperty(video, 'paused', { configurable: true, value: false })
+    Object.defineProperty(video, 'currentTime', { configurable: true, value: 2, writable: true })
+    document.body.append(video)
+    await primeRuntime.restartPlayback(episode(), new AbortController().signal)
+    expect(video.currentTime).toBe(2)
+  })
 })
