@@ -2,7 +2,7 @@
 
 ## Scope
 
-Phase 10 supports authenticated desktop Prime Video in India through `www.primevideo.com` with English UI. Safari Prime is deferred.
+Phase 10 supports authenticated desktop Prime Video in India through `www.primevideo.com` with English UI. Phase 10 is complete (2026-08-16). Safari Prime is deferred.
 
 ## Route identity
 

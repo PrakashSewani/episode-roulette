@@ -8,7 +8,7 @@ manifest.ts
 
 content.ts
   -> providers/index.ts
-  -> provider runtime
+  -> provider runtime (netflix.ts | prime-video.ts)
   -> button.ts / styles.ts / feedback.ts
   -> popup/popup.ts (via chrome.runtime.onMessage)
   -> season-traverser.ts
@@ -23,6 +23,14 @@ season-traverser.ts
 episode-collector.ts
   -> episode-identity.ts
 
+prime-video.ts
+  -> prime/routes.ts
+  -> prime/observer.ts
+  -> prime/selectors.ts
+  -> prime/discovery.ts
+  -> prime/identity.ts
+  -> prime/pending.ts
+
 navigator.ts
   -> season-controller.ts
   -> episode-identity.ts
@@ -31,18 +39,18 @@ shared modules
   -> types.ts
 ```
 
-The practical high-risk center is the triangle formed by `content.ts`, `season-controller.ts`, and `episode-identity.ts`: lifecycle correctness, Netflix interaction correctness, and durable/live identity correctness.
+The practical high-risk centers are the triangles formed by `content.ts`, `season-controller.ts`, and `episode-identity.ts` (Netflix lifecycle correctness) and by `content.ts`, `prime-video.ts`, and the `prime/*` modules (Prime lifecycle correctness, player confirmation, and seek-to-start).
 
 ## Runtime Modules
 
-### `src/providers/index.ts` and `src/providers/netflix.ts`
+### `src/providers/index.ts`, `src/providers/netflix.ts`, and `src/providers/prime-video.ts`
 
 Role:
 
-- Select a provider by exact host
-- Adapt provider-qualified contexts to the existing Netflix modules
-- Own provider observer lifecycle, placement, discovery, native playback, and playback confirmation delegation
-- Keep Prime absent from the registry until Phase 10
+- Select a provider by exact host (`netflix.com`/`www.netflix.com` → Netflix; `www.primevideo.com` → Prime)
+- Adapt provider-qualified contexts to the provider's own modules
+- Own provider observer lifecycle, placement, discovery, native playback, playback confirmation, and restart delegation
+- Both providers are registered and release-validated
 
 High-risk changes:
 
@@ -54,6 +62,7 @@ High-risk changes:
 Primary tests:
 
 - `tests/unit/providers.test.ts`
+- `tests/unit/prime-provider.test.ts`
 
 ### `src/manifest.ts`
 
@@ -61,7 +70,7 @@ Role:
 
 - Canonical Manifest V3 source
 - Reads product version from `package.json`
-- Declares Netflix-only host access and content-script matching
+- Declares the approved host allowlist (`*://*.netflix.com/*`, `*://www.primevideo.com/*`) and content-script matching
 - Registers `src/content.ts`
 
 Must not gain:
@@ -304,6 +313,81 @@ Primary tests:
 - `tests/unit/episode-identity.test.ts`
 - `tests/unit/episode-collector.test.ts`
 - `tests/unit/navigator.test.ts`
+
+## Prime Boundary
+
+### `src/prime/routes.ts`
+
+Role:
+
+- Prime URL identity: a `/detail/<opaque-id>` path identifies a title/season candidate
+- Detail-root resolution: unique connected visible `[data-testid="DVWebNode-detail-wrapper"]` containing `main[data-testid="detailpage-main"]`
+- Series confirmation from playable rows inside the root
+
+High-risk changes:
+
+- Treating referral query parameters as identity
+- Accepting ambiguous roots
+- Confirming a series from non-playable rows
+
+Primary tests:
+
+- `tests/unit/prime-provider.test.ts` and Prime fixture tests
+
+### `src/prime/selectors.ts`
+
+Role:
+
+- Sole implementation source for Prime selector strings
+- Ordered fallback data only
+
+It must not contain query logic, parsing, waits, or interactions. Prime selectors must never be added to `src/netflix/selectors.ts`.
+
+### `src/prime/discovery.ts`
+
+Role:
+
+- Complete eligible-catalog discovery through Prime season detail navigation
+- Wait for catalog replacement after season navigation
+- Exclude `COMING SOON`, unavailable, rental, purchase, and unapproved-channel rows
+- One scoped retry per failed season and atomic complete-or-fail
+
+Primary tests:
+
+- Prime fixture discovery tests
+
+### `src/prime/identity.ts`
+
+Role:
+
+- Parse Prime episode number/title from rows
+- Durable episode metadata without DOM references
+- Uniquely re-resolve the selected episode in live DOM
+
+### `src/prime/pending.ts`
+
+Role:
+
+- Short-lived pending-playback marker (opaque detail ID, episode number, normalized title, expiry)
+- Survives season navigation; resume-never-rerandomize
+- Cleared after confirmation, timeout, or detail mismatch; never a catalog/history record
+
+### `src/providers/prime-video.ts`
+
+Role:
+
+- Prime provider adapter: route identity, root resolution, series detection, observation, discovery, native playback, player confirmation, seek-to-start restart, placement, and pending-playback resume
+
+High-risk changes:
+
+- Confirming via a route predicate (Prime preserves the detail URL)
+- Not closing an open player before the episode-row click (trailer-preview bug)
+- Using the permanent loading overlay as a readiness signal
+- Reusing Netflix timeline selectors on Prime
+
+Primary tests:
+
+- `tests/unit/prime-provider.test.ts`
 
 ## Discovery Modules
 
@@ -558,5 +642,7 @@ Read `knowledge-transfer/build-testing-release.md` before changing any of these 
 | Restart from beginning | `tests/unit/restart.test.ts` |
 | Full orchestration | `tests/integration/content-lifecycle.test.ts` |
 | Real controller/traversal integration | `tests/integration/season-traversal.test.ts` |
+| Provider dispatch and cache isolation | `tests/unit/providers.test.ts` |
+| Prime provider (routes, discovery, playback, confirmation, restart) | `tests/unit/prime-provider.test.ts` |
 
 `tests/setup.ts` makes connected test elements visible by default because jsdom has no real layout boxes. Do not remove that behavior without accounting for production visibility checks.

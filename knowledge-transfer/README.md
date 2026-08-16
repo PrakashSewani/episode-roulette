@@ -15,16 +15,16 @@ If this folder disagrees with `docs/`, stop and resolve the discrepancy by updat
 
 ## Current Product
 
-Episode Roulette is a Manifest V3 WebExtension for desktop Netflix. It runs one shared TypeScript content-script implementation in Chrome and macOS Safari. It detects the active Netflix series details surface, injects a `Random Episode` button, discovers a complete episode catalog through Netflix's rendered UI, selects uniformly, and starts playback by clicking the uniquely re-resolved Netflix episode row.
+Episode Roulette is a Manifest V3 WebExtension for desktop Netflix and Prime Video (India). It runs one shared TypeScript content-script implementation in Chrome and Brave; macOS Safari wraps the same universal build, but Safari publishing is currently deferred by user decision (2026-08-16) until demand justifies its cost. It detects the active provider series details surface, injects a `Random Episode` button, discovers a complete eligible episode catalog through the provider's rendered UI, selects uniformly, and starts playback by clicking the uniquely re-resolved provider episode row.
 
 The product deliberately has:
 
 - No background page or service worker
-- No Netflix API interception
+- No provider API interception
 - No persisted catalog or playback history
 - No repeat prevention or weighting
-- No browser-specific Netflix runtime fork
-- Netflix-only host access in the current manifest
+- No browser-specific runtime fork
+- Exact approved host access in the current manifest (`*://*.netflix.com/*`, `*://www.primevideo.com/*`)
 
 Read `docs/project-todos.md` for live completion status. Do not infer release readiness from this overview.
 
@@ -67,7 +67,7 @@ Use `knowledge-transfer/new-agent-checklist.md` as the operational start and end
 | What selectors were observed live? | `docs/selectors-reference.md` |
 | How does current code realize the design? | This folder plus source inspection |
 | What commands produce release artifacts? | `package.json`, scripts, CI, and `docs/safari.md` |
-| Is Amazon Prime Video approved architecture? | Yes, for the documented India/English desktop Chrome/Brave scope; implementation is still incomplete. See `docs/architecture.md` and `docs/module-specs/` |
+| Is Amazon Prime Video approved architecture? | Yes, for the documented India/English desktop Chrome/Brave scope; implementation is complete and live-validated. See `docs/architecture.md` and `docs/module-specs/` |
 
 ## Update Rule
 

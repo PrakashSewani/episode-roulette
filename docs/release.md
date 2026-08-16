@@ -95,4 +95,4 @@ CHROME_EXTENSION_ID=... CHROME_CLIENT_ID=... CHROME_CLIENT_SECRET=... CHROME_REF
 
 Safari extension publishing requires an Apple Developer Program membership and is not automated in CI. The unsigned Safari wrapper build (`npm run safari:build`) produces a local Xcode project that must be opened, signed with your development team, archived, and submitted to the App Store via Xcode or `xcrun altool`.
 
-See `docs/safari.md` for the Safari packaging and signing workflow.
+**Safari publishing is deferred by user decision (2026-08-16)** until enough requests or donations justify its cost. Do not run Safari release gates for the current Chrome Web Store release. When Safari scope re-opens, follow `docs/safari.md` for the Safari packaging and signing workflow.

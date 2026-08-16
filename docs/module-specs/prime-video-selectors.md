@@ -27,8 +27,8 @@ Session-specific `blob:` media URLs and private profile attributes are never sel
 - Rows 1–3 exposed native `a[data-testid="episodes-playbutton"][role="button"]` controls with labels `Play S4 E1` through `Play S4 E3`.
 - Rows 4–8 exposed `COMING SOON` markers and no native episode play control.
 - The main play control is `a[data-testid="dp-atf-play-button"][role="button"]` inside `div.dv-dp-node-playback`. Phase 10 uses that provider-owned action container as the shared button placement anchor; the extension button is inserted after the main play action and does not invoke the main action.
-- Native episode playback opens the documented player root and matching metadata. Phase 10 confirmation requires the player root, matching metadata, and removal of `.atvwebplayersdk-loading-overlay[role="status"]`; the observed Brave session remained loading, so live completion remains a release gate.
+- Native episode playback opens the documented player root and matching metadata. Confirmation is implemented with the video-ready predicate: the player root plus matching `.atvwebplayersdk-episode-info` plus a long playing episode `<video>` (`readyState >= 3`, not ended, duration > 300 s). The permanent loading overlay never gates confirmation. Live-validated 2026-08-15 (full roll played `S4 E2 Cage Fight` at `readyState: 4`).
 
 ## Unknowns requiring validation
 
-Timeline/start-over controls, lazy-load controls, rental/channel markers, alternate Prime layouts, and live completion of the player-ready predicate remain validation gates. The Phase 10 implementation must fail closed when eligibility or player readiness cannot be established; it must not reuse Netflix timeline behavior.
+Lazy-load controls, rental/channel markers, and alternate Prime layouts remain open for future observation. The implemented discovery and player-readiness predicates are live-validated (2026-08-15) and fail closed when eligibility or player readiness cannot be established; the Prime implementation must not reuse Netflix timeline behavior.

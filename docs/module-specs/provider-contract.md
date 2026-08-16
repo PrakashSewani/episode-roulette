@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved for Phase 9/10 design. Prime implementation is not complete until its live validation criteria pass.
+Approved and implemented for Phases 9–11. The Netflix and Prime Video providers satisfy the contract and are release-validated (2026-08-16).
 
 ## Responsibilities
 

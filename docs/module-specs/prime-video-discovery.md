@@ -19,4 +19,4 @@ Prime discovery owns no cache. The orchestrator caches only the complete returne
 
 ## Validation gates
 
-The exact lazy-load/scroll behavior, timeout budgets, and eligibility markers must be verified in fixtures and authenticated Brave before implementation is considered complete.
+The lazy-load/scroll behavior, timeout budgets, and eligibility markers are verified in fixtures and authenticated Brave (2026-08-15 full four-season Reacher roll; user confirmed Netflix + Prime behavior in Brave 2026-08-16).

@@ -4,6 +4,10 @@
 
 Authenticated desktop Brave/Chromium, India region, English UI, normal non-Kids profile. Safari Prime is deferred.
 
+## Status
+
+Live-validated end-to-end (2026-08-15 full roll; user confirmed 2026-08-16 Netflix + Prime behavior in Brave). Checklist below is the regression checklist for future Prime changes.
+
 ## Checklist
 
 - Prime movie does not inject the button.

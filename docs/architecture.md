@@ -2,9 +2,9 @@
 
 ## System Overview
 
-Episode Roulette is a WebExtension for Chrome and macOS Safari that operates as a shared content script injected into supported provider pages. The current implementation remains Netflix-only; the approved next provider scope adds Prime Video on authenticated desktop Chrome in the India region with English UI. The orchestrator identifies the active provider/title context, confirms series from rendered episodic DOM, injects one shared UI button, discovers a complete eligible catalog through provider-native DOM interactions, and triggers random playback using provider-native controls.
+Episode Roulette is a WebExtension for Chrome and macOS Safari that operates as a shared content script injected into supported provider pages. The implementation supports Netflix and Prime Video (India, English UI) on desktop Chrome/Brave; Safari wraps the same universal build, but Safari publishing is currently deferred by user decision (2026-08-16) until demand justifies its cost. The orchestrator identifies the active provider/title context, confirms series from rendered episodic DOM, injects one shared UI button, discovers a complete eligible catalog through provider-native DOM interactions, and triggers random playback using provider-native controls.
 
-Prime Video is an approved planned provider, not yet implemented. Safari Prime support remains out of scope until the Chrome provider contract and live validation are complete.
+Prime Video is an implemented, live-validated provider. Safari Prime support remains out of scope until Safari scope is re-opened.
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -107,6 +107,13 @@ Prime Video is an approved planned provider, not yet implemented. Safari Prime s
 | Randomizer | `src/engine/randomizer.ts` | Uniform random selection | `types.ts` |
 | Navigator | `src/engine/navigator.ts` | Re-resolve durable metadata and trigger Netflix-native playback | `season-controller.ts`, `episode-identity.ts`, `selectors.ts`, `dom-utils.ts`, `types.ts` |
 | Restart | `src/engine/restart.ts` | After `/watch/`, scrub timeline to start (never `currentTime`) | `selectors.ts`, `dom-utils.ts` |
+| Prime Routes | `src/prime/routes.ts` | Prime URL identity and detail-root resolution | `dom-utils.ts`, `types.ts` |
+| Prime Observer | `src/prime/observer.ts` | Prime neutral route/DOM observation | None |
+| Prime Selectors | `src/prime/selectors.ts` | Sole implementation source for Prime selector strings | None |
+| Prime Discovery | `src/prime/discovery.ts` | Prime complete eligible-catalog discovery via season navigation | `prime/identity.ts`, `prime/selectors.ts`, `dom-utils.ts`, `types.ts` |
+| Prime Identity | `src/prime/identity.ts` | Prime durable episode parsing and live matching | `prime/selectors.ts`, `dom-utils.ts`, `types.ts` |
+| Prime Pending | `src/prime/pending.ts` | Short-lived pending-playback marker across navigation | `types.ts` |
+| Prime Provider | `src/providers/prime-video.ts` | Prime adapter: discovery, playback, confirmation, restart, placement | All `prime/*` modules |
 | Types | `src/types.ts` | Shared TypeScript interfaces | None |
 
 ---
@@ -367,7 +374,8 @@ src/
 ├── types.ts                 # Shared TypeScript interfaces
 ├── providers/
 │   ├── index.ts             # Exact-host provider registry
-│   └── netflix.ts           # Netflix provider adapter
+│   ├── netflix.ts           # Netflix provider adapter
+│   └── prime-video.ts       # Prime Video provider adapter
 ├── netflix/
 │   ├── observer.ts          # SPA navigation detection
 │   ├── detector.ts          # Title identity and scoped series detection
@@ -375,6 +383,13 @@ src/
 │   ├── dom-utils.ts         # Resilient DOM query helpers
 │   ├── season-controller.ts # Shared Netflix season interaction
 │   └── episode-identity.ts  # Shared episode identity parsing
+├── prime/
+│   ├── routes.ts            # Prime URL identity and detail-root resolution
+│   ├── observer.ts          # Prime neutral observation
+│   ├── selectors.ts         # Prime DOM selector configuration
+│   ├── discovery.ts         # Prime complete eligible-catalog discovery
+│   ├── identity.ts          # Prime durable episode identity
+│   └── pending.ts           # Pending-playback marker
 ├── discovery/
 │   ├── season-traverser.ts  # Season traversal and episode discovery
 │   └── episode-collector.ts # Episode element parsing
@@ -392,5 +407,5 @@ src/
     └── restart.ts           # Scrub-to-start after /watch/
 
 icons/                        # Dice logo PNGs (generated from dice.svg)
-safari/                      # macOS Safari Web Extension Xcode wrapper
+safari/                      # macOS Safari Web Extension Xcode wrapper (publishing deferred)
 ```

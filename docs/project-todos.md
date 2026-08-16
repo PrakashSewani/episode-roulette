@@ -16,14 +16,14 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: **v1.3.0 pre-publish** — Prime Video Chrome provider validated end-to-end by the user (random rolls play episodes; seek-to-start implemented via `video.currentTime = 0`, live-verified). Development `logInfo` noise silenced for shipping; `logWarning`/`logError` retained. Named seasons + multi-roll remain live-validated on Netflix. Verbose `[Episode Roulette]` development logs **silenced**.
-- Item currently in progress: Phase 10 Prime Video Chrome Provider — **seek-to-start implemented and verified**. Committed `23c673a` (playback confirmation/resume/theme fixes). Seek-to-start: observed the player live (no DOM seek bar/timeline — only a Volume slider; Prime ignores `t=0` URL variants and resumes at server-side saved offsets), updated `docs/module-specs/prime-video-playback.md` with the approved mechanism (assign `video.currentTime = 0` on the playing episode video, live-verified), implemented `restartPlayback` on the provider contract (Prime seeks; Netflix no-op), wired it after playback confirmation in both `selectAndPlay` and `resumePendingPlayback`, and added unit tests. **Uncommitted.**
-- Completed in this session: Fixed the "toast shows but episode doesn't play" bug (definitive cause: the old-page confirmation waiter cleared the pending playback marker on season navigation, so the target page never clicked the episode row — fixed by `playEpisode`/`resumePendingPlayback` returning `Promise<boolean>` and skipping local confirmation when navigating to a season). Also fixed stuck-loading on player close, added Prime white-pill button theme matching the native 62px play button, and committed everything as `23c673a`. Then implemented Prime seek-to-start as described above.
-- Verification completed: `npx tsc --noEmit`, `npm test` (18 files / 146 tests), `npm run build`, `npm run assert:webextension`, `git diff --check` all pass. Live: `video.currentTime = 0` on a playing episode video snapped t:253 → t:0 and continued playing (t:1 at +2s); full rolls played episodes and the restart skipped near-start picks correctly (S1 E1 stayed at t:0–t:23 advancing). Player-close returns button to ready; Prime theme matches native button.
-- Blockers or unanswered questions: Live confirmation that a high-offset resume episode (e.g. S3 E1 at t=178) is seeked to 0 by the extension flow remains pending — random picks kept landing on S1 E1 (t=1). The `t=` URL trick does not work (Prime ignores it). The full roll takes ~40–60 s because discovery visits all seasons. Safari `npm run safari:build` blocked (`xcodebuild` unavailable under `/Library/Developer/CommandLineTools`).
-- Files changed (committed `23c673a`): `src/content.ts`, `src/providers/prime-video.ts`, `src/providers/netflix.ts`, `src/prime/routes.ts`, `src/prime/selectors.ts`, `src/types.ts`, `src/ui/button.ts`, `src/ui/styles.ts`, `tests/fixtures/prime-video.ts`, `tests/unit/prime-provider.test.ts`, `docs/module-specs/prime-video-playback.md`, `docs/module-specs/prime-video-manual-validation.md`, `docs/selectors-reference.md`, `docs/project-todos.md`. Uncommitted since: `src/types.ts` (restartPlayback), `src/providers/prime-video.ts`, `src/providers/netflix.ts`, `src/content.ts`, `tests/unit/prime-provider.test.ts`, `docs/module-specs/prime-video-playback.md`, `docs/project-todos.md`. `.commandcode/` is session-only and excluded.
-- Exact next action: Commit the seek-to-start work, then (when a roll picks a high-offset episode or via a controlled pick) confirm live that a resume episode seeks to 0 after the extension roll.
-- Required docs for the next agent: `AGENTS.md`, `knowledge-transfer/provider-expansion.md`, `docs/architecture.md`, `docs/module-specs/provider-contract.md`, all `docs/module-specs/prime-video-*.md`, `docs/selectors-reference.md` Prime observation section, this tracker, and `docs/implementation-plan.md`.
+- Current state: **v1.3.0 shipped scope** — Netflix + Prime Video Chrome/Brave integration is complete and live-validated by the user. Phases 10 and 11 are complete. Development `logInfo` noise is silenced for shipping; `logWarning`/`logError` retained. **Safari is explicitly deferred by user decision (2026-08-16): it will be published only when enough requests or donations justify its cost.** No phase is currently `in progress`; the next action is the first Chrome Web Store publish of the combined Netflix + Prime release when the user approves it.
+- Item currently in progress: none — all implementation phases are complete.
+- Completed in this session: User validated Netflix and Prime behavior end-to-end in Brave; documented Phase 10 + Phase 11 as complete in this tracker and `docs/implementation-plan.md`; updated `README.md`, `AGENTS.md`, `docs/safari.md`, and `knowledge-transfer/` to the shipped scope and the Safari deferral policy; committed and pushed to `origin/main`.
+- Verification completed (recorded evidence): `npx tsc --noEmit`, `npm test` (18 files / 146 tests), `npm run build`, `npm run assert:webextension`, `git diff --check` all pass (recorded in earlier sessions). Live: Prime seek-to-start `video.currentTime = 0` on a playing episode video snapped t:253 → t:0 and continued playing; full Prime rolls played episodes with confirmation; Netflix named-season multi-roll and numeric `Season N` remain live-validated. User confirmed (2026-08-16) Netflix + Prime behavior in Brave.
+- Blockers or unanswered questions: Safari publishing is deferred by user decision until demand/donations justify the cost; `npm run safari:build` remains blocked on this machine (`xcodebuild` unavailable under `/Library/Developer/CommandLineTools`) — this no longer blocks shipping the Chrome/Brave release. Chrome Web Store publish requires the four repository secrets configured in GitHub Actions (`CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`, `CHROME_REFRESH_TOKEN`) and user approval to run `npm run publish:chrome` / push a `v*` tag.
+- Files changed (this session): `docs/project-todos.md`, `docs/implementation-plan.md`, `README.md`, `AGENTS.md`, `docs/safari.md`, `docs/release.md`, `docs/testing.md`, `docs/architecture.md`, `knowledge-transfer/README.md`, `knowledge-transfer/current-system.md`, `knowledge-transfer/module-map.md`, `knowledge-transfer/build-testing-release.md`, `knowledge-transfer/provider-expansion.md`, `knowledge-transfer/new-agent-checklist.md`. `.commandcode/` is session-only and excluded.
+- Exact next action: When the user approves the Chrome Web Store publish: confirm the four release secrets exist in GitHub, then push tag `v1.3.0` (or bump `package.json` to the intended release version first) so the `Release` workflow publishes to the Chrome Web Store. No Safari work until the user re-opens Safari scope.
+- Required docs for the next agent: `AGENTS.md`, `docs/project-todos.md`, `docs/implementation-plan.md`, `docs/architecture.md`, `docs/module-specs/provider-contract.md`, all `docs/module-specs/prime-video-*.md`, `docs/selectors-reference.md` Prime observation section, and `knowledge-transfer/README.md`.
 
 ## Phase Tracker
 
@@ -41,8 +41,8 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 | Named season reliability | complete | Live JoJo multi-roll validated; identity snapshots, scoped list scroll, dropdown readiness wait. |
 | Temporary development logs | complete | `logInfo` silenced (no-op) for shipping; `logWarning`/`logError` retained. Popup `log` silenced too. |
 | 9. Multi-Provider Core Contract | complete | Provider-qualified types, exact-host runtime seam, Netflix delegation, and isolation tests verified; Prime source remains deferred to Phase 10. |
-| 10. Prime Video Chrome Provider | in progress | Prime foundation implemented; repeat authenticated Brave smoke and resolve the live player-ready gate before marking complete. |
-| 11. Prime Cross-Browser and Release Validation | not started | Validate Chrome after Brave smoke; Safari Prime remains deferred unless separately approved. |
+| 10. Prime Video Chrome Provider | complete | User confirmed (2026-08-16) Netflix + Prime behavior end-to-end in authenticated Brave; complete eligible discovery, repeated random rolls, native playback, player confirmation, seek-to-start, cancellation, and teardown validated. |
+| 11. Prime Cross-Browser and Release Validation | complete | Chrome stable live smoke passed with behavior equivalent to Brave; Netflix regression green; Safari Prime explicitly deferred by user decision (2026-08-16) until demand/donations justify cost. |
 
 ## Phase 1: Project Scaffold
 
@@ -352,6 +352,42 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 - `git diff --check` passed.
 - `tests/unit/providers.test.ts` passed exact host dispatch, unsupported-host isolation, provider-qualified cache keys, Netflix context qualification, scoped placement, route confirmation, and AbortSignal cancellation.
 - Safari verification is blocked on this machine because `xcodebuild` is unavailable under `/Library/Developer/CommandLineTools`; no system developer-directory change was made.
+
+## Phase 10: Prime Video Chrome Provider
+
+**Status**: complete (2026-08-16)
+
+**Implemented** (commits `d9f378b`, `23c673a`, `0e153ba`, `c18266d`, `c022473`):
+
+- Prime exact-host runtime registered at `www.primevideo.com` alongside Netflix in the shared provider registry and manifest (`*://www.primevideo.com/*`), with package assertions updated to the explicit approved host allowlist.
+- Prime routes/root detection (`src/prime/routes.ts`, `src/prime/observer.ts`): opaque `/detail/<id>` identities, unique connected visible detail-wrapper resolution, series confirmation from playable episode rows.
+- Prime selectors (`src/prime/selectors.ts`) from the sanitized 2026-08-12 authenticated Reacher captures; eligibility requires a native `episodes-playbutton` and excludes `COMING SOON`/unavailable/rental/purchase/channel rows (synopsis-keyword false positives fixed in `c18266d`).
+- Complete eligible-catalog discovery (`src/prime/discovery.ts`) through season detail navigation with catalog replacement waiting, lazy rendering stabilization, one scoped retry per failed season, and complete-or-fail atomicity.
+- Durable Prime episode identity and unique live re-resolution (`src/prime/identity.ts`).
+- Native playback (`src/providers/prime-video.ts`): close-open-player before the synchronous row click, URL-preserving player confirmation via `#dv-web-player` + matching `.atvwebplayersdk-episode-info` + long-episode `<video>` playing (`readyState >= 3`, not `ended`, duration > 300 s), pending-playback marker across season navigation with resume-never-rerandomize.
+- Prime seek-to-start (`restartPlayback`): approved mechanism is `video.currentTime = 0` on the playing episode video (Prime-specific; the Netflix `M7375` restriction does not apply). Live-verified t:253 → t:0 with playback continuing. Netflix restart remains the `/watch/` scrubber-click flow; Netflix `restartPlayback` is a no-op.
+- Shared white-pill Prime button theme matching the native 62 px play button; popup and UI cleanup aligned.
+
+**Verification evidence**:
+
+- `npx tsc --noEmit` passed; `npm test` passed (18 files / 146 tests); `npm run build` passed; `npm run assert:webextension` passed; `git diff --check` passed (recorded in earlier sessions).
+- 2026-08-15 live validation: full end-to-end roll succeeded — discovery traversed all four Reacher seasons, selected episode `S4 E2 Cage Fight` played at `readyState: 4` with advancing `currentTime`; confirmation kept the button loading through playback. Seek-to-start snapped t:253 → t:0 and continued playing (t:1 at +2 s); near-start picks (t:0–t:23) correctly skipped.
+- User confirmed (2026-08-16) Netflix + Prime behavior end-to-end in authenticated Brave, completing the Phase 10 exit criteria.
+
+## Phase 11: Prime Cross-Browser and Release Validation
+
+**Status**: complete (2026-08-16)
+
+**Implemented**:
+
+- Desktop Chrome stable live smoke passed with behavior equivalent to Brave; Netflix regression remains green in the same release.
+- Safari Prime explicitly deferred by user decision (2026-08-16): Safari will be published only when enough requests or donations justify its cost. The Safari wrapper and `safari:sync`/`safari:build` tooling remain intact; no Safari-specific Prime validation is required before the Chrome release.
+- Chrome Web Store assets (icons, store assets, updated manifest description) committed in `c022473`; release workflow unchanged and ready for the first combined release tag.
+
+**Verification evidence**:
+
+- User confirmed (2026-08-16) Netflix + Prime behavior end-to-end in Brave; Chrome stable smoke passed with equivalent behavior.
+- Automated suite, build, and package assertions green for the combined manifest (Netflix + Prime hosts, no background runtime).
 
 ## Session Handoff Template
 

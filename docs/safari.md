@@ -2,7 +2,9 @@
 
 ## Scope
 
-Episode Roulette supports macOS Safari through Safari Web Extensions. Chrome and Safari share the same TypeScript content-script source and Netflix behavior. Prime Video is currently approved only for desktop Brave/Chromium in India; Safari Prime support is deferred until separate cross-browser evidence and approval.
+Episode Roulette supports macOS Safari through Safari Web Extensions. Chrome and Safari share the same TypeScript content-script source and Netflix behavior. Prime Video is currently approved only for desktop Brave/Chromium in India; Safari Prime support is deferred.
+
+**Safari publishing is deferred by user decision (2026-08-16)** until enough requests or donations justify its cost. The Safari wrapper and tooling remain intact and are maintained, but no Safari-specific validation or release is required for the Chrome Web Store release of the Netflix + Prime integration. Safari work resumes only when the user explicitly re-opens Safari scope.
 
 iOS and iPadOS Safari are outside first-release scope.
 
@@ -74,15 +76,14 @@ Authoritative ownership:
 
 ## Manifest and Permissions
 
-Safari consumes the same mirrored WebExtension manifest and content script as Chrome through the committed Xcode wrapper, subject only to Safari runtime support. Current required website access is limited to Netflix:
+Safari consumes the same mirrored WebExtension manifest and content script as Chrome through the committed Xcode wrapper, subject only to Safari runtime support. Current required website access is the approved allowlist:
 
 ```text
 *://*.netflix.com/*
+*://www.primevideo.com/*
 ```
 
-Prime host access is not yet present in the manifest. When Phase 10 changes it, the exact approved `www.primevideo.com` pattern must be mirrored and asserted; Safari Prime remains deferred for live validation.
-
-No background page or service worker is required. No native messaging, network interception, cookies permission, browsing-history permission, or broad website access is allowed.
+Safari Prime remains deferred for live validation; when Safari scope re-opens, the mirrored manifest already carries the Prime host. No background page or service worker is required. No native messaging, network interception, cookies permission, browsing-history permission, or broad website access is allowed.
 
 Safari users must explicitly enable the extension and grant Netflix website access through Safari Settings. The extension fails passively when permission has not been granted because its content script does not run.
 
@@ -142,6 +143,6 @@ xcodebuild \
   build
 ```
 
-Signed local execution and Netflix smoke testing remain manual release gates because signing teams and authenticated Netflix sessions are machine-specific.
+Signed local execution and Netflix smoke testing remain manual release gates because signing teams and authenticated Netflix sessions are machine-specific. **These Safari gates apply only when Safari is being shipped; Safari is currently deferred (2026-08-16), so they are not required for the Chrome Web Store release.**
 
 Automated authenticated Netflix E2E is not required. Unit and fixture integration tests validate shared behavior; live Safari testing validates packaging and current Netflix DOM compatibility.

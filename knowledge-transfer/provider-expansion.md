@@ -2,30 +2,30 @@
 
 ## Status
 
-This document remains a planning and migration guide. Prime Video architecture and Phase 10 scope are now approved in the authoritative `docs/` files, but Prime source implementation is not complete or release-ready.
+Prime Video is now **implemented and release-validated** (Phases 9–11 complete, 2026-08-16). This document remains the planning and migration guide for any future provider (for example expanding Prime beyond the India/English desktop scope, or adding a new provider).
 
-Approved initial scope: authenticated desktop Prime Video in India, English UI, Brave/Chromium validation. Safari Prime is deferred. Implementation must follow Phases 9–11 in `docs/implementation-plan.md` and the provider specs under `docs/module-specs/`.
+Approved initial scope (implemented): authenticated desktop Prime Video in India, English UI, Brave/Chromium validation. Safari Prime is deferred. Implementation followed Phases 9–11 in `docs/implementation-plan.md` and the provider specs under `docs/module-specs/`.
 
-The goal of this playbook is to prevent a future agent from either duplicating the whole application or prematurely rewriting working Netflix code into speculative abstractions.
+The goal of this playbook is to prevent a future agent from either duplicating the whole application or prematurely rewriting working Netflix/Prime code into speculative abstractions.
 
 ## Current Coupling Assessment
 
 The repository has useful separation of concerns, but it is not currently a provider framework.
 
-### Fully Netflix-Specific Today
+### Fully Provider-Specific Today
 
-- Manifest description, hosts, and content-script matches
-- Package assertions for allowed hosts
-- URL identity through `jbv` and `/title/<id>`
-- `/watch/` playback confirmation
-- Active details-root structure
-- All selectors
+- Manifest hosts, description, and content-script matches (Netflix + Prime allowlist)
+- Package assertions for the approved host allowlist
+- Netflix URL identity through `jbv` and `/title/<id>`; Prime through `/detail/<id>`
+- Netflix `/watch/` playback confirmation; Prime in-page player confirmation
+- Active details-root structure (Netflix title-details root; Prime `DVWebNode-detail-wrapper`)
+- All selectors (centralized per provider)
 - Series confirmation DOM
-- Season dropdown, label, action, count, expansion, and transition behavior
+- Season dropdown/label/action/count/expansion and transition behavior (Netflix); season detail navigation and catalog replacement (Prime)
 - Episode title/number extraction sources
-- Button placement beside Netflix Play
-- Native playback through a Netflix episode row
-- Netflix fixtures and manual checklists
+- Button placement beside Netflix Play / Prime main play action
+- Native playback through a provider episode row
+- Provider fixtures and manual checklists
 
 ### Genuinely Reusable Today
 
@@ -447,3 +447,5 @@ A provider is not complete until:
 8. Safari live validation passes when in scope.
 9. Netflix regression tests and live checks pass.
 10. CI, package assertions, tracker, and KT are updated.
+
+The current Netflix + Prime providers satisfy this definition; Safari remains out of scope by user decision (2026-08-16).

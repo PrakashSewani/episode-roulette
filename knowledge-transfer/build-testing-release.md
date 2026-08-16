@@ -19,20 +19,18 @@ Use the Node version declared by the repository. Do not solve engine failures by
 | `npm test` | Run all Vitest unit and fixture integration tests |
 | `npm run build` | Produce the universal WebExtension |
 | `npm run assert:webextension` | Validate the already-built WebExtension package |
-| `npm run safari:sync` | Rebuild and mirror resources into the Safari wrapper |
-| `npm run safari:build` | Synchronize resources and build the unsigned Xcode scheme |
-| `npm run assert:safari` | Validate synchronized and built Safari resources |
+| `npm run safari:sync` | Rebuild and mirror resources into the Safari wrapper (Safari publishing deferred) |
+| `npm run safari:build` | Synchronize resources and build the unsigned Xcode scheme (Safari publishing deferred) |
+| `npm run assert:safari` | Validate synchronized and built Safari resources (Safari publishing deferred) |
 | `npm run safari:init` | Guarded one-time wrapper bootstrap; not a normal command |
 
-Recommended full local release chain:
+Recommended full local release chain (Safari steps apply only when Safari is being shipped):
 
 ```bash
 npx tsc --noEmit && \
 npm test && \
 npm run build && \
 npm run assert:webextension && \
-npm run safari:build && \
-npm run assert:safari && \
 git diff --check
 ```
 
@@ -54,8 +52,8 @@ The package assertion verifies:
 
 - Manifest version 3
 - Version matches `package.json`
-- Netflix-only current host access
-- Netflix-only current content-script matching
+- Approved exact host allowlist access (`*://*.netflix.com/*`, `*://www.primevideo.com/*`)
+- Content scripts map to the same allowlist
 - No extension permissions
 - No optional host permissions
 - No background or service worker
@@ -64,9 +62,11 @@ The package assertion verifies:
 - Every declared script and resource exists
 - No nested WebExtension package
 
-When a future provider is approved, the assertion must move from a hardcoded Netflix pattern to an explicit approved host allowlist. It must not be weakened to accept arbitrary hosts.
+The assertion enforces the explicit approved host allowlist and must not be weakened to accept arbitrary hosts.
 
 ## Safari Packaging
+
+**Safari publishing is deferred by user decision (2026-08-16)** until enough requests or donations justify its cost. The wrapper and tooling remain intact; Safari steps in this section apply only when Safari is being shipped.
 
 ### Architecture
 
@@ -160,12 +160,12 @@ Package assertions are external release checks, not Vitest cases. They inspect g
 
 ### Manual Live Validation
 
-Automated tests cannot prove current Netflix DOM compatibility or authenticated playback. Manual validation remains required in current desktop Chrome and macOS Safari using a logged-in normal profile with English Netflix UI.
+Automated tests cannot prove current provider DOM compatibility or authenticated playback. Manual validation remains required in current desktop Chrome/Brave using a logged-in normal profile with English UI.
 
 Use:
 
-- `docs/testing.md` for Chrome
-- `docs/testing.md` and `docs/safari.md` for Safari
+- `docs/testing.md` for Chrome/Brave (Netflix + Prime)
+- `docs/testing.md` and `docs/safari.md` for Safari (only when Safari is being shipped)
 
 Do not mark manual checks complete without the user's reported result.
 
@@ -194,7 +194,7 @@ macOS Safari job:
 8. `npm run safari:build`
 9. `npm run assert:safari`
 
-The Safari job uses `github.run_number` as the positive native build number.
+The Safari job uses `github.run_number` as the positive native build number. The Safari job remains in CI but does not gate Chrome releases; when Safari publishing re-opens, the CI Safari job becomes a required gate again.
 
 Current CI does not independently run `npx tsc --noEmit`. Treat type checking as a required local verification until the authoritative plan is changed to add a CI typecheck gate.
 
@@ -206,12 +206,11 @@ The release-ready rule is:
 
 1. All documented unit and fixture tests pass.
 2. Universal build and package assertions pass.
-3. Unsigned Safari build and package assertions pass.
+3. Authenticated Chrome/Brave live checklist passes (Netflix + Prime).
 4. GitHub Actions jobs pass.
-5. Authenticated Chrome live checklist passes.
-6. Locally signed Safari live checklist passes.
-7. Failures and current selector evidence are recorded.
-8. The tracker is updated with actual evidence.
+5. Unsigned Safari build and package assertions pass, and a locally signed Safari live checklist passes — **required only when Safari is being shipped; Safari publishing is currently deferred (2026-08-16)**.
+6. Failures and current selector evidence are recorded.
+7. The tracker is updated with actual evidence.
 
 ## Pre-Commit Checklist
 

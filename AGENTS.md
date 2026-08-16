@@ -156,7 +156,7 @@ knowledge-transfer/
 | You stop before a phase is complete | Leave an exact Current Handoff in `docs/project-todos.md` |
 | You need to understand how current code realizes the specs | Read the relevant file in `knowledge-transfer/`, then inspect source and tests |
 | A change alters module topology or operational workflow | Update authoritative docs if needed, then update `knowledge-transfer/` |
-| You are asked to add Amazon Prime Video | Read `knowledge-transfer/provider-expansion.md`, then require approved normative docs and phase scope before coding |
+| You are asked to add another provider or expand Prime scope | Read `knowledge-transfer/provider-expansion.md`, then require approved normative docs and phase scope before coding |
 
 ---
 
@@ -195,7 +195,7 @@ Verbose pre-publish diagnostics are intentional until publish. Before shipping:
 
 ### 3. Product and docs consistency
 
-1. `README.md` season support and known limitations match live-validated behavior.
+1. `README.md` season support and known limitations match live-validated behavior (Netflix + Prime).
 2. Normative docs (`architecture.md`, module specs, `error-handling.md`, `selectors-reference.md`) do not still claim named seasons as an unsupported first-release limitation if that was fixed.
 3. `knowledge-transfer/` matches current lifecycle (named seasons, scoped list scroll, dropdown readiness wait, cache policy).
 4. Version in `package.json` matches the intended release; Safari marketing version sync is part of `safari:sync` when packaging.
@@ -208,23 +208,24 @@ Run and record outcomes:
 2. `npm test`
 3. `npm run build`
 4. `npm run assert:webextension`
-5. On macOS when shipping Safari: `npm run safari:sync`, `npm run safari:build`, and package assertions as documented in `docs/safari.md` / `knowledge-transfer/build-testing-release.md`
+5. On macOS **only when shipping Safari**: `npm run safari:sync`, `npm run safari:build`, and package assertions as documented in `docs/safari.md` / `knowledge-transfer/build-testing-release.md`. Safari publishing is currently deferred by user decision (2026-08-16); do not require Safari gates for Chrome releases.
 6. Confirm CI (GitHub Actions) is green for the commit being released when CI is in use
 
 ### 5. Manual smoke (do not invent results)
 
 Only claim what the user has confirmed or what was recorded in the tracker:
 
-1. Desktop Chrome: series detect → button → full discovery → random play → `/watch/` → restart-near-start when armed
-2. Cached re-roll after returning from `/watch/` without false season-control failure
+1. Desktop Chrome/Brave: series detect → button → full discovery → random play → provider playback confirmation → restart/seek-to-start when armed
+2. Cached re-roll after returning from playback without false season-control failure (Netflix after `/watch/`; Prime after in-page player close)
 3. Named-season multi-season series (e.g. JoJo) if claiming named-season support
 4. Numeric `Season N` series still works
-5. macOS Safari smoke when shipping Safari
-6. Kids profiles, non-English UI, and mobile remain out of scope unless newly validated
+5. Prime Video India (Brave/Chrome): movie exclusion, complete eligible discovery, repeated rolls, player confirmation, seek-to-start
+6. macOS Safari smoke **only when shipping Safari** (currently deferred)
+7. Kids profiles, non-English UI, and mobile remain out of scope unless newly validated
 
 ### 6. Packaging and store hygiene
 
-1. Manifest hosts remain Netflix-only; no background service worker unless an approved doc adds one
+1. Manifest hosts are the exact approved allowlist: `*://*.netflix.com/*` and `*://www.primevideo.com/*`; no background service worker unless an approved doc adds one
 2. Icons, popup, content script present in `dist/webextension/`
 3. No secrets, local signing files, or generated Safari resources committed
 4. Privacy policy / store listing / screenshots / permissions justification current if publishing to Chrome Web Store or Safari

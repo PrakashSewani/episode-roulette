@@ -120,6 +120,8 @@ Read:
 - `.github/workflows/ci.yml`
 - Relevant scripts
 
+Note: Safari publishing is deferred by user decision (2026-08-16); Safari work is in scope only when the user explicitly re-opens it.
+
 ### Amazon Prime Video or Another Provider
 
 Read:
@@ -129,7 +131,7 @@ Read:
 - Current manifest and package assertions
 - Current provider-specific source and fixtures
 
-Then stop and confirm that authoritative multi-provider docs and phase approval exist. The KT playbook is not implementation approval.
+Prime is implemented and live-validated; treat any new Prime work or new provider work as a new phase requiring authoritative docs and phase approval before coding. The KT playbook is not implementation approval.
 
 ## Before Coding
 
@@ -169,7 +171,7 @@ npm run build
 npm run assert:webextension
 ```
 
-On macOS for packaging-affecting work, also run:
+On macOS only for packaging-affecting Safari work (currently deferred), also run:
 
 ```bash
 npm run safari:build
@@ -192,7 +194,7 @@ Do not claim a command passed unless it actually ran successfully in the current
 4. Update this KT folder if architecture, topology, operations, or maintenance knowledge changed.
 5. Update `docs/project-todos.md` with exact verification evidence.
 6. Leave one exact next action when work remains.
-7. Keep manual Chrome/Safari checks pending unless the user reports results.
+7. Keep manual Chrome/Brave checks pending unless the user reports results.
 8. Commit or push only when explicitly requested.
 
 ## Fast Invariant Review
@@ -209,5 +211,5 @@ Before approving a change, ask:
 - Is selection still uniform, independent, and history-free?
 - Is playback uniquely re-resolved from live DOM?
 - Can ambiguity or stale work cause a wrong click?
-- Do Chrome and Safari still share one emitted runtime?
-- Are permissions still minimal and explicit?
+- Do Chrome and Safari still share one emitted runtime? (Safari publishing is deferred; the wrapper remains intact.)
+- Are permissions still minimal and explicit (approved Netflix + Prime allowlist)?

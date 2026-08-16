@@ -2,7 +2,7 @@
 
 ## System Shape
 
-Episode Roulette is a content-script-only browser extension. `src/manifest.ts` currently registers `src/content.ts` on Netflix pages; Phase 9 adds provider dispatch without duplicating the orchestrator, and Phase 10 adds Prime Video India desktop support. The Prime provider is approved but not yet implemented. Safari Prime remains deferred.
+Episode Roulette is a content-script-only browser extension. `src/manifest.ts` registers `src/content.ts` on Netflix and Prime Video pages. The provider registry dispatches by exact host, and each provider adapter owns its route identity, root resolution, series detection, observation, discovery, playback, confirmation, and restart. The shared orchestrator owns lifecycle, generation, cancellation, UI, cache, and randomization. Safari Prime is deferred; Safari publishing overall is deferred by user decision (2026-08-16) until demand justifies its cost.
 
 ```text
 Supported provider page
@@ -11,15 +11,17 @@ Supported provider page
      -> provider adapter reports neutral route/DOM changes
      -> detector.ts extracts identity and confirms episodic DOM
      -> button.ts and feedback.ts own extension UI
-     -> season-traverser.ts discovers a complete catalog
+     -> discovery (season-traverser.ts for Netflix; prime/discovery.ts for Prime)
         -> season-controller.ts interacts with Netflix seasons
         -> episode-collector.ts creates durable metadata
         -> episode-identity.ts parses row identity
+        -> prime/identity.ts parses Prime row identity
      -> randomizer.ts selects one episode
      -> navigator.ts re-resolves and clicks the current live row
+     -> provider restart: Netflix /watch/ scrubber; Prime video.currentTime = 0
 ```
 
-Chrome loads `dist/webextension/` directly. Safari wraps the byte-identical WebExtension output in the committed Xcode project under `safari/`.
+Chrome loads `dist/webextension/` directly. Safari wraps the byte-identical WebExtension output in the committed Xcode project under `safari/` (deferred publishing).
 
 ## Toolbar Popup
 
@@ -250,9 +252,11 @@ Ambiguity fails safely. There is no title-URL fallback.
 
 There must be no asynchronous boundary between the final context assertion and `.click()`.
 
-`content.ts`, not `navigator.ts`, confirms success by waiting for a route whose path begins `/watch/`. A five-second timeout becomes a retryable playback error.
+`content.ts`, not `navigator.ts`, confirms success by waiting for a route whose path begins `/watch/`. A five-second timeout becomes a retryable playback error. Prime instead confirms through the in-page player (`#dv-web-player`) with matching episode metadata and a long playing episode `<video>`; Prime preserves the detail URL and never uses a route predicate.
 
 After a successful episode-row click, `content.ts` arms a durable 15-second `pendingRestartUntil` flag. Netflix often removes the title root (aborting `playbackConfirmation`) before the `/watch/` route is reported, so restart must not depend on `playbackConfirmation` still being non-null. When `/watch/` arrives within the window, `content.ts` starts a separate `restart.ts` operation. Restart waits for settle, then performs **one** simulated scrubber click at the start of the player timeline. It must **never** assign `video.currentTime` (live M7375). The restart has its own abort signal because the title `OperationContext` is already invalidated by then. The operation is best-effort and silent.
+
+**Prime restart is a different mechanism**: after confirmation, the Prime provider assigns `video.currentTime = 0` on the playing episode `<video>` (duration > 300 s, `readyState >= 3`, not paused). This is Prime-specific and live-verified; the Netflix `M7375` restriction does not apply to Prime. Never reuse Netflix timeline selectors on Prime.
 
 ## State Ownership
 
@@ -331,8 +335,8 @@ User-visible message wording is authoritative in `docs/error-handling.md`.
 ## Non-Negotiable Invariants
 
 1. Route identity never proves a series.
-2. All Netflix selector strings remain centralized.
-3. Generic DOM utilities remain Netflix-agnostic.
+2. All Netflix selector strings remain centralized; Prime selectors are centralized in `src/prime/selectors.ts`.
+3. Generic DOM utilities remain provider-agnostic.
 4. Root, menu, Play, season, and episode queries remain scoped.
 5. Discovery starts only after user intent.
 6. Randomization requires a complete catalog.
@@ -344,7 +348,7 @@ User-visible message wording is authoritative in `docs/error-handling.md`.
 12. The final native click is synchronous after the last guard.
 13. Cache ownership remains in the orchestrator.
 14. Selection remains uniform and history-free.
-15. Chrome and Safari consume one shared runtime and manifest output.
+15. Chrome and Safari consume one shared runtime and manifest output; Safari publishing is deferred (2026-08-16).
 16. No background runtime is added without a documented responsibility.
-17. Restart-from-beginning is a silent best-effort scrubber click after `/watch/`; never assign `video.currentTime` (M7375).
+17. Netflix restart-from-beginning is a silent best-effort scrubber click after `/watch/`; never assign `video.currentTime` (M7375). Prime restart assigns `video.currentTime = 0` on the playing episode video (Prime-specific, live-verified).
 18. Restart intent is armed at successful row click (`pendingRestartUntil`) and must survive title-root abort before `/watch/`.

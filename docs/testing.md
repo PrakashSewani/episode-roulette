@@ -332,7 +332,7 @@ When a test fails, document:
 
 ## Prime Video Validation Scope
 
-The approved initial Prime environment is authenticated desktop Brave/Chromium in India with English UI. Brave is the user validation browser; the first implementation must use standard WebExtension APIs and remain portable to Chrome. macOS Safari Prime support is deferred.
+The approved initial Prime environment is authenticated desktop Brave/Chromium in India with English UI. Brave is the user validation browser; the implementation uses standard WebExtension APIs and remains portable to Chrome. macOS Safari Prime support is deferred. Prime is live-validated end-to-end (2026-08-16).
 
 Automated Prime fixtures must be provider-specific and based on the captured Reacher structure:
 
@@ -361,7 +361,7 @@ Prime manual smoke must verify:
 - URL-preserving player overlay confirmation;
 - cancellation, detail-root replacement, and teardown.
 
-Prime restart-from-beginning is explicitly out of scope until native controls are observed and documented. Prime support is not complete until the Chrome/Brave live smoke passes and the full Netflix regression suite remains green.
+Prime restart-from-beginning is implemented and approved for Prime (see `docs/module-specs/prime-video-playback.md`); the Netflix scrubber restart and the Prime `video.currentTime = 0` restart are separate mechanisms. Prime support is complete: the Chrome/Brave live smoke has passed and the full Netflix regression suite remains green (2026-08-16).
 
 ---
 
@@ -391,8 +391,8 @@ Release readiness requires:
 - Production build succeeds
 - Chrome loads the universal manifest/build without browser-specific rewriting
 - `safari/Extension/Resources/` has identical relative regular-file paths and bytes to `dist/webextension/`, with no extra files and no nested `webextension/` directory
-- Safari Xcode wrapper builds unsigned on macOS CI
-- Manual Netflix smoke checklist passes on latest desktop Chrome and a locally signed macOS Safari build using logged-in normal profiles
+- Safari Xcode wrapper builds unsigned on macOS CI (**required only when Safari is being shipped; Safari is currently deferred (2026-08-16)**)
+- Manual Netflix smoke checklist passes on latest desktop Chrome and a locally signed macOS Safari build using logged-in normal profiles (**Safari portion required only when Safari is shipped**)
 
 Live Netflix credentials and sessions must never be stored in the repository or CI.
 

@@ -215,7 +215,7 @@ Immediately after a guarded random selection, show a polite five-second status t
 - Prime cards marked `COMING SOON`, unavailable, rental-only, purchase-only, or requiring an unapproved channel are excluded from the eligible catalog. If eligibility cannot be determined, discovery fails atomically rather than randomizing an uncertain card.
 - Selecting a Prime season must resolve the requested season detail identity and wait for its episode catalog to replace the prior catalog. URL changes alone do not prove that the catalog is ready.
 - Prime playback confirmation must not rely on URL changes. The provider waits for `#dv-web-player` / `div[aria-label="Web Player"]`, matching episode metadata, and a completed loading state. If the live predicate cannot be established before the provider timeout, playback fails retryably without caching session media data.
-- Prime restart behavior is not implemented or promised until a native start-over/timeline interaction is observed and documented. The Netflix timeline implementation must not be reused by assumption.
+- Prime restart behavior is implemented and approved: assign `video.currentTime = 0` on the playing episode `<video>` (duration > 300 s, `readyState >= 3`, not paused) after playback confirmation. Live-verified 2026-08-15. The Netflix timeline implementation must never be reused on Prime, and the Netflix `M7375` restriction does not apply to Prime.
 
 ## Error Recovery
 

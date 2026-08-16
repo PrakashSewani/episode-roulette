@@ -225,6 +225,8 @@ No background service worker is registered in Chrome or Safari. All core behavio
 
 ## Phase 10: Prime Video Chrome Provider
 
+**Status**: complete (2026-08-16)
+
 **Goal**: Add random episode selection for authenticated Prime Video India desktop Brave/Chromium with English UI.
 
 **Modules/specs**:
@@ -241,23 +243,26 @@ No background service worker is registered in Chrome or Safari. All core behavio
 - Only rows with a native `episodes-playbutton` and no unavailable/`COMING SOON` marker are eligible.
 - Discovery is complete-or-fail and never randomizes partial data.
 - Playback waits for the matching `#dv-web-player` / `div[aria-label="Web Player"]` overlay and completed loading state; URL changes are not confirmation.
-- Prime restart-from-beginning is excluded until separately observed and approved.
+- Prime restart-from-beginning is excluded until separately observed and approved. **Update**: Prime restart was later observed and approved separately; the approved mechanism is `video.currentTime = 0` on the playing episode video, live-verified 2026-08-15. Netflix `M7375` does not apply to Prime. See `docs/module-specs/prime-video-playback.md`.
 
-**Exit criteria**: Prime fixtures pass; manifest/package assertions pass; authenticated India/English live Brave smoke confirms movie exclusion, complete eligible discovery across supported seasons, repeated random rolls, safe native playback, player confirmation, cancellation, and teardown; the full Netflix suite remains green. Chrome stable validation follows the Brave smoke before release.
+**Exit criteria**: Prime fixtures pass; manifest/package assertions pass; authenticated India/English live Brave smoke confirms movie exclusion, complete eligible discovery across supported seasons, repeated random rolls, safe native playback, player confirmation, cancellation, and teardown; the full Netflix suite remains green. Chrome stable validation follows the Brave smoke before release. **All exit criteria verified** (2026-08-16).
 
 ---
 
 ## Phase 11: Prime Cross-Browser and Release Validation
 
+**Status**: complete (2026-08-16)
+
 **Goal**: Validate Prime in Chrome and decide whether to expand Safari scope.
 
-**Exit criteria**: Current desktop Chrome live smoke passes with behavior equivalent to Brave, Netflix regressions remain green, and Safari Prime is either separately validated against new approved evidence or remains explicitly deferred.
+**Exit criteria**: Current desktop Chrome live smoke passes with behavior equivalent to Brave, Netflix regressions remain green, and Safari Prime is either separately validated against new approved evidence or remains explicitly deferred. **All exit criteria verified** (2026-08-16): Chrome stable smoke passed with behavior equivalent to Brave; Netflix regression green; Safari Prime remains explicitly deferred by user decision (2026-08-16) until enough requests or donations justify its cost.
 
 ---
 
 ## Notes
 
-- **Do not implement stretch goals** (Prime restart, exclude-season controls, repeat prevention, keyboard shortcuts, or weighting) until core Prime support is complete and approved.
+- **Stretch goals** (exclude-season controls, repeat prevention, keyboard shortcuts, or weighting) remain out of scope unless separately approved. **Prime restart-from-beginning is implemented and approved** (see `docs/module-specs/prime-video-playback.md`); it is no longer a stretch goal.
 - **Approved dependencies/tools**: runtime/build dependencies listed in Phase 1, `vitest` and `jsdom` as development-only test dependencies, and Apple Xcode plus `safari-web-extension-converter` for Safari packaging.
 - **Do not change architecture** without updating `docs/architecture.md` first.
-- Prime phases are ordered after the completed Netflix phases and the temporary development-log ship gate may remain open only under the documented sequencing approval; Netflix regression remains mandatory.
+- Prime phases are ordered after the completed Netflix phases; all implementation phases (1–11) are now complete. Netflix regression remains mandatory for any future change.
+- **Safari publishing is deferred by user decision (2026-08-16)** until enough requests or donations justify its cost. The Safari wrapper and `safari:sync`/`safari:build`/`safari:init` tooling remain intact and may be resumed when the user re-opens Safari scope; no Safari work is required for the Chrome Web Store release.
