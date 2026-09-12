@@ -2,7 +2,7 @@
 
 Last updated: 12 September 2026
 
-Episode Roulette is a browser extension for desktop Chrome and Brave that adds a **Random Episode** button to TV series pages on Netflix and Prime Video. It does not collect, store, transmit, or share any personal data.
+Episode Roulette is a browser extension for Chromium-based desktop browsers that adds a **Random Episode** button to TV series pages on Netflix and Prime Video. It does not collect, store, transmit, or share any personal data.
 
 ## What the extension accesses
 
