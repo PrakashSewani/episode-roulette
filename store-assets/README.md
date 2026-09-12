@@ -2,14 +2,20 @@
 
 Ready-to-upload assets for the Chrome Web Store listing.
 
-## Screenshots (1280×720 or 1920×1080 recommended)
+## Screenshots (required: exactly 1280×800 or 640×400, JPEG or 24-bit PNG with no alpha)
+
+Upload these two files. The Chrome Web Store dashboard rejects other dimensions, including 1920×1080.
 
 | File | Size | Content |
 |---|---|---|
-| `screenshot-prime-1920x1080.png` | 1920×1080 | Prime Video — Smallville series detail with the white **Random Episode** button beside the native Play button |
-| `screenshot-netflix-1920x1080.png` | 1920×1080 | Netflix — JoJo's Bizarre Adventure detail modal with the **Random Episode** button beside the native buttons |
+| `screenshot-prime-1280x800.jpg` | 1280×800 JPEG | Prime Video — Smallville series detail with the white **Random Episode** button beside the native Play button |
+| `screenshot-netflix-1280x800.jpg` | 1280×800 JPEG | Netflix — JoJo's Bizarre Adventure detail modal with the **Random Episode** button beside the native buttons |
+
+The 1920×1080 PNGs are the original lossless captures and are kept as masters only. To regenerate an upload file from a master: scale it to 1280×720, then centre it on a 1280×800 canvas whose background is a 48 px-blurred 1280×800 cover-crop of the same capture, and export as JPEG (quality 92, no alpha). The blurred backdrop blends the 16:9 content into the 16:10 canvas; cropping the sides instead is not acceptable because the **Random Episode** button sits near the left edge.
 
 ## Promo tiles
+
+All three are already the exact required canvas size and are 24-bit PNG without alpha, so they upload as-is.
 
 | File | Size | CWS requirement |
 |---|---|---|
