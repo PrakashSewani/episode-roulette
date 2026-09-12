@@ -39,15 +39,20 @@ Add these four secrets in **Settings → Secrets and variables → Actions → R
 #### 2. `CHROME_CLIENT_ID` and `CHROME_CLIENT_SECRET`
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
-2. Create or select a project.
+2. Create or select a project. Confirm the project selector in the top bar shows that project before continuing.
 3. Enable the **Chrome Web Store API**:
    - Navigate to **APIs & Services → Library**.
    - Search for "Chrome Web Store API" and click **Enable**.
-4. Create OAuth credentials:
+4. Configure the OAuth consent screen (required before an OAuth client can be created):
+   - Navigate to **APIs & Services → OAuth consent screen**.
+   - Choose **External**, then fill in the app name, user support email, and developer contact email.
+   - Under **Test users**, add the Google account that owns the Chrome Web Store item.
+   - See the testing-mode caveat under `CHROME_REFRESH_TOKEN` below.
+5. Create OAuth credentials:
    - Navigate to **APIs & Services → Credentials**.
    - Click **Create Credentials → OAuth client ID**.
    - Select **Web application** as the application type.
-   - Add `https://developers.google.com/oauthplayground` to **Authorized redirect URIs**.
+   - Add `https://developers.google.com/oauthplayground` to **Authorized redirect URIs**. This exact value is required; the scope error described below is unrelated to it, but a missing redirect URI blocks the authorize step outright.
    - Click **Create**.
    - Copy the **Client ID** and **Client Secret** shown in the dialog.
 
@@ -55,13 +60,20 @@ Add these four secrets in **Settings → Secrets and variables → Actions → R
 
 1. Go to the [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/).
 2. Click the gear icon (top right) and check **Use your own OAuth credentials**.
-3. Enter your `CHROME_CLIENT_ID` and `CHROME_CLIENT_SECRET`.
-4. In the **Scopes** field on the left, enter: `https://www.googleapis.com/auth/chromewebstore`
-5. Click **Authorize APIs** and consent with the Google account that owns the Chrome Web Store item.
-6. After authorization, click **Exchange authorization code for tokens**.
-7. Copy the **Refresh token** value.
+3. Set **Access type** to **Offline**. Without this the playground does not return a refresh token.
+4. Enter your `CHROME_CLIENT_ID` and `CHROME_CLIENT_SECRET`, then close the dialog.
+5. In **Step 1**, scroll past the API list to **Input your own scopes** and enter exactly:
+   `https://www.googleapis.com/auth/chromewebstore`
+   Do not select an API from the list instead. A near-miss scope string fails with "your input OAuth2 scope name is invalid or it refers to a newer scope that is outside the domain of this legacy API".
+6. Click **Authorize APIs** and consent with the Google account that owns the Chrome Web Store item. An "unverified app" warning is expected for a self-owned client; continue past it.
+7. In **Step 2**, click **Exchange authorization code for tokens**.
+8. Copy the **Refresh token** value.
 
-The refresh token does not expire. Store it as the `CHROME_REFRESH_TOKEN` secret.
+Testing-mode caveat: an OAuth consent screen left in **Testing** status issues refresh tokens that Google expires after roughly seven days, which shows up later as the `Release` workflow failing on the token exchange. Either publish the consent screen to **In production** (Google may require verification for this scope) or expect to regenerate the refresh token periodically.
+
+Treat `CHROME_CLIENT_SECRET` and `CHROME_REFRESH_TOKEN` as secrets. Set them through the GitHub repository settings UI, or with `gh secret set`, which prompts for the value instead of taking it on the command line.
+
+A refresh token from a consent screen in production status does not expire. Store it as the `CHROME_REFRESH_TOKEN` secret.
 
 ### Release Workflow
 
