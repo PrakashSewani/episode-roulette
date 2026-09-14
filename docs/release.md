@@ -101,8 +101,12 @@ The `publish-chrome.mjs` script:
 - Validates all four secrets are present.
 - Zips `dist/webextension/` into `episode-roulette-v<version>.zip`.
 - Exchanges the refresh token for an access token via the Google OAuth2 API.
-- Uploads the zip to the Chrome Web Store Upload API.
-- Publishes the uploaded package to the `trusted` channel.
+- Uploads the zip to the Chrome Web Store Upload API, and fails if the returned `uploadState` is not `SUCCESS`.
+- Publishes the uploaded package to the public target using the required URL parameter, `?publishTarget=default`. The v1.1 API is case-sensitive and only accepts `default` or `trustedTesters`; an invalid value or a JSON body returns `400 Invalid Value`.
+
+The publish step submits the new version for store review. Watch the workflow run, then confirm the version in the developer dashboard.
+
+**API deprecation**: the Chrome Web Store API v1.1 is supported only until 15 October 2026. Before that date, migrate `publish-chrome.mjs` to the v2 API (`chromewebstore.googleapis.com/v2/publishers/{publisherId}/items/{itemId}` with `publishType`), which also supports service accounts.
 
 ### Manual Publish
 

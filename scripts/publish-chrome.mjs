@@ -59,23 +59,28 @@ async function uploadPackage(token, zipPath) {
   }
   const data = await response.json()
   console.log('Upload response:', data)
+  if (data.uploadState !== 'SUCCESS') {
+    throw new Error(`Upload finished with state ${data.uploadState}: ${JSON.stringify(data.itemError ?? [])}`)
+  }
   return data
 }
 
 async function publishPackage(token) {
-  const response = await fetch(`https://www.googleapis.com/chromewebstore/v1.1/items/${extensionId}/publish`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  const response = await fetch(
+    `https://www.googleapis.com/chromewebstore/v1.1/items/${extensionId}/publish?publishTarget=default`,
+    {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
     },
-    body: JSON.stringify({ target: 'trusted' }),
-  })
+  )
   if (!response.ok) {
     throw new Error(`Publish failed: ${response.status} ${await response.text()}`)
   }
   const data = await response.json()
   console.log('Publish response:', data)
+  if (Array.isArray(data.status) && data.status.some((status) => status !== 'OK')) {
+    throw new Error(`Publish reported: ${data.status.join(', ')}`)
+  }
   return data
 }
 
