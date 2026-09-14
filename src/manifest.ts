@@ -8,6 +8,10 @@ export default defineManifest({
   description: 'Play a random episode from any season of a Netflix or Prime Video series.',
   version: packageJson.version,
   host_permissions: ['*://*.netflix.com/*', '*://www.primevideo.com/*'],
+  background: {
+    service_worker: 'src/background.ts',
+    type: 'module',
+  },
   content_scripts: [
     {
       matches: ['*://*.netflix.com/*', '*://www.primevideo.com/*'],

@@ -1,6 +1,6 @@
 # Episode Roulette — Privacy Policy
 
-Last updated: 12 September 2026
+Last updated: 14 September 2026
 
 Episode Roulette is a browser extension for Chromium-based desktop browsers that adds a **Random Episode** button to TV series pages on Netflix and Prime Video. It does not collect, store, transmit, or share any personal data.
 
@@ -8,7 +8,7 @@ Episode Roulette is a browser extension for Chromium-based desktop browsers that
 
 On a supported series page, the extension reads the season and episode information the site has already rendered in your browser — season names, episode names, and episode numbers — so it can choose one episode at random. That reading happens locally within the page and is never sent anywhere.
 
-The extension requests access to exactly two hosts, `*://*.netflix.com/*` and `*://www.primevideo.com/*`, and no other browser permissions. There is no storage permission, no cookies access, no browsing history, no bookmarks, no downloads, and no background service worker.
+The extension requests access to exactly two hosts, `*://*.netflix.com/*` and `*://www.primevideo.com/*`, and no other browser permissions. There is no storage permission, no cookies access, no browsing history, no bookmarks, and no downloads.
 
 ## What it does not do
 
@@ -18,6 +18,15 @@ The extension requests access to exactly two hosts, `*://*.netflix.com/*` and `*
 - **No watch history.** It does not record what you watch, what it selects, or what you browse.
 - **No third parties.** No third-party code, SDK, analytics, or service is embedded.
 - **No selling or sharing of data**, because no data is collected in the first place.
+
+## Install and uninstall links
+
+The extension ships one small background component whose only job is to register two links with the browser:
+
+- On install, it opens the welcome page at <https://episode-roulette.prakashsewani.com/thanks> once, in a new tab.
+- On uninstall, Chrome opens a short exit survey at <https://episode-roulette.prakashsewani.com/uninstalled>.
+
+Both pages are optional to visit, and neither receives any data from the extension. The exit survey asks why you removed the extension, and any answers you choose to submit are stored by that website. Nothing the extension read from Netflix or Prime Video is ever attached to them. That background component cannot read page content, cannot access browser storage, and makes no network requests of its own.
 
 ## Local, temporary state
 

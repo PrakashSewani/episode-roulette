@@ -6,10 +6,16 @@ const chromeMock = {
       addListener: vi.fn() as unknown as typeof chrome.runtime.onMessage.addListener,
       removeListener: vi.fn() as unknown as typeof chrome.runtime.onMessage.removeListener,
     },
+    onInstalled: {
+      addListener: vi.fn() as unknown as typeof chrome.runtime.onInstalled.addListener,
+      removeListener: vi.fn() as unknown as typeof chrome.runtime.onInstalled.removeListener,
+    },
+    setUninstallURL: vi.fn() as unknown as typeof chrome.runtime.setUninstallURL,
   },
   tabs: {
     query: vi.fn() as unknown as typeof chrome.tabs.query,
     sendMessage: vi.fn() as unknown as typeof chrome.tabs.sendMessage,
+    create: vi.fn() as unknown as typeof chrome.tabs.create,
   },
 }
 

@@ -73,7 +73,7 @@ Document:
 - Cross-domain navigation during detail and playback flows
 - Why every host is necessary
 
-Avoid `<all_urls>`, broad retail-domain access, optional hosts, cookies, web request, history, native messaging, and a background runtime unless separately justified.
+Avoid `<all_urls>`, broad retail-domain access, optional hosts, cookies, web request, history, native messaging, and any background runtime beyond the approved onboarding worker, unless separately justified.
 
 ### Content-Script Topology
 
@@ -307,7 +307,7 @@ After host approval:
 1. Add exact provider hosts to `src/manifest.ts`.
 2. Replace the Netflix-only assertion with an explicit approved host allowlist.
 3. Assert content scripts map to the correct hosts.
-4. Preserve no-background and no-permission contracts.
+4. Preserve the approved zero-permission manifest and the single onboarding background worker.
 5. Verify Chrome and Safari consume the same manifest.
 
 ### Stage 9: Cross-Provider Validation
@@ -397,7 +397,7 @@ Based on observed layouts:
 - No broad wildcard access
 - Correct content-script mapping
 - No new extension permissions
-- No background runtime
+- No background runtime beyond the approved onboarding worker
 - Chrome/Safari manifest equality
 - No duplicated provider source in the Safari wrapper
 

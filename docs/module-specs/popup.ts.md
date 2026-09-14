@@ -40,7 +40,7 @@ The popup has no exported runtime API. It is an HTML entry point loaded by the b
 
 ## Messaging
 
-The popup communicates with the content script through the standard `chrome.tabs.sendMessage` API. No service worker is required.
+The popup communicates with the content script through the standard `chrome.tabs.sendMessage` API. No service worker is involved in this path; the only background runtime serves the onboarding redirects (`docs/module-specs/background.ts.md`).
 
 ### `getStatus`
 

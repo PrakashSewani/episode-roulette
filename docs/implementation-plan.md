@@ -36,6 +36,8 @@ This document defines the implementation phases for Episode Roulette. Work must 
 
 No background service worker is registered in Chrome or Safari. All core behavior runs in the shared Netflix content script. A background runtime may be added only after a concrete browser-level or cross-tab responsibility is documented and approved.
 
+**Superseded for onboarding only (2026-09-14)**: Phase 12 adds a single background service worker whose only responsibility is the install and uninstall onboarding redirects. See `docs/module-specs/background.ts.md`.
+
 **Exit criteria**: `npm run build` emits the documented universal Chrome-compatible WebExtension contract, `npm run safari:sync` produces an exact byte-for-byte resource mirror and synchronized marketing versions, and `npm run safari:build` builds the committed Xcode wrapper. A failed sync leaves either the prior verified resource directory or no generated directory, never a partially copied destination. Tests verify generated resources are ignored/untracked and present at the extension bundle root. Manual Chrome loading is deferred to Phase 7 so shared feature implementation can proceed against the verified Safari development environment without creating browser-specific product code.
 
 ---
@@ -182,7 +184,7 @@ No background service worker is registered in Chrome or Safari. All core behavio
 **Deliverables**:
 - Load `dist/webextension/` as an unpacked extension in current stable desktop Chrome
 - Confirm the emitted Manifest V3 extension installs without browser-specific rewriting
-- Confirm Netflix-only host access and no background service worker
+- Confirm Netflix-only host access and no background service worker (historical; superseded for onboarding only by Phase 12)
 - Run the completed shared feature flow on live Netflix in a logged-in normal profile
 - Validate route detection, series classification, UI injection, complete discovery, random playback, cancellation, cache behavior, and retryable errors
 - Record any Chrome-specific incompatibility before introducing a browser adapter or runtime branch
@@ -259,10 +261,29 @@ No background service worker is registered in Chrome or Safari. All core behavio
 
 ---
 
+## Phase 12: Install and Uninstall Onboarding Hooks
+
+**Status**: complete (2026-09-14)
+
+**Goal**: Send new users to a welcome page on install and offer a short exit survey on uninstall, without adding product logic to a background runtime.
+
+**Deliverables**:
+- `src/background.ts` as the only background runtime, registering `chrome.runtime.setUninstallURL` and handling `chrome.runtime.onInstalled`
+- Install redirect to `https://episode-roulette.prakashsewani.com/thanks`, uninstall redirect to `https://episode-roulette.prakashsewani.com/uninstalled`
+- No new extension permissions: `chrome.tabs.create` and `setUninstallURL` are both permission-free
+- Feature detection for browsers without `setUninstallURL` (Safari) and non-fatal warning logging for either hook
+- `scripts/assert-packaging.mjs` updated to require exactly the approved background declaration while keeping the zero-permission assertion
+- Unit tests simulating the install and update events, the uninstall URL registration, the Safari path, and a rejected tab creation
+- Both destinations hosted by the `episode-roulette-website` repository, whose SPA fallback and assets binding were repaired so the redirect targets load directly
+
+**Exit criteria**: the emitted manifest declares exactly one background service worker and zero permissions; package assertions pass in both WebExtension and Safari modes; the install tab opens once on a fresh install; the uninstall URL is registered at worker startup and after install; onboarding failures never affect product behavior. **All exit criteria verified** (2026-09-14) except the live uninstall redirect, which only fires after a real uninstall of the published build.
+
+---
+
 ## Notes
 
 - **Stretch goals** (exclude-season controls, repeat prevention, keyboard shortcuts, or weighting) remain out of scope unless separately approved. **Prime restart-from-beginning is implemented and approved** (see `docs/module-specs/prime-video-playback.md`); it is no longer a stretch goal.
 - **Approved dependencies/tools**: runtime/build dependencies listed in Phase 1, `vitest` and `jsdom` as development-only test dependencies, and Apple Xcode plus `safari-web-extension-converter` for Safari packaging.
 - **Do not change architecture** without updating `docs/architecture.md` first.
-- Prime phases are ordered after the completed Netflix phases; all implementation phases (1–11) are now complete. Netflix regression remains mandatory for any future change.
+- Prime phases are ordered after the completed Netflix phases; all implementation phases (1–12) are now complete. Netflix regression remains mandatory for any future change.
 - **Safari publishing is deferred by user decision (2026-08-16)** until enough requests or donations justify its cost. The Safari wrapper and `safari:sync`/`safari:build`/`safari:init` tooling remain intact and may be resumed when the user re-opens Safari scope; no Safari work is required for the Chrome Web Store release.

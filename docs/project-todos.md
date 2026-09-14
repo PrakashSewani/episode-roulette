@@ -16,14 +16,14 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 
 ## Current Handoff
 
-- Current state: **v1.3.0 is submitted to the Chrome Web Store and pending review** (submitted 2026-09-12), with the official URL verified. Netflix + Prime Video Chrome/Brave integration is complete and live-validated. Development `logInfo` noise is silenced for shipping; `logWarning`/`logError` retained. **Safari is explicitly skipped by user decision, reaffirmed 2026-09-12:** the Apple Developer Program cost is not justified by demand, so Safari will not be published unless the user reopens that scope. No phase is `in progress`; all implementation phases are complete. The package was uploaded manually, and the store listing plus Privacy practices tab were completed (single purpose, combined host-permission justification for both hosts, remote-code justification, and a no-data-collection certification).
-- Item currently in progress: Chrome Web Store review of v1.3.0 — no implementation work is available while review is pending.
-- Completed in this session: uploaded `dist/episode-roulette-v1.3.0.zip` and completed the store listing and Privacy practices tabs; authored `PRIVACY.md`; corrected `store-assets/` to the dimensions the dashboard accepts (screenshots are 1280×800 JPEG, not 1920×1080 PNG) and updated `store-assets/README.md` and `store-assets/store-listing.md`; committed and pushed `main` to `9696107`. Separately updated the `episode-roulette-website` repository to state Prime Video support and added the Google site verification file (commit `2c457b2`, pushed), then deployed it — the live site and its JS bundle now name both providers.
-- Verification completed (recorded evidence): `npx tsc --noEmit`, `npm test` (18 files / 146 tests), `npm run build`, and `npm run assert:webextension` all pass (re-run 2026-09-12). The built manifest carries exactly the two approved hosts and no other permissions. The Google site verification file serves the expected content at the site root, and `PRIVACY.md` returns 200 on GitHub.
-- Blockers or unanswered questions: The Chrome Web Store item is pending review under item ID `bdmfplkinmebmilgknedfgnpggmfhion`; nothing can be published until Google approves it. Official URL domain verification passed (2026-09-12). All four GitHub Actions release secrets (`CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`, `CHROME_REFRESH_TOKEN`) are configured, so a tag push can publish once review clears. Because the OAuth consent screen remains in **Testing** status, the refresh token expires after roughly seven days and may need regenerating before the next release — see `docs/release.md`. Safari will not be published: the Apple Developer Program cost is not justified by demand.
-- Files changed (this session): `PRIVACY.md`, `store-assets/README.md`, `store-assets/store-listing.md`, `store-assets/screenshot-netflix-1280x800.jpg`, `store-assets/screenshot-prime-1280x800.jpg`, `docs/project-todos.md`. `.commandcode/` is session-only and excluded.
-- Exact next action: Wait for Chrome Web Store approval. Do **not** push a `v*` tag or dispatch the `Release` workflow while the item is pending review — it would upload and publish a package mid-review. After approval: keep the website's "Chrome — Coming soon" messaging until the listing is publicly live (user decision, 2026-09-12), then replace it and `episode-roulette-website` `src/data/content.ts#chromeStoreUrl` with the live store URL and redeploy. Verify the refresh token is still valid before the first tag-triggered release. No Safari work until the user re-opens Safari scope.
-- Required docs for the next agent: `AGENTS.md`, `docs/project-todos.md`, `docs/implementation-plan.md`, `docs/architecture.md`, `docs/module-specs/provider-contract.md`, all `docs/module-specs/prime-video-*.md`, `docs/selectors-reference.md` Prime observation section, and `knowledge-transfer/README.md`.
+- Current state: **v1.3.0 is published on the Chrome Web Store** (approved after the 2026-09-12 submission; item ID `bdmfplkinmebmilgknedfgnpggmfhion` is the registered item), and the website now links to the live listing. Netflix + Prime Video Chrome/Brave integration remains complete and live-validated. **Phase 12 (install/uninstall onboarding hooks) is complete** and shipped as **v1.5.0**. **Safari is explicitly skipped by user decision, reaffirmed 2026-09-12:** the Apple Developer Program cost is not justified by demand, so Safari will not be published unless the user reopens that scope. No phase is `in progress`.
+- Item currently in progress: none — the v1.5.0 release is complete; only a manual store-dashboard paste and optional live uninstall confirmation remain.
+- Completed in this session: added `src/background.ts`, the only background runtime, so a fresh install opens `https://episode-roulette.prakashsewani.com/thanks` and uninstalls register `https://episode-roulette.prakashsewani.com/uninstalled`; declared the worker in `src/manifest.ts` with no new permissions; rewrote the background assertion in `scripts/assert-packaging.mjs` (exactly one approved worker, still zero permissions); added `tests/unit/background.test.ts` (5 tests) and extended the shared chrome mock; updated `docs/architecture.md`, `docs/implementation-plan.md` (new Phase 12), `docs/testing.md`, `docs/error-handling.md`, `docs/release.md`, `docs/module-specs/background.ts.md` (new), `docs/module-specs/popup.ts.md`, `README.md`, `PRIVACY.md`, `store-assets/store-listing.md`, `AGENTS.md`, and the knowledge-transfer set. Separately in `episode-roulette-website`: fixed the missing `assets.binding` that made every non-asset route throw, enabled `not_found_handling = "single-page-application"` so `/thanks` loads directly, pointed the hero/CTA/footer Chrome buttons at the live store listing, added the `/uninstalled` exit-survey page with a `kind: "uninstall"` submission field, committed as `c025c62`, and deployed.
+- Verification completed (recorded evidence): `npx tsc --noEmit` passed; `npm test` passed (19 files / 151 tests); `npm run build` passed; `npm run assert:webextension` passed; `git diff --check` passed; the emitted manifest reports version `1.5.0`, one `background.service_worker` (`service-worker-loader.js`, `type: module`), and no `permissions` key. The built worker bundle contains both onboarding URLs. Live site checks after deploy: `/`, `/thanks`, `/uninstalled`, and an arbitrary unknown path all return `200 text/html`; `/favicon.svg` still returns the image; `POST /api/submit` returns `{"ok":true}`.
+- Blockers or unanswered questions: the live uninstall redirect cannot be verified without a real uninstall of the published build, so it is covered by unit tests only. The Chrome Web Store dashboard description still contains the old "no background service worker" sentence and needs a manual paste from `store-assets/store-listing.md` (plus the updated permissions/remote-code text). The OAuth consent screen remains in **Testing**, so its refresh token expires roughly seven days after issue — regenerate it per `docs/release.md` if a tag-triggered release fails at the publish step. `docs/error-handling.md`'s Error Logging section still claims verbose `logInfo` coverage is intentionally kept, which no longer matches the silenced `src/debug.ts`. `npm run assert:safari` was not run locally because `xcodebuild` is unavailable on this machine.
+- Files changed (this session): `src/background.ts` (new), `src/manifest.ts`, `scripts/assert-packaging.mjs`, `tests/setup.ts`, `tests/unit/background.test.ts` (new), `docs/module-specs/background.ts.md` (new), `docs/architecture.md`, `docs/implementation-plan.md`, `docs/testing.md`, `docs/error-handling.md`, `docs/release.md`, `docs/module-specs/popup.ts.md`, `docs/project-todos.md`, `README.md`, `PRIVACY.md`, `store-assets/store-listing.md`, `AGENTS.md`, `knowledge-transfer/README.md`, `knowledge-transfer/current-system.md`, `knowledge-transfer/module-map.md`, `knowledge-transfer/build-testing-release.md`, `knowledge-transfer/provider-expansion.md`, `package.json`. `.commandcode/` is session-only and excluded.
+- Exact next action: paste the updated store description, permissions justification, and remote-code text into the Chrome Web Store dashboard. For the next release, follow `docs/release.md#release-ordering`: deploy the website first, then bump `package.json`, run the gate, and push the tag.
+- Required docs for the next agent: `AGENTS.md`, `docs/project-todos.md`, `docs/implementation-plan.md`, `docs/architecture.md`, `docs/module-specs/background.ts.md`, `docs/module-specs/provider-contract.md`, all `docs/module-specs/prime-video-*.md`, `docs/release.md`, and `knowledge-transfer/README.md`.
 
 ## Phase Tracker
 
@@ -43,6 +43,7 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 | 9. Multi-Provider Core Contract | complete | Provider-qualified types, exact-host runtime seam, Netflix delegation, and isolation tests verified; Prime source remains deferred to Phase 10. |
 | 10. Prime Video Chrome Provider | complete | User confirmed (2026-08-16) Netflix + Prime behavior end-to-end in authenticated Brave; complete eligible discovery, repeated random rolls, native playback, player confirmation, seek-to-start, cancellation, and teardown validated. |
 | 11. Prime Cross-Browser and Release Validation | complete | Chrome stable live smoke passed with behavior equivalent to Brave; Netflix regression green; Safari Prime explicitly deferred by user decision (2026-08-16) until demand/donations justify cost. |
+| 12. Install and Uninstall Onboarding Hooks | complete | Install opens `/thanks`, uninstall registers `/uninstalled`, no new permissions; shipped as v1.5.0. Live uninstall redirect remains a manual check. |
 
 ## Phase 1: Project Scaffold
 
@@ -387,7 +388,51 @@ This file is the persistent execution tracker for Episode Roulette. `docs/implem
 **Verification evidence**:
 
 - User confirmed (2026-08-16) Netflix + Prime behavior end-to-end in Brave; Chrome stable smoke passed with equivalent behavior.
-- Automated suite, build, and package assertions green for the combined manifest (Netflix + Prime hosts, no background runtime).
+- Automated suite, build, and package assertions green for the combined manifest (Netflix + Prime hosts, plus the approved onboarding service worker added in Phase 12).
+
+## Phase 12: Install and Uninstall Onboarding Hooks
+
+**Status**: complete (2026-09-14)
+
+**Modules**:
+
+- `src/background.ts` (new; the only background runtime)
+- `src/manifest.ts` (background declaration)
+- `scripts/assert-packaging.mjs` (background assertion)
+- Tests in `tests/unit/background.test.ts` and the shared chrome mock in `tests/setup.ts`
+
+**Implemented**:
+
+- A fresh install opens `https://episode-roulette.prakashsewani.com/thanks` exactly once through `chrome.runtime.onInstalled` with `reason: 'install'`; updates and manual reloads open nothing.
+- The uninstall survey URL `https://episode-roulette.prakashsewani.com/uninstalled` is registered with `chrome.runtime.setUninstallURL` at worker startup and again after `onInstalled`, so it is set no matter which event wakes the worker.
+- `setUninstallURL` is feature-detected (Safari does not implement it) and both hooks swallow failures through `logWarning`; onboarding never affects product behavior.
+- No extension permissions were added: `chrome.tabs.create` and `setUninstallURL` are both permission-free.
+- `scripts/assert-packaging.mjs` now requires exactly one `background.service_worker` (optional `type: 'module'`) resolving to a packaged file, rejects any other background key or stray `service_worker`, and still rejects every extension permission.
+- The `episode-roulette-website` repository hosts both destinations: its missing `assets.binding` was restored (every non-asset route previously threw a worker error), `not_found_handling = "single-page-application"` was enabled so client routes load directly, the Chrome Web Store link replaced the "coming soon" buttons, and `/uninstalled` was added as a `kind: "uninstall"` exit survey.
+
+**Todo checklist**:
+
+- [x] Read the relevant architecture, implementation-plan, testing, error-handling, and release docs and present the plan for approval.
+- [x] Add the normative `docs/module-specs/background.ts.md` spec and update `docs/architecture.md` before writing code.
+- [x] Record the approved exception in `docs/implementation-plan.md` as Phase 12.
+- [x] Implement `src/background.ts` with the two onboarding hooks and failure guards.
+- [x] Declare the service worker in `src/manifest.ts` with no new permissions.
+- [x] Rewrite the packaging background assertion and keep the zero-permission assertion.
+- [x] Add unit tests simulating install, update, the Safari path, and a rejected tab creation.
+- [x] Update README, PRIVACY, store listing, AGENTS.md, and knowledge transfer for the new background component.
+- [x] Fix the website Worker routing, add the store link, add the uninstall page, deploy, and verify live.
+- [x] Run the full gate and ship v1.5.0.
+- [ ] Confirm the live uninstall redirect after a real uninstall of the published build (manual; cannot be automated).
+
+**Verification evidence**:
+
+- `npx tsc --noEmit` passed.
+- `npm test` passed: 19 test files, 151 tests (5 new onboarding-hook tests).
+- `npm run build` passed; the emitted manifest carries version `1.5.0`, one `background.service_worker` (`service-worker-loader.js`, `type: module`), and no `permissions` key.
+- `npm run assert:webextension` passed; `git diff --check` passed.
+- The built worker bundle contains both onboarding URLs.
+- Website: `/`, `/thanks`, `/uninstalled`, and an unknown path all return `200 text/html`; `/favicon.svg` still returns its image; `POST /api/submit` returns `{"ok":true}`.
+- `npm run assert:safari` was not executed locally because `xcodebuild` is unavailable on this machine; CI runs it on macOS.
 
 ## Session Handoff Template
 

@@ -56,7 +56,7 @@ The package assertion verifies:
 - Content scripts map to the same allowlist
 - No extension permissions
 - No optional host permissions
-- No background or service worker
+- Exactly one approved onboarding service worker, resolving to a packaged file, with no other background key
 - Toolbar popup with dice icon for Chrome and Safari
 - Icons generated from `icons/dice.svg` via `npm run icons` (requires `sharp`)
 - Every declared script and resource exists

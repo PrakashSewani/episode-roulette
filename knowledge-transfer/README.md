@@ -19,7 +19,7 @@ Episode Roulette is a Manifest V3 WebExtension for desktop Netflix and Prime Vid
 
 The product deliberately has:
 
-- No background page or service worker
+- One permission-free background service worker for the install and uninstall onboarding links, and no other background work
 - No provider API interception
 - No persisted catalog or playback history
 - No repeat prevention or weighting

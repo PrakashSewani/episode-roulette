@@ -57,6 +57,7 @@ Documented Netflix actions such as `See All Episodes` are ignored rather than tr
 src/
 ├── manifest.ts              # Canonical cross-browser manifest
 ├── content.ts               # Content script entry point
+├── background.ts            # Onboarding hooks service worker (install/uninstall)
 ├── types.ts                 # TypeScript types
 ├── providers/
 │   ├── index.ts             # Exact-host provider registry
@@ -93,7 +94,11 @@ src/
 safari/                      # macOS Safari Xcode wrapper (publishing deferred)
 ```
 
-Chrome and Safari share the same content-script implementation. The Safari project only wraps generated WebExtension resources and does not duplicate product logic. Neither browser registers a background service worker. Safari publishing is deferred until demand justifies its cost.
+Chrome and Safari share the same content-script implementation. The Safari project only wraps generated WebExtension resources and does not duplicate product logic. The only background runtime is one permission-free service worker that opens the welcome page on install and registers the uninstall survey link. Safari publishing is deferred until demand justifies its cost.
+
+## Install
+
+[Add to Chrome](https://chromewebstore.google.com/detail/episode-roulette/bdmfplkinmebmilgknedfgnpggmfhion) from the Chrome Web Store. It works in Chromium-based desktop browsers such as Chrome and Brave.
 
 ## Development
 

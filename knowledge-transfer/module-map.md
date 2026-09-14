@@ -72,10 +72,11 @@ Role:
 - Reads product version from `package.json`
 - Declares the approved host allowlist (`*://*.netflix.com/*`, `*://www.primevideo.com/*`) and content-script matching
 - Registers `src/content.ts`
+- Registers the approved onboarding service worker `src/background.ts` (no other background key, no permissions)
 
 Must not gain:
 
-- A service worker without approved architecture
+- A service worker beyond the approved onboarding worker
 - Broad hosts such as `<all_urls>`
 - Permissions unrelated to a documented runtime need
 
@@ -86,6 +87,27 @@ Change impact:
 - Packaging assertions
 - Manual site-access validation
 - Future provider host model
+
+### `src/background.ts`
+
+Role:
+
+- The only background runtime: an onboarding hooks service worker
+- Registers the uninstall survey URL with `chrome.runtime.setUninstallURL` at startup and after `onInstalled`
+- Opens `https://episode-roulette.prakashsewani.com/thanks` once when `onInstalled` reports `reason: 'install'`
+- Holds no product logic and requests no permissions
+
+Must not gain:
+
+- Product behavior, page observation, discovery, cache, or messaging
+- Storage, network requests, or extension permissions
+- Any additional background event handling
+
+Change impact:
+
+- Install and uninstall onboarding URLs must stay in step with the deployed website
+- Packaging background assertions in `scripts/assert-packaging.mjs`
+- Privacy policy and store listing wording (the extension now has a background component)
 
 ### `src/content.ts`
 
@@ -592,7 +614,7 @@ Primary tests:
 
 ### `scripts/assert-packaging.mjs`
 
-- Validates manifest permissions, runtime absence, version, and resources
+- Validates manifest permissions, the approved background declaration, version, and resources
 - Validates exact Safari mirror and built `.appex` resources
 - Validates generated Safari outputs are ignored and untracked
 - Rejects duplicated product source in the Safari wrapper

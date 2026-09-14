@@ -225,7 +225,7 @@ Only claim what the user has confirmed or what was recorded in the tracker:
 
 ### 6. Packaging and store hygiene
 
-1. Manifest hosts are the exact approved allowlist: `*://*.netflix.com/*` and `*://www.primevideo.com/*`; no background service worker unless an approved doc adds one
+1. Manifest hosts are the exact approved allowlist: `*://*.netflix.com/*` and `*://www.primevideo.com/*`; the only approved background runtime is the permission-free onboarding service worker specified in `docs/module-specs/background.ts.md`
 2. Icons, popup, content script present in `dist/webextension/`
 3. No secrets, local signing files, or generated Safari resources committed
 4. Privacy policy / store listing / screenshots / permissions justification current if publishing to Chrome Web Store or Safari

@@ -25,7 +25,7 @@ Chrome loads `dist/webextension/` directly. Safari wraps the byte-identical WebE
 
 ## Toolbar Popup
 
-The manifest declares an `action` with `default_popup` pointing to `src/popup/index.html`. No service worker is required — the popup communicates with the content script through `chrome.tabs.sendMessage`.
+The manifest declares an `action` with `default_popup` pointing to `src/popup/index.html`. The popup communicates with the content script through `chrome.tabs.sendMessage` and does not use the background worker; the only background runtime is the permission-free onboarding service worker in `src/background.ts`.
 
 The popup shows four status states derived from `content.ts`:
 
@@ -349,6 +349,6 @@ User-visible message wording is authoritative in `docs/error-handling.md`.
 13. Cache ownership remains in the orchestrator.
 14. Selection remains uniform and history-free.
 15. Chrome and Safari consume one shared runtime and manifest output; Safari publishing is deferred (2026-08-16).
-16. No background runtime is added without a documented responsibility.
+16. No background runtime beyond the approved permission-free onboarding worker, and none added without a documented responsibility.
 17. Netflix restart-from-beginning is a silent best-effort scrubber click after `/watch/`; never assign `video.currentTime` (M7375). Prime restart assigns `video.currentTime = 0` on the playing episode video (Prime-specific, live-verified).
 18. Restart intent is armed at successful row click (`pendingRestartUntil`) and must survive title-root abort before `/watch/`.

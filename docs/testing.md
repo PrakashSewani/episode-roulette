@@ -22,6 +22,7 @@ Episode Roulette uses unit tests, jsdom fixture integration tests, and focused m
 - `episode-identity.ts` — Normalization, parsing conflicts, and deterministic matching
 - `button.ts` — Scoped injection and retryable states
 - `feedback.ts` — Toast replacement and stale-timer guards
+- `background.ts` — Onboarding hook registration, install event handling, and browsers without `setUninstallURL`
 
 **Setup**:
 ```bash
@@ -79,7 +80,7 @@ npm test
 - Five-second `/watch/` confirmation after final click
 - Retryable error state and five-second toast behavior
 - Selection status includes named/numeric season and episode information and is replaced by later failure feedback
-- Manifest/build contract contains the Netflix content script and no background service worker
+- Manifest/build contract contains the provider content script, exactly one onboarding service worker, and no extension permissions
 
 Tests use fake timers for polling, debouncing, five-second waits, and toast dismissal. Every test restores timers, DOM, observers, and module state.
 
@@ -398,9 +399,10 @@ Live Netflix credentials and sessions must never be stored in the repository or 
 
 The manifest/build assertion requires:
 
-- No `background` field or `service_worker`
-- A content script matching `*://*.netflix.com/*`
-- Netflix host permissions and no broader host permission
+- Exactly one `background.service_worker` declaration, with no other background key and no `service_worker` anywhere else in the manifest, resolving to a file that exists in the package
+- No extension permissions and no optional host permissions
+- A content script matching the approved provider hosts
+- Host permissions limited to the approved provider hosts
 
 The Safari package assertion requires:
 

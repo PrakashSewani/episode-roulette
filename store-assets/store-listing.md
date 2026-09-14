@@ -31,6 +31,7 @@ Episode Roulette adds a **Random Episode** button to Netflix and Prime Video ser
 - Complete-catalog discovery — selection is always uniform across the full series
 - Repeats allowed, no watch history, no tracking
 - In-memory cache only — nothing is stored between sessions
+- A one-time welcome page on install, and a short exit survey link on uninstall
 - Matches the look and feel of each site (Netflix dark theme, Prime white theme)
 
 **Supported sites**
@@ -71,9 +72,9 @@ Paste the matching block into each host permission's justification field:
 
 The Privacy practices tab asks whether the extension uses remote code. It does not. Paste this:
 
-> This extension does not use remote code. All JavaScript and CSS are bundled into the published package at build time. There are no external script tags, no CDN imports, no eval(), no new Function(), and no dynamically fetched or remotely executed code. The extension makes no network requests of its own. The only external URL in the package is a GitHub Sponsors hyperlink in the toolbar popup, which the user may click to open in a new tab; it loads nothing into the extension.
+> This extension does not use remote code. All JavaScript and CSS are bundled into the published package at build time. There are no external script tags, no CDN imports, no eval(), no new Function(), and no dynamically fetched or remotely executed code. The extension makes no network requests of its own. The only external URLs in the package are a GitHub Sponsors hyperlink in the toolbar popup, which the user may click to open in a new tab, and the two onboarding pages that the background worker opens or registers on install and uninstall. Neither loads anything into the extension.
 
-The extension requests **no** background service worker, no cookies, no browsing history, no storage of personal data, and no access to any other site. It reads only the series/episode metadata rendered on the page and clicks native play controls on your behalf.
+The extension requests no browser permissions: no cookies, no browsing history, no storage of personal data, and no access to any other site. Its only background component is a small service worker that opens the welcome page once on install and registers the uninstall survey link; it cannot read page content. It reads only the series/episode metadata rendered on the page and clicks native play controls on your behalf.
 
 ## Privacy policy
 

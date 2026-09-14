@@ -171,6 +171,16 @@ Episode Roulette handles errors gracefully at every stage. The extension should 
 
 ---
 
+## Onboarding Hooks
+
+`background.ts` owns two best-effort hooks: opening the onboarding page once on install, and registering the uninstall survey URL.
+
+- A missing API, a throwing call, or a rejected `chrome.tabs.create` logs a warning and is otherwise ignored.
+- Failures never block the content script, never change button state, and never produce a user-facing error.
+- Safari does not implement `chrome.runtime.setUninstallURL`; that hook is feature-detected and skipped.
+
+---
+
 ## Error Logging
 
 All errors and temporary development diagnostics use prefix `[Episode Roulette]` via `src/debug.ts`:

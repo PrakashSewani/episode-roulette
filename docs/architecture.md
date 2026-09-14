@@ -298,7 +298,7 @@ These selectors were verified on Netflix desktop in July 2026 and remain central
 
 - Core code uses standard DOM APIs, `MutationObserver`, timers, `AbortController`, and content-script APIs supported by both target browsers.
 - Browser-specific packaging files live outside `src/`.
-- No background/service-worker runtime is required in either browser.
+- One minimal background service worker exists for the onboarding hooks only (install and uninstall redirects). It carries no product logic and requests no permissions — see `docs/module-specs/background.ts.md`.
 - Browser-specific runtime branches require a documented incompatibility and approval; none are currently planned.
 - Safari for iOS/iPadOS is outside first-release scope because mobile Netflix layouts and packaging have not been observed or tested.
 
@@ -312,6 +312,17 @@ safari/Extension/Resources/ # Generated mirror of dist/webextension/
 
 The Xcode wrapper is generated once, normalized to the documented project/resource paths, and committed. Normal builds do not rerun the converter. `safari:sync` runs the universal build, stages and verifies resources before replacing `safari/Extension/Resources/`, and writes generated Safari version settings while preserving committed Xcode project, signing, icon, and app metadata.
 
+### 14. Minimal Background Runtime for Onboarding Hooks
+
+The extension ships exactly one background service worker (`src/background.ts`), and its only responsibility is onboarding:
+
+- registering the uninstall survey URL through `chrome.runtime.setUninstallURL`;
+- opening the install page once when `chrome.runtime.onInstalled` reports a fresh install.
+
+The worker holds no product logic. It does not observe pages, discover episodes, cache catalogs, message the content script, read storage, or issue network requests. It requests no extension permissions, because neither `setUninstallURL` nor `tabs.create` requires one. The full contract is in `docs/module-specs/background.ts.md`.
+
+This is a deliberate, narrow exception to the content-script-only architecture. Any further background responsibility needs the same treatment: a documented responsibility, an updated architecture section, and package assertions that fail on anything unapproved. `scripts/assert-packaging.mjs` enforces the exact background declaration and still rejects every extension permission.
+
 ---
 
 ## Multi-Provider Contract — Approved Prime Scope
@@ -320,7 +331,7 @@ The Xcode wrapper is generated once, normalized to the documented project/resour
 
 `content.ts` remains the sole lifecycle orchestrator and selects one provider runtime from the exact current host and route. Unsupported hosts activate nothing. The first implementation may use one shared content-script entry with host dispatch; it must not create a second orchestrator.
 
-The approved host scope is the India Prime Video web application at `www.primevideo.com`. Do not add broad Amazon retail hosts, `<all_urls>`, cookies, webRequest, history, native messaging, or a background runtime. The exact manifest match and permission patterns must be verified by package assertions before Prime implementation is complete.
+The approved host scope is the India Prime Video web application at `www.primevideo.com`. Do not add broad Amazon retail hosts, `<all_urls>`, cookies, webRequest, history, native messaging, or any background runtime beyond the approved onboarding worker. The exact manifest match and permission patterns must be verified by package assertions before Prime implementation is complete.
 
 ### Shared ownership
 

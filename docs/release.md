@@ -12,6 +12,17 @@ To release a new version:
 
 The `Release` GitHub Actions workflow triggers on `v*` tags and publishes to the Chrome Web Store.
 
+### Release ordering
+
+Pushing a `v*` tag publishes live, so everything the release depends on must already be deployed:
+
+1. Deploy the `episode-roulette-website` worker first and confirm the routes the release uses respond with `200`.
+2. Bump `version` in `package.json`, commit, and push `main`.
+3. Run the full gate: `npx tsc --noEmit`, `npm test`, `npm run build`, `npm run assert:webextension`.
+4. Tag and push the tag.
+
+The onboarding hooks in `src/background.ts` open `https://episode-roulette.prakashsewani.com/thanks` on install and register `https://episode-roulette.prakashsewani.com/uninstalled` for uninstall. Both routes must be live before the tag is pushed, or new users land on an error page.
+
 ---
 
 ## Chrome Web Store Publishing

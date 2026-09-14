@@ -89,14 +89,39 @@ function containsKey(value, key) {
   ))
 }
 
+const approvedBackgroundKeys = new Set(['service_worker', 'type'])
+
+async function assertBackground(root, manifest) {
+  const background = manifest.background
+  if (background === null || typeof background !== 'object' || Array.isArray(background)) {
+    fail('Manifest must declare the approved onboarding service worker.')
+  }
+  for (const key of Object.keys(background)) {
+    if (!approvedBackgroundKeys.has(key)) {
+      fail(`Manifest must not declare this background runtime key: ${key}`)
+    }
+  }
+  if (typeof background.service_worker !== 'string' || background.service_worker === '') {
+    fail('Manifest must declare the approved onboarding service worker.')
+  }
+  if (background.type !== undefined && background.type !== 'module') {
+    fail(`Unsupported background service worker type: ${background.type}`)
+  }
+  await assertDeclaredFile(root, background.service_worker, 'Background service worker')
+
+  const remainingManifest = { ...manifest }
+  delete remainingManifest.background
+  if (containsKey(remainingManifest, 'service_worker')) {
+    fail('Manifest must not declare a service worker outside the approved background entry.')
+  }
+}
+
 async function assertManifest(root) {
   const manifestPath = path.join(root, 'manifest.json')
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
   if (manifest.manifest_version !== 3) fail('Manifest must use version 3.')
   if (manifest.version !== packageJson.version) fail('Manifest version must match package.json.')
-  if (Object.hasOwn(manifest, 'background') || containsKey(manifest, 'service_worker')) {
-    fail('Manifest must not declare a background runtime or service worker.')
-  }
+  await assertBackground(root, manifest)
   if (JSON.stringify(manifest.host_permissions) !== JSON.stringify(approvedHostPatterns)) {
     fail('Host permissions must contain exactly the approved provider hosts.')
   }
@@ -107,7 +132,7 @@ async function assertManifest(root) {
     if (forbiddenPermissions.has(permission)) fail(`Forbidden permission: ${permission}`)
   }
   if ((manifest.permissions?.length ?? 0) !== 0) {
-    fail('The first release must not request extension permissions.')
+    fail('The extension must not request permissions.')
   }
   if (!Array.isArray(manifest.content_scripts) || manifest.content_scripts.length === 0) {
     fail('Manifest must declare the approved provider content script.')
