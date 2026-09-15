@@ -15,13 +15,23 @@ The 1920×1080 PNGs are the original lossless captures and are kept as masters o
 
 ## Promo tiles
 
-All three are already the exact required canvas size and are 24-bit PNG without alpha, so they upload as-is.
+All three are the exact required canvas size and are 24-bit PNG without alpha, so they upload as-is.
 
 | File | Size | CWS requirement |
 |---|---|---|
 | `promo-small-440x280.png` | 440×280 | Small promotional tile |
 | `promo-large-920x680.png` | 920×680 | Large promotional tile |
 | `marquee-1400x560.png` | 1400×560 | Marquee promotional image |
+
+Regenerate all three with:
+
+```bash
+node scripts/generate-promo.mjs
+```
+
+**These are branded graphics, not provider screenshots.** An earlier revision cropped the captures below, which put `Included with Prime`, a Primetime Emmy credit, the primevideo.com navigation bar, third-party show artwork, and the Superman shield into the listing's own promotional art — and the copy was unreadable at the size the store renders a promo tile. The tiles now use only the Episode Roulette identity: the `icons/dice.svg` mark, the product name, and a mock of the in-page **Random Episode** button. Provider names appear as plain text, never as logos.
+
+Keep it that way: no provider screenshots, no show artwork, and no streaming-service logos in promotional art. Real product UI belongs in the screenshots section above, where the store expects it.
 
 ## Source captures
 
