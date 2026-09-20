@@ -282,7 +282,7 @@ No background service worker is registered in Chrome or Safari. All core behavio
 
 ## Phase 13: Failure Reporting
 
-**Status**: in progress (2026-09-20)
+**Status**: complete (2026-09-20)
 
 **Goal**: Turn every user-facing failure into an actionable, reportable event. When discovery, traversal, or episode selection fails, the extension shows an error snackbar that carries a **Report** link, and that link opens a pre-filled form on the product website so provider DOM changes can be diagnosed from real user reports.
 
@@ -301,7 +301,7 @@ No background service worker is registered in Chrome or Safari. All core behavio
 
 **Out of scope**: popup report affordance, series-name scraping, background-worker involvement, any new extension permission, and Chrome Web Store API v2 migration.
 
-**Exit criteria**: Every user-facing error toast offers a working report link; the link opens a form with the failed operation's options already selected; a report submitted from that form is stored by the website; abort, non-series, and cache-recovery paths still show no report affordance; the full automated gate passes; the website is deployed and verified live before the extension tag is pushed. **Live click-through of the snackbar Report link from a real provider failure requires user confirmation** and cannot be forced on demand in automated tests.
+**Exit criteria**: Every user-facing error toast offers a working report link; the link opens a form with the failed operation's options already selected; a report submitted from that form is stored by the website; abort, non-series, and cache-recovery paths still show no report affordance; the full automated gate passes; the website is deployed and verified live before the extension tag is pushed. **All exit criteria verified** (2026-09-20), including the `v1.6.0` publish (`uploadState: 'SUCCESS'`, `status: ['OK']`). One manual check remains open: clicking the snackbar Report link from a real provider failure in the shipped build, which cannot be forced on demand.
 
 ---
 
