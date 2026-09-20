@@ -9,10 +9,11 @@ Own status/error toast DOM and timer lifecycle. Button states and loading animat
 ## Responsibilities
 
 1. Show one five-second status toast immediately after a random episode is selected
-2. Show one five-second error toast when a user-requested operation fails
-3. Replace or dismiss existing toast state safely
-4. Clear all toast timers during replacement, retry, navigation, and teardown
-5. Provide user-friendly messages
+2. Show one error toast when a user-requested operation fails
+3. Render an optional action link on an error toast and keep that toast on screen until the user acts on it
+4. Replace or dismiss existing toast state safely
+5. Clear all toast timers during replacement, retry, navigation, and teardown
+6. Provide user-friendly messages
 
 ---
 
@@ -39,10 +40,12 @@ When something goes wrong, `content.ts` updates the button and separately calls 
 
 ```typescript
 controller.setState('error', message)
-showErrorToast(message)
+showErrorToast(message, { action: { label: 'Report', href: reportUrl } })
 ```
 
 The error button remains clickable. A retry dismisses any existing toast before changing the button to loading.
+
+The report URL is built by `report.ts`. `feedback.ts` renders whatever `href` it is given and never constructs report URLs itself.
 
 ## Selection Feedback
 
@@ -56,23 +59,51 @@ For named seasons, use the season label directly. If `episodeNumber` is unavaila
 
 ### Error Toast
 
-For more detailed errors, show a temporary toast notification. The required default duration is 5000ms:
+For more detailed errors, show a toast notification. Error toasts are built from DOM nodes, never `innerHTML`, so the message and the action label are always treated as text.
 
 ```typescript
-function showErrorToast(message: string, duration = 5000): void {
-  const toast = document.createElement('div')
-  toast.className = 'ep-roulette-toast'
-  toast.setAttribute('role', 'alert')
-  toast.setAttribute('aria-live', 'assertive')
-  toast.textContent = message
-  document.body.appendChild(toast)
-
-  setTimeout(() => {
-    toast.classList.add('ep-roulette-toast-exit')
-    setTimeout(() => toast.remove(), 300)
-  }, duration)
+export interface ToastAction {
+  label: string
+  href: string
 }
+
+export interface ErrorToastOptions {
+  /** Auto-dismiss delay. Ignored when `action` is present. */
+  duration?: number
+  /** Optional link, for example the failure report form. */
+  action?: ToastAction
+}
+
+export function showErrorToast(message: string, options?: ErrorToastOptions): void
 ```
+
+DOM contract:
+
+```html
+<div class="ep-roulette-toast" data-kind="error" role="alert" aria-live="assertive">
+  <span class="ep-roulette-toast-text">Could not load all seasons. Try again.</span>
+  <a class="ep-roulette-toast-action" href="https://episode-roulette.prakashsewani.com/report?…"
+     target="_blank" rel="noopener noreferrer">Report</a>
+  <button type="button" class="ep-roulette-toast-close" aria-label="Dismiss notification">✕</button>
+</div>
+```
+
+Rules:
+
+- The action link always opens in a new tab with `target="_blank"` and `rel="noopener noreferrer"`; the provider page must never navigate away.
+- The close button calls `dismissToast()`.
+- Clicking the action link calls `dismissToast()` after the navigation has been initiated, so the snackbar does not linger once the user has acted.
+- `showStatusToast` never renders an action or a close button; its DOM is the message text alone.
+
+### Toast Lifetime
+
+| Toast | Auto-dismiss |
+|---|---|
+| Status toast | 5000 ms (default) plus the 300 ms exit animation |
+| Error toast without `action` | `duration ?? 5000` ms plus the exit animation |
+| Error toast with `action` | never — it persists until the user clicks the action, clicks close, a newer toast replaces it, or `dismissToast()` runs during navigation cleanup |
+
+A persistent toast keeps the same token and replacement behavior as any other toast: showing a new toast dismisses the old one, and stale timers never remove a newer toast. A persistent toast leaves no pending timer behind.
 
 ### Toast CSS
 
@@ -82,7 +113,11 @@ function showErrorToast(message: string, duration = 5000): void {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 12px 12px 12px 20px;
   background: #333;
   color: #fff;
   border-radius: 8px;
@@ -90,6 +125,14 @@ function showErrorToast(message: string, duration = 5000): void {
   z-index: 9999;
   animation: ep-roulette-toast-in 0.3s ease;
 }
+
+.ep-roulette-toast-text {
+  flex: 1 1 auto;
+}
+
+.ep-roulette-toast-action { /* snackbar report link */ }
+
+.ep-roulette-toast-close { /* 24px ghost dismiss button */ }
 
 .ep-roulette-toast-exit {
   animation: ep-roulette-toast-out 0.3s ease forwards;
@@ -130,9 +173,10 @@ Use friendly, non-technical messages:
 /**
  * Show an error toast notification.
  * @param message - User-friendly error message
- * @param duration - How long to show (ms, default 5000)
+ * @param options.duration - Auto-dismiss delay (ms, default 5000); ignored when an action is present
+ * @param options.action - Optional action link, for example the failure report form
  */
-export function showErrorToast(message: string, duration?: number): void
+export function showErrorToast(message: string, options?: ErrorToastOptions): void
 
 /** Show a polite selection/status toast notification. */
 export function showStatusToast(message: string, duration?: number): void
@@ -158,6 +202,9 @@ Before showing or dismissing a toast, clear all prior timer IDs and invalidate t
 | Multiple errors in quick succession | Only show latest toast |
 | Selection followed by playback failure | Replace selection status with the failure toast |
 | Toast still visible when new error occurs | Replace existing toast |
+| Error toast carrying a report action | Persists until the user clicks the action, clicks close, or navigation cleanup runs; no dismiss timer is armed |
+| User clicks the report link | Opens in a new tab, then dismisses the snackbar; the provider page is untouched |
+| User clicks close | Dismiss the snackbar immediately |
 | User navigates away | Remove toast |
 | User clicks retry while toast is visible | Dismiss toast immediately, then start loading |
 | Operation is aborted by navigation | Show no toast and do not enter error state |
@@ -166,11 +213,13 @@ Before showing or dismissing a toast, clear all prior timer IDs and invalidate t
 
 ## Testing
 
-- Manual test: Loading state appears during discovery
-- Manual test: Error toast shows on failure
-- Manual test: Toast auto-dismisses after timeout
-- Manual test: Toast is styled consistently with Netflix
-- Unit test: Default toast duration is 5000ms
-- Unit test: Retry dismisses an existing toast
-- Unit test: Abort does not show a toast
-- Unit test: Stale timer from a replaced toast cannot remove the current toast
+- Unit test: default toast duration is 5000 ms when no action is present
+- Unit test: an error toast with an action never auto-dismisses, even well past the default duration
+- Unit test: the action renders the supplied `href` with `target="_blank"` and `rel="noopener noreferrer"`
+- Unit test: clicking close dismisses the snackbar
+- Unit test: clicking the action dismisses the snackbar without navigating the current page
+- Unit test: both the message and the action label render as text, never as HTML
+- Unit test: retry dismisses an existing toast
+- Unit test: abort does not show a toast
+- Unit test: stale timer from a replaced toast cannot remove the current toast
+- Manual test: error snackbar is styled consistently with the provider page

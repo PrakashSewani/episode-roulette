@@ -9,6 +9,16 @@ async function flushPromises(): Promise<void> {
   await Promise.resolve()
 }
 
+function reportLink(): HTMLAnchorElement {
+  const link = document.querySelector<HTMLAnchorElement>('.ep-roulette-toast-action')
+  if (link === null) throw new Error('Expected a snackbar report link')
+  return link
+}
+
+function reportParams(): URLSearchParams {
+  return new URL(reportLink().href).searchParams
+}
+
 const observerHarness = vi.hoisted(() => ({
   callback: null as ((event: import('../../src/types').PageChangeEvent) => void) | null,
   clearTitleObservation: vi.fn(),
@@ -150,7 +160,7 @@ describe('Phase 2 content lifecycle', () => {
 
     expect(button.dataset.state).toBe('error')
     expect(button.dataset.error).toBe('Something went wrong. Try again.')
-    expect(document.querySelector('.ep-roulette-toast')?.textContent)
+    expect(document.querySelector('.ep-roulette-toast-text')?.textContent)
       .toBe('Something went wrong. Try again.')
     expect(errorSpy).toHaveBeenCalled()
 
@@ -247,7 +257,7 @@ describe('Phase 2 content lifecycle', () => {
     await vi.waitFor(() => expect(playbackHarness.playEpisode).toHaveBeenCalledTimes(2))
 
     expect(playbackHarness.discoverEpisodes).toHaveBeenCalledTimes(2)
-    expect(document.querySelector('.ep-roulette-toast')?.textContent)
+    expect(document.querySelector('.ep-roulette-toast-text')?.textContent)
       .toBe('Selected Season 2, Episode 5: Refreshed')
     content.stop()
   })
@@ -273,9 +283,44 @@ describe('Phase 2 content lifecycle', () => {
 
     expect(playbackHarness.discoverEpisodes).toHaveBeenCalledTimes(2)
     expect(playbackHarness.playEpisode).toHaveBeenCalledTimes(2)
-    expect(document.querySelector('.ep-roulette-toast')?.textContent)
+    expect(document.querySelector('.ep-roulette-toast-text')?.textContent)
       .toBe('Could not open the selected episode. Try again.')
+    expect(reportParams().get('code')).toBe('playback-resolution')
+    expect(reportParams().get('provider')).toBe('netflix')
+    expect(reportParams().get('titleId')).toBe('1261')
+    expect(reportParams().get('v')).toBe('0.0.0-test')
     expect(errorSpy).toHaveBeenCalled()
+    content.stop()
+  })
+
+  it('reports a failed season with its structured reason and title identity', async () => {
+    window.history.replaceState({}, '', '/browse?jbv=1263')
+    const root = createTitleDetails({ episodic: true })
+    document.body.append(root)
+    const { DiscoveryIncompleteError } = await import('../../src/types')
+    playbackHarness.discoverEpisodes.mockRejectedValue(new DiscoveryIncompleteError(
+      'Could not collect Season 4',
+      { seasonLabel: 'Season 4', reason: 'render-timeout' },
+    ))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const content = await import('../../src/content')
+    await flushPromises()
+
+    root.querySelector<HTMLButtonElement>('[data-uia="random-episode-btn"]')?.click()
+    await vi.waitFor(() => {
+      expect(root.querySelector<HTMLButtonElement>(
+        '[data-uia="random-episode-btn"]',
+      )?.dataset.state).toBe('error')
+    })
+
+    expect(document.querySelector('.ep-roulette-toast-text')?.textContent)
+      .toBe('Could not load all seasons. Try again.')
+    const params = reportParams()
+    expect(params.get('code')).toBe('discovery')
+    expect(params.get('reason')).toBe('render-timeout')
+    expect(params.get('season')).toBe('Season 4')
+    expect(params.get('provider')).toBe('netflix')
+    expect(params.get('titleId')).toBe('1263')
     content.stop()
   })
 
@@ -324,8 +369,10 @@ describe('Phase 2 content lifecycle', () => {
     await vi.advanceTimersByTimeAsync(5_000)
 
     expect(button.dataset.state).toBe('error')
-    expect(document.querySelector('.ep-roulette-toast')?.textContent)
+    expect(document.querySelector('.ep-roulette-toast-text')?.textContent)
       .toBe('Could not start playback. Try again.')
+    expect(reportParams().get('code')).toBe('playback-timeout')
+    expect(reportParams().get('titleId')).toBe('127')
     content.stop()
   })
 
@@ -582,6 +629,7 @@ describe('Phase 2 content lifecycle', () => {
     expect(playbackHarness.playEpisode).not.toHaveBeenCalled()
     expect(rootB.querySelector('[data-uia="random-episode-btn"]')).not.toBeNull()
     expect(document.querySelector('.ep-roulette-toast')).toBeNull()
+    expect(document.querySelector('.ep-roulette-toast-action')).toBeNull()
     content.stop()
   })
 

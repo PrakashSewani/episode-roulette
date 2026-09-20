@@ -56,6 +56,29 @@ Avoid:
 - Using unstable dynamic CSS classes without evidence and fallbacks
 - Selecting the first of multiple roots, menus, or episode lists
 
+## User Report Triage
+
+A user report arrives from the `/report` form with a preselected failure class and the exact `code`/`reason` the extension emitted. Use that to jump straight to the failing boundary instead of guessing.
+
+| `reason` on the report | Failing boundary | Start here |
+|---|---|---|
+| `unsupported-layout`, `strategy-mismatch` | No supported season control, or the dropdown/menu structure changed | Season Enumeration Failure |
+| `season-missing` | A requested season could not be found in the menu | Season Enumeration Failure, then Season Transition Failure |
+| `render-timeout` | The season menu never rendered inside the attempt budget | Detection Timing Failure, then Season Transition Failure |
+| `transition-timeout` | Season activation never resolved | Season Transition Failure |
+| `count-mismatch` | Declared episode count never matched the stable row count | Expansion or Stability Failure |
+| `expansion-failed` | `section-expand` could not be completed | Expansion or Stability Failure |
+| `active-season-mismatch` | The toggle identity never matched the requested season | Season Transition Failure |
+| `code=discovery` with no reason | A Prime season failed to collect, or the episode selector never rendered | Prime Boundary discovery, then Season Enumeration Failure |
+| `code=no-episodes` | Complete discovery produced zero eligible episodes | Eligibility rules and provider selectors |
+| `code=playback-resolution` | The selected season or row could not be re-resolved | Playback Failure, then Episode Identity Failure |
+| `code=playback-timeout` | The row was clicked but playback never confirmed | Playback Failure step 7, and the provider confirmation predicate |
+| `code=unknown` | Unexpected failure | Console diagnostics are not shipped, so reproduce from the reported season and title |
+
+The report also carries `provider`, `season`, `titleId`, and `v`. Use `v` to confirm which build the user was on before assuming a selector regression, and `titleId` to open the exact series.
+
+Reporting is the intended feedback channel. A report names the failure class precisely because the extension carried `seasonLabel` and `reason` structurally on the error rather than logging free text.
+
 ## Route or Navigation Failure
 
 Symptoms:
@@ -194,7 +217,7 @@ Check:
 
 Do not accept a partial stable list merely to avoid timeout. Completeness is part of the product promise.
 
-Verbose `[Episode Roulette]` console logs remain until the Temporary development logs ship gate is closed.
+Verbose `[Episode Roulette]` console logs are silenced in shipped builds: `logInfo` is a no-op, and only `logWarning`/`logError` reach the console. Failed rolls therefore surface through the report link rather than console output, so triage from the report's `code` and `reason` using the User Report Triage table above.
 
 ## Episode Identity Failure
 

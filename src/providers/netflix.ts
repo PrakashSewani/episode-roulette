@@ -20,6 +20,7 @@ import {
 } from '../netflix/selectors'
 import {
   PlaybackResolutionError,
+  PlaybackTimeoutError,
   type ButtonPlacement,
   type DetectionResult,
   type Episode,
@@ -194,7 +195,7 @@ const netflixRuntime: ProviderRuntime = {
       }
       const timer = window.setTimeout(() => {
         if (playbackWaiter?.episode === episode) {
-          clearPlaybackWaiter(new PlaybackResolutionError('Playback did not start'))
+          clearPlaybackWaiter(new PlaybackTimeoutError('Playback did not start'))
         }
       }, PLAYBACK_CONFIRMATION_TIMEOUT_MS)
       playbackWaiter = { episode, signal, timer, resolve, reject, abort }

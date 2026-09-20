@@ -31,6 +31,7 @@ Episode Roulette adds a **Random Episode** button to Netflix and Prime Video ser
 - Complete-catalog discovery — selection is always uniform across the full series
 - Repeats allowed, no watch history, no tracking
 - In-memory cache only — nothing is stored between sessions
+- If a roll fails, the error message offers a one-click **Report** link that opens a pre-filled form so the broken layout gets fixed fast
 - A one-time welcome page on install, and a short exit survey link on uninstall
 - Matches the look and feel of each site (Netflix dark theme, Prime white theme)
 
@@ -72,7 +73,7 @@ Paste the matching block into each host permission's justification field:
 
 The Privacy practices tab asks whether the extension uses remote code. It does not. Paste this:
 
-> This extension does not use remote code. All JavaScript and CSS are bundled into the published package at build time. There are no external script tags, no CDN imports, no eval(), no new Function(), and no dynamically fetched or remotely executed code. The extension makes no network requests of its own. The only external URLs in the package are a GitHub Sponsors hyperlink in the toolbar popup, which the user may click to open in a new tab, and the two onboarding pages that the background worker opens or registers on install and uninstall. Neither loads anything into the extension.
+> This extension does not use remote code. All JavaScript and CSS are bundled into the published package at build time. There are no external script tags, no CDN imports, no eval(), no new Function(), and no dynamically fetched or remotely executed code. The extension makes no network requests of its own. The only external URLs in the package are a GitHub Sponsors hyperlink in the toolbar popup, which the user may click to open in a new tab; the failure-report link that appears inside an error message after a failed roll, which opens a form on the project's own website in a new tab only when the user clicks it; and the two onboarding pages that the background worker opens or registers on install and uninstall. None of them loads anything into the extension.
 
 The extension requests no browser permissions: no cookies, no browsing history, no storage of personal data, and no access to any other site. Its only background component is a small service worker that opens the welcome page once on install and registers the uninstall survey link; it cannot read page content. It reads only the series/episode metadata rendered on the page and clicks native play controls on your behalf.
 
@@ -82,24 +83,40 @@ Paste-ready text for the Chrome Web Store privacy policy URL field, a hosted `/p
 
 **Episode Roulette — Privacy Policy**
 
-Last updated: 12 September 2026
+Last updated: 20 September 2026
 
-Episode Roulette is a browser extension for Chromium-based desktop browsers that adds a **Random Episode** button to TV series pages on Netflix and Prime Video. It does not collect, store, transmit, or share any personal data.
+Episode Roulette is a browser extension for Chromium-based desktop browsers that adds a **Random Episode** button to TV series pages on Netflix and Prime Video. It does not collect, store, transmit, or share any personal data on its own. The only thing it can ever send is a problem report that you write and submit yourself.
 
 **What the extension accesses**
 
 On a supported series page, the extension reads the season and episode information the site has already rendered in your browser — season names, episode names, and episode numbers — so it can choose one episode at random. That reading happens locally within the page and is never sent anywhere.
 
-The extension requests access to exactly two hosts, `*://*.netflix.com/*` and `*://www.primevideo.com/*`, and no other browser permissions. There is no storage permission, no cookies access, no browsing history, no bookmarks, no downloads, and no background service worker.
+The extension requests access to exactly two hosts, `*://*.netflix.com/*` and `*://www.primevideo.com/*`, and no other browser permissions. There is no storage permission, no cookies access, no browsing history, no bookmarks, and no downloads.
 
 **What it does not do**
 
-- **No data collection.** Nothing is sent to us or to any server. There is no backend service.
+- **No automatic data collection.** Nothing is sent to us or to any server unless you click a report link and submit the form yourself. The extension has no backend of its own.
 - **No account or login.** It never asks for or stores a Netflix or Prime Video credential.
 - **No tracking or analytics.** No cookies, beacons, fingerprinting, or advertising identifiers.
 - **No watch history.** It does not record what you watch, what it selects, or what you browse.
 - **No third parties.** No third-party code, SDK, analytics, or service is embedded.
 - **No selling or sharing of data**, because no data is collected in the first place.
+
+**Problem reports**
+
+When an episode roll fails, the extension shows an error message with a **Report** link. Showing that message sends nothing. The link opens a form on the project website with the failed operation's details pre-selected, and those details are attached only if you press send:
+
+- which platform you were on (Netflix or Prime Video);
+- which failure was detected, for example "the season menu never appeared";
+- the name of the season that failed, when a season was involved;
+- the platform's internal title ID for the series you were watching;
+- the extension version.
+
+The form lists exactly what will be sent before you send it, and you can close it without sending anything. Episode lists, episode titles, what you have watched, and your browsing activity are never included.
+
+**Install and uninstall links**
+
+A small background service worker registers two links: a one-time welcome page on install, and an exit survey on uninstall. Both are optional to visit, neither receives data from the extension, and the worker cannot read page content.
 
 **Local, temporary state**
 
@@ -128,4 +145,6 @@ Because the extension operates entirely on the page you are already viewing and 
 
 ## Support
 
-Report issues or request features at the project repository (GitHub link in the developer section).
+If a roll fails, the in-page error message offers a **Report** link that opens a pre-filled form at <https://episode-roulette.prakashsewani.com/report>. That is the fastest route, because the report arrives with the failing platform and failure class already attached.
+
+Issues and feature requests can also go to the project repository (GitHub link in the developer section).

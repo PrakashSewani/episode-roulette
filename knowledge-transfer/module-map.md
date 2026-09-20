@@ -10,6 +10,7 @@ content.ts
   -> providers/index.ts
   -> provider runtime (netflix.ts | prime-video.ts)
   -> button.ts / styles.ts / feedback.ts
+  -> report.ts
   -> popup/popup.ts (via chrome.runtime.onMessage)
   -> season-traverser.ts
   -> randomizer.ts
@@ -179,6 +180,40 @@ High-risk changes:
 Authority:
 
 - `docs/data-model.md`
+
+### `src/report.ts`
+
+Role:
+
+- Sole owner of the failure-report contract: destination URL, error-code vocabulary, and error→query-param mapping
+- Pure: no DOM, timers, storage, messaging, or network access
+- Reads the extension version through `chrome.runtime.getManifest()`
+
+Public API:
+
+```typescript
+REPORT_BASE_URL: string
+classifyError(error: unknown): ErrorClassification
+getExtensionVersion(): string | null
+buildReportUrl(context: ReportContext): string
+```
+
+Must not gain:
+
+- DOM or UI work (the toast renders the link; this module only builds it)
+- Report-destination hosts in the manifest (the link is a plain anchor, not a permission)
+- Message-string parsing to classify an error
+- Any payload beyond the documented identifiers
+
+Change impact:
+
+- `REPORT_BASE_URL` must stay in step with the website `/report` route and the deployed form
+- `docs/error-handling.md` documents the code vocabulary; `docs/module-specs/report.ts.md` is normative
+- Privacy policy and store listing describe the payload
+
+Primary tests:
+
+- `tests/unit/report.test.ts`
 
 ## Netflix Boundary
 
@@ -552,11 +587,13 @@ Primary tests:
 Role:
 
 - Own exactly one status or error toast
+- Render an optional action link (the failure report) and an optional close button
+- Keep an action-carrying error toast on screen until the user acts or navigation cleanup runs
 - Replace old feedback
 - Manage dismissal and exit timers
 - Prevent stale timers from removing newer feedback
 
-It does not set button state.
+It does not set button state and does not build report URLs; it renders the `href` it is handed.
 
 Primary tests:
 
@@ -658,6 +695,7 @@ Read `knowledge-transfer/build-testing-release.md` before changing any of these 
 | Durable collection | `tests/unit/episode-collector.test.ts` |
 | Button lifecycle | `tests/unit/button.test.ts` |
 | Toast lifecycle | `tests/unit/feedback.test.ts` |
+| Failure reporting contract | `tests/unit/report.test.ts` |
 | CSS ownership | `tests/unit/styles.test.ts` |
 | Uniform selection | `tests/unit/randomizer.test.ts` |
 | Playback resolution | `tests/unit/navigator.test.ts` |

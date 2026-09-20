@@ -172,10 +172,28 @@ Error dispatch is exact:
 
 - `CacheValidationMismatchError`: invalidate once and follow step 6
 - `PlaybackResolutionError`: enter retryable error state without automatic rediscovery
+- `PlaybackTimeoutError`: playback was not confirmed within the provider window; enter retryable error state
 - `DiscoveryIncompleteError`: error state and `Could not load all seasons. Try again.`
 - `NoEpisodesError`: error state and `No episodes found`
 - `AbortError`: exit silently
 - Any other error: log diagnostics and show the general retryable error
+
+Every user-facing error branch attaches the failure-report action to its snackbar, after the same current-context guard that gates the button state. The URL is built by `report.ts` from the active provider, the active title identity, and the caught error:
+
+```typescript
+showErrorToast(message, {
+  action: {
+    label: 'Report',
+    href: buildReportUrl({
+      provider: context.title.provider,
+      titleId: context.title.titleId,
+      error,
+    }),
+  },
+})
+```
+
+Aborted operations attach no action and show no toast. The report action never changes the button state, the cache, or the generation guards, and it adds no extension permission.
 
 The selected episode from the stale catalog is not preserved across rediscovery because it may no longer exist. A fresh independent selection maintains uniform randomness over the refreshed catalog.
 
@@ -207,8 +225,8 @@ ready click      -> loading
 Phase 5 click success -> remain loading while Netflix handles native playback
 Phase 5 non-abort failure -> ready for explicit retry
 Phase 6 click success -> remain loading until /watch/
-confirmation timeout  -> error + one 5-second toast
-loading failure  -> error + one 5-second toast
+confirmation timeout  -> error + persistent report snackbar
+loading failure  -> error + persistent report snackbar
 error click      -> dismiss toast -> loading -> fresh attempt
 any active state -> removed when title context is invalidated
 ```
@@ -286,6 +304,8 @@ The `ButtonController.getState()` accessor exposes the current `ButtonState` (`r
 - Integration test: Direct A to B navigation aborts A before starting B
 - Integration test: A late result cannot update B's button or cache
 - Integration test: Aborted work shows no user-facing error
+- Integration test: Each user-facing failure shows a snackbar whose action link carries the matching report `code`, `provider`, and `titleId`
+- Integration test: An aborted operation shows no snackbar action and no report link
 - Integration test: Final episode click is guarded by generation, title ID, and abort state
 - Integration test: Reopening a cached series avoids season traversal
 - Integration test: Live metadata mismatch invalidates only that series and performs one fresh discovery

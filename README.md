@@ -13,6 +13,7 @@ Stop spending 10 minutes choosing what to rewatch. Click a button, get a random 
 - Discovers all available episodes across every season
 - Picks one at random with equal probability
 - Starts playback exactly as if you clicked it manually
+- Turns any failure into a one-click **Report** link, so a broken provider layout gets found and fixed fast
 
 ## Design Principles
 
@@ -59,6 +60,7 @@ src/
 ├── content.ts               # Content script entry point
 ├── background.ts            # Onboarding hooks service worker (install/uninstall)
 ├── types.ts                 # TypeScript types
+├── report.ts                # Failure report URL contract and error classification
 ├── providers/
 │   ├── index.ts             # Exact-host provider registry
 │   ├── netflix.ts           # Netflix provider adapter
@@ -99,6 +101,12 @@ Chrome and Safari share the same content-script implementation. The Safari proje
 ## Install
 
 [Add to Chrome](https://chromewebstore.google.com/detail/episode-roulette/bdmfplkinmebmilgknedfgnpggmfhion) from the Chrome Web Store. It works in Chromium-based desktop browsers such as Chrome and Brave.
+
+## Reporting a Problem
+
+If a roll fails, the error snackbar offers a **Report** link. It opens a short form at [episode-roulette.prakashsewani.com/report](https://episode-roulette.prakashsewani.com/report) with the details of the failure already selected — which platform, which failure class, and which season failed. Nothing is sent until you submit the form, and the page lists exactly what will be sent before you do. You can also open that page directly from the site footer.
+
+This is the fastest way to get a broken Netflix or Prime Video layout fixed, because the report names the exact failure class (for example "the season menu never appeared") rather than just "it didn't work".
 
 ## Development
 

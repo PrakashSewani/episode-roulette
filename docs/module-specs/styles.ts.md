@@ -114,13 +114,61 @@ Netflix exposes these CSS custom properties on `:root`:
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 12px 12px 12px 20px;
   background: #333;
   color: #fff;
   border-radius: 8px;
   font-size: 14px;
   z-index: 9999;
   animation: ep-roulette-toast-in 0.3s ease;
+}
+
+.ep-roulette-toast-text {
+  flex: 1 1 auto;
+}
+
+/* Snackbar action: the failure report link */
+.ep-roulette-toast-action {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.ep-roulette-toast-action:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Snackbar dismiss control */
+.ep-roulette-toast-close {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.ep-roulette-toast-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
 }
 
 .ep-roulette-toast-exit {
@@ -217,6 +265,9 @@ export function removeStyles(): void {
 
 ## Testing
 
+- Unit test: the injected CSS defines the button, tooltip, spawn-indicator, and toast contract, including `.ep-roulette-toast-text`, `.ep-roulette-toast-action`, and `.ep-roulette-toast-close`
+- Unit test: repeated injection does not duplicate the style element and `removeStyles()` removes it
 - Manual test: Button styling matches Netflix design
 - Manual test: Hover/active states work correctly
 - Manual test: Loading and error states display correctly
+- Manual test: the snackbar action and close button are legible and reachable on both provider themes

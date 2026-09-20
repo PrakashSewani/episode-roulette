@@ -109,7 +109,9 @@ async function collectSeason(
       lastError = error
     }
   }
-  throw new DiscoveryIncompleteError(`Could not collect ${seasonLabel}: ${String(lastError)}`)
+  throw new DiscoveryIncompleteError(`Could not collect ${seasonLabel}: ${String(lastError)}`, {
+    seasonLabel,
+  })
 }
 
 export async function discoverPrimeEpisodes(

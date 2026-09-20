@@ -127,6 +127,14 @@ class PlaybackResolutionError extends Error {
   readonly name = 'PlaybackResolutionError'
 }
 
+/**
+ * Playback was not confirmed within the provider window. Subclass of
+ * PlaybackResolutionError, and always distinguished by type, never by message.
+ */
+class PlaybackTimeoutError extends PlaybackResolutionError {
+  readonly name = 'PlaybackTimeoutError'
+}
+
 type SeasonControllerFailureReason =
   | 'unsupported-layout'
   | 'season-missing'
@@ -144,8 +152,21 @@ class SeasonControllerError extends Error {
   }
 }
 
+/** Structured discovery failure detail carried for failure reporting. */
+interface DiscoveryFailureDetail {
+  /** Display label of the season that failed, when known. */
+  seasonLabel?: string
+  /** Season-controller reason that caused the failure, when known. */
+  reason?: SeasonControllerFailureReason
+}
+
 class DiscoveryIncompleteError extends Error {
   readonly name = 'DiscoveryIncompleteError'
+  readonly seasonLabel: string | null
+  readonly reason: SeasonControllerFailureReason | null
+  constructor(message: string, detail?: DiscoveryFailureDetail) {
+    super(message)
+  }
 }
 
 class NoEpisodesError extends Error {
@@ -154,6 +175,37 @@ class NoEpisodesError extends Error {
 ```
 
 Cancellation uses the platform `AbortError`; it is not wrapped in any product error class.
+
+`DiscoveryIncompleteError` messages remain human-readable and unchanged in wording. The `seasonLabel` and `reason` fields are the structured copy and are what failure reporting reads; report code must never parse an error message.
+
+---
+
+### Failure Report Types
+
+Owned by `src/report.ts` (see `docs/module-specs/report.ts.md`).
+
+```typescript
+type ReportErrorCode =
+  | 'discovery'
+  | 'no-episodes'
+  | 'playback-resolution'
+  | 'playback-timeout'
+  | 'unknown'
+
+interface ReportContext {
+  provider: ProviderId
+  titleId: string
+  error: unknown
+}
+
+interface ErrorClassification {
+  code: ReportErrorCode
+  reason: SeasonControllerFailureReason | null
+  seasonLabel: string | null
+}
+```
+
+`ReportContext` is constructed at the failure site in `content.ts` and never stored. Nothing in the report types is cached, persisted, or retained after the snackbar is dismissed.
 
 ---
 

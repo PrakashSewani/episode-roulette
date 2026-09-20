@@ -19,6 +19,7 @@ Supported provider page
      -> randomizer.ts selects one episode
      -> navigator.ts re-resolves and clicks the current live row
      -> provider restart: Netflix /watch/ scrubber; Prime video.currentTime = 0
+     -> on failure: feedback.ts snackbar with a report.ts-built Report link
 ```
 
 Chrome loads `dist/webextension/` directly. Safari wraps the byte-identical WebExtension output in the committed Xcode project under `safari/` (deferred publishing).
@@ -192,6 +193,10 @@ ready/error click
   -> synchronously click the row
   -> wait up to five seconds for /watch/
   -> if /watch/ confirmed and roll was pending, restart.ts scrubs timeline to start
+
+  on any non-abort failure
+  -> error button state
+  -> persistent snackbar with message + Report link (report.ts builds the URL)
 ```
 
 ### Catalog Discovery
@@ -323,14 +328,15 @@ If live playback proves cached metadata stale, `content.ts` invalidates only tha
 
 | Error | Meaning | Orchestrator action |
 |---|---|---|
-| `AbortError` | Expected cancellation | Silent exit |
-| `DiscoveryIncompleteError` | A complete catalog could not be built | Error button and season-loading message |
+| `AbortError` | Expected cancellation | Silent exit — no toast and no report link |
+| `DiscoveryIncompleteError` | A complete catalog could not be built | Error button and season-loading message; carries `seasonLabel` and `reason` for the report |
 | `NoEpisodesError` | Complete discovery produced no episodes | Error button and no-episodes message |
 | `CacheValidationMismatchError` | Cached season identity/count is stale | Invalidate once and rediscover |
 | `PlaybackResolutionError` | Current selected row cannot be safely opened | Error button and playback-resolution message |
+| `PlaybackTimeoutError` | Row clicked but provider playback was not confirmed in time | Error button and playback-did-not-start message |
 | Unknown error | Unexpected operational failure | Log and show general retryable error |
 
-User-visible message wording is authoritative in `docs/error-handling.md`.
+User-visible message wording is authoritative in `docs/error-handling.md`. Every non-abort branch above attaches the failure-report action; the report code vocabulary and URL contract are in `docs/error-handling.md` and `docs/module-specs/report.ts.md`.
 
 ## Non-Negotiable Invariants
 
@@ -352,3 +358,4 @@ User-visible message wording is authoritative in `docs/error-handling.md`.
 16. No background runtime beyond the approved permission-free onboarding worker, and none added without a documented responsibility.
 17. Netflix restart-from-beginning is a silent best-effort scrubber click after `/watch/`; never assign `video.currentTime` (M7375). Prime restart assigns `video.currentTime = 0` on the playing episode video (Prime-specific, live-verified).
 18. Restart intent is armed at successful row click (`pendingRestartUntil`) and must survive title-root abort before `/watch/`.
+19. Failure detail is carried structurally on the error types and never parsed from an error message; the report link adds no permission, involves no background work, and sends nothing until the user submits the website form.

@@ -6,6 +6,7 @@ import {
   getCatalogKey,
   NoEpisodesError,
   PlaybackResolutionError,
+  PlaybackTimeoutError,
   type CatalogKey,
   type Episode,
   type OperationContext,
@@ -18,9 +19,10 @@ import {
   type TitleContext,
 } from './types'
 import type { ButtonController } from './types'
-import { dismissToast, showErrorToast, showStatusToast } from './ui/feedback'
+import { dismissToast, showErrorToast, showStatusToast, type ToastAction } from './ui/feedback'
 import { injectButton } from './ui/button'
 import { injectStyles, removeStyles } from './ui/styles'
+import { buildReportUrl } from './report'
 import { pickRandom } from './engine/randomizer'
 import { seekToBeginning } from './engine/restart'
 
@@ -139,12 +141,24 @@ function errorMessage(error: unknown): string {
   if (error instanceof NoEpisodesError) {
     return 'No episodes found'
   }
+  if (error instanceof PlaybackTimeoutError) {
+    return 'Could not start playback. Try again.'
+  }
   if (error instanceof CacheValidationMismatchError || error instanceof PlaybackResolutionError) {
-    return error.message === 'Playback did not start'
-      ? 'Could not start playback. Try again.'
-      : 'Could not open the selected episode. Try again.'
+    return 'Could not open the selected episode. Try again.'
   }
   return 'Something went wrong. Try again.'
+}
+
+function reportAction(context: OperationContext, error: unknown): ToastAction {
+  return {
+    label: 'Report',
+    href: buildReportUrl({
+      provider: context.title.provider,
+      titleId: context.title.titleId,
+      error,
+    }),
+  }
 }
 
 async function discoverAndCache(
@@ -271,7 +285,7 @@ async function runPlayback(
       const message = errorMessage(error)
       controller.setState('error', message)
       logInfo('Button state → error', { message })
-      showErrorToast(message)
+      showErrorToast(message, { action: reportAction(context, error) })
     } else {
       logWarning('Suppressed error UI; context no longer current')
     }
@@ -303,7 +317,7 @@ async function resumePendingPlayback(
     if (isCurrent(context) && activeRoot === root && buttonController === controller) {
       const message = errorMessage(error)
       controller.setState('error', message)
-      showErrorToast(message)
+      showErrorToast(message, { action: reportAction(context, error) })
     }
   }
 }

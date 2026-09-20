@@ -105,11 +105,28 @@ export class CacheValidationMismatchError extends Error {
 }
 
 export class PlaybackResolutionError extends Error {
-  readonly name = 'PlaybackResolutionError'
+  readonly name: string = 'PlaybackResolutionError'
+}
+
+export class PlaybackTimeoutError extends PlaybackResolutionError {
+  readonly name = 'PlaybackTimeoutError'
+}
+
+export interface DiscoveryFailureDetail {
+  seasonLabel?: string
+  reason?: SeasonControllerFailureReason
 }
 
 export class DiscoveryIncompleteError extends Error {
   readonly name = 'DiscoveryIncompleteError'
+  readonly seasonLabel: string | null
+  readonly reason: SeasonControllerFailureReason | null
+
+  constructor(message: string, detail: DiscoveryFailureDetail = {}) {
+    super(message)
+    this.seasonLabel = detail.seasonLabel ?? null
+    this.reason = detail.reason ?? null
+  }
 }
 
 export class NoEpisodesError extends Error {

@@ -280,10 +280,35 @@ No background service worker is registered in Chrome or Safari. All core behavio
 
 ---
 
+## Phase 13: Failure Reporting
+
+**Status**: in progress (2026-09-20)
+
+**Goal**: Turn every user-facing failure into an actionable, reportable event. When discovery, traversal, or episode selection fails, the extension shows an error snackbar that carries a **Report** link, and that link opens a pre-filled form on the product website so provider DOM changes can be diagnosed from real user reports.
+
+**Deliverables**:
+- Stored procedure/flow is unchanged: no new permissions, no background responsibility, no new host access
+- `src/report.ts` as the only owner of the report URL contract (`REPORT_BASE_URL`, error classification, extension version lookup, query-param construction)
+- Stable report error codes: `discovery`, `no-episodes`, `playback-resolution`, `playback-timeout`, `unknown`
+- `reason` populated from the existing `SeasonControllerFailureReason` union when a season-controller failure caused the discovery failure
+- `seasonLabel` carried structurally from the failed season, not parsed out of an error message
+- `PlaybackTimeoutError` as a typed distinction for the playback-confirmation timeout, replacing message-string matching
+- `feedback.ts` error toasts support an optional action link; an error toast with an action persists until dismissed, replaced, or navigation-cleaned, and never appears on abort
+- `styles.ts` owns the snackbar action and close-button CSS
+- `content.ts` attaches the report action in every user-facing error branch after its existing current-context guard
+- Website `episode-roulette-website`: a `/report` route whose form options are preselected from `code`, `reason`, `provider`, and `season`, a hidden-by-default disclosure of exactly what will be submitted, and a worker that stores the extended submission payload
+- `PRIVACY.md` documents the user-initiated report payload
+
+**Out of scope**: popup report affordance, series-name scraping, background-worker involvement, any new extension permission, and Chrome Web Store API v2 migration.
+
+**Exit criteria**: Every user-facing error toast offers a working report link; the link opens a form with the failed operation's options already selected; a report submitted from that form is stored by the website; abort, non-series, and cache-recovery paths still show no report affordance; the full automated gate passes; the website is deployed and verified live before the extension tag is pushed. **Live click-through of the snackbar Report link from a real provider failure requires user confirmation** and cannot be forced on demand in automated tests.
+
+---
+
 ## Notes
 
 - **Stretch goals** (exclude-season controls, repeat prevention, keyboard shortcuts, or weighting) remain out of scope unless separately approved. **Prime restart-from-beginning is implemented and approved** (see `docs/module-specs/prime-video-playback.md`); it is no longer a stretch goal.
 - **Approved dependencies/tools**: runtime/build dependencies listed in Phase 1, `vitest` and `jsdom` as development-only test dependencies, and Apple Xcode plus `safari-web-extension-converter` for Safari packaging.
 - **Do not change architecture** without updating `docs/architecture.md` first.
-- Prime phases are ordered after the completed Netflix phases; all implementation phases (1–12) are now complete. Netflix regression remains mandatory for any future change.
+- Prime phases are ordered after the completed Netflix phases; all implementation phases (1–12) are complete and Phase 13 (Failure Reporting) is in progress. Netflix regression remains mandatory for any future change.
 - **Safari publishing is deferred by user decision (2026-08-16)** until enough requests or donations justify its cost. The Safari wrapper and `safari:sync`/`safari:build`/`safari:init` tooling remain intact and may be resumed when the user re-opens Safari scope; no Safari work is required for the Chrome Web Store release.

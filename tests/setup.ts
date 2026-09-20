@@ -2,6 +2,7 @@ import { afterEach, beforeEach, vi } from 'vitest'
 
 const chromeMock = {
   runtime: {
+    getManifest: (() => ({ version: '0.0.0-test' })) as unknown as typeof chrome.runtime.getManifest,
     onMessage: {
       addListener: vi.fn() as unknown as typeof chrome.runtime.onMessage.addListener,
       removeListener: vi.fn() as unknown as typeof chrome.runtime.onMessage.removeListener,

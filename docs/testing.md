@@ -21,7 +21,8 @@ Episode Roulette uses unit tests, jsdom fixture integration tests, and focused m
 - `season-controller.ts` — Enumeration, already-active activation, switching, expansion, and deadlines
 - `episode-identity.ts` — Normalization, parsing conflicts, and deterministic matching
 - `button.ts` — Scoped injection and retryable states
-- `feedback.ts` — Toast replacement and stale-timer guards
+- `feedback.ts` — Toast replacement and stale-timer guards, along with actionable snackbar rendering and persistence
+- `report.ts` — Error classification, structured failure-detail propagation, extension-version lookup, and report URL construction
 - `background.ts` — Onboarding hook registration, install event handling, and browsers without `setUninstallURL`
 
 **Setup**:
@@ -78,7 +79,8 @@ npm test
 - Season reactivation, unique row resolution, and final guarded click
 - Phase 5 uncached button flow performs fresh discovery per click and returns to ready after non-abort failure
 - Five-second `/watch/` confirmation after final click
-- Retryable error state and five-second toast behavior
+- Retryable error state and provider snackbar behavior, including the persistent report action
+- Every user-facing failure shows a snackbar whose report action carries the matching `code`, `provider`, and `titleId`, and an aborted operation shows none
 - Selection status includes named/numeric season and episode information and is replaced by later failure feedback
 - Manifest/build contract contains the provider content script, exactly one onboarding service worker, and no extension permissions
 
@@ -136,27 +138,35 @@ describe('pickRandom', () => {
 
 ```text
 tests/
+├── setup.ts
 ├── fixtures/
-│   ├── browse.ts
-│   ├── movie-details.ts
-│   ├── implicit-season.ts
-│   └── dropdown-series.ts
+│   ├── prime-video.ts
+│   └── title-details.ts
 ├── unit/
+│   ├── background.test.ts
+│   ├── button.test.ts
 │   ├── detector.test.ts
 │   ├── dom-utils.test.ts
-│   ├── observer.test.ts
-│   ├── season-controller.test.ts
+│   ├── episode-collector.test.ts
 │   ├── episode-identity.test.ts
-│   ├── button.test.ts
 │   ├── feedback.test.ts
+│   ├── navigator.test.ts
+│   ├── observer.test.ts
+│   ├── popup.test.ts
+│   ├── prime-provider.test.ts
+│   ├── providers.test.ts
 │   ├── randomizer.test.ts
-│   └── selectors.test.ts
+│   ├── report.test.ts
+│   ├── restart.test.ts
+│   ├── season-controller.test.ts
+│   ├── selectors.test.ts
+│   └── styles.test.ts
 └── integration/
     ├── content-lifecycle.test.ts
-    ├── season-traversal.test.ts
-    ├── cache.test.ts
-    └── playback.test.ts
+    └── season-traversal.test.ts
 ```
+
+The `tests/setup.ts` chrome mock supplies the runtime surface the content script touches, including `chrome.runtime.getManifest()` for the report version parameter.
 
 Fixtures expose builders rather than static shared DOM nodes so each test receives an isolated document state. Netflix selector strings used by fixtures should describe the simulated external DOM; assertions must exercise production selectors and behavior.
 
@@ -244,7 +254,10 @@ describe('resilientQuery', () => {
 - [ ] Button shows error state on failure
 - [ ] Error-state button remains enabled and clickable
 - [ ] Clicking error dismisses the toast and transitions immediately to loading
-- [ ] Error toast auto-dismisses after 5 seconds
+- [ ] Error snackbar shows a Report link and a close button
+- [ ] The snackbar stays on screen until it is dismissed, replaced, or navigation cleanup removes it
+- [ ] Clicking Report opens the pre-filled form in a new tab without navigating the provider page
+- [ ] Clicking close removes the snackbar immediately
 - [ ] Navigation cancellation does not show an error or toast
 
 ### Episode Discovery

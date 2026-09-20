@@ -104,6 +104,7 @@ Prime Video is an implemented, live-validated provider. Safari Prime support rem
 | Popup | `src/popup/popup.ts` | Toolbar popup status and roll trigger | `types.ts` |
 | Styles | `src/ui/styles.ts` | Inject CSS matching Netflix design | None |
 | Feedback | `src/ui/feedback.ts` | Own error toast DOM, timers, replacement, and removal | None |
+| Report | `src/report.ts` | Own the failure-report URL contract and error classification | `types.ts` |
 | Randomizer | `src/engine/randomizer.ts` | Uniform random selection | `types.ts` |
 | Navigator | `src/engine/navigator.ts` | Re-resolve durable metadata and trigger Netflix-native playback | `season-controller.ts`, `episode-identity.ts`, `selectors.ts`, `dom-utils.ts`, `types.ts` |
 | Restart | `src/engine/restart.ts` | After `/watch/`, scrub timeline to start (never `currentTime`) | `selectors.ts`, `dom-utils.ts` |
@@ -325,6 +326,22 @@ This is a deliberate, narrow exception to the content-script-only architecture. 
 
 ---
 
+### 15. Reportable Failures
+
+**Decision**: Every user-facing failure carries a link to a pre-filled report form on the product website. `src/report.ts` owns the destination, the stable error-code vocabulary, and the mapping from a caught error to query parameters; `content.ts` supplies the active provider and title identity at the failure site; `feedback.ts` only renders the link it is handed.
+
+**Rationale**: The extension depends entirely on provider DOM that both Netflix and Prime change without notice. Console diagnostics are invisible to users, and a vague "something went wrong" gives no way to know which selector class broke. A one-click report turns a silent failure into an actionable signal and identifies the affected provider, build, season, and failure class.
+
+**Boundaries**:
+
+- The report URL contains only local diagnostic identifiers: `code`, `provider`, `titleId`, plus `reason`, `season`, and `v` when known. Episode data, catalog contents, watch history, credentials, and browsing history are never included.
+- Nothing is transmitted until the user clicks the link and submits the website form. The form discloses the exact payload before submission.
+- The report host is not an extension host permission, and no permission is added. The link is an ordinary `target="_blank"` anchor, so the background worker stays product-logic-free.
+- The snackbar carrying an action persists until dismissed or replaced; aborted operations never show it.
+- Failure detail is carried structurally on the error types (`seasonLabel`, `reason`) and never parsed from an error message.
+
+---
+
 ## Multi-Provider Contract — Approved Prime Scope
 
 ### Provider selection
@@ -383,6 +400,7 @@ src/
 ├── manifest.ts              # Canonical cross-browser WebExtension manifest
 ├── content.ts               # Content script entry point
 ├── types.ts                 # Shared TypeScript interfaces
+├── report.ts                # Failure report URL contract and error classification
 ├── providers/
 │   ├── index.ts             # Exact-host provider registry
 │   ├── netflix.ts           # Netflix provider adapter

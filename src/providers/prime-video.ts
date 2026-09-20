@@ -30,7 +30,7 @@ import {
   start as startObserver,
   stop as stopObserver,
 } from '../prime/observer'
-import { PlaybackResolutionError } from '../types'
+import { PlaybackResolutionError, PlaybackTimeoutError } from '../types'
 import {
   PENDING_DISCOVERY_KEY,
   PENDING_PLAYBACK_KEY,
@@ -278,7 +278,7 @@ const primeRuntime: ProviderRuntime = {
     if (signal.aborted) return Promise.reject(new DOMException('The operation was aborted.', 'AbortError'))
     return new Promise((resolve, reject) => {
       const abort = (): void => clearPlayback(new DOMException('The operation was aborted.', 'AbortError'))
-      const timer = window.setTimeout(() => clearPlayback(new PlaybackResolutionError('Playback did not start')), PLAYBACK_TIMEOUT_MS)
+      const timer = window.setTimeout(() => clearPlayback(new PlaybackTimeoutError('Playback did not start')), PLAYBACK_TIMEOUT_MS)
       playbackWaiter = { episode, timer, signal, resolve, reject, abort }
       signal.addEventListener('abort', abort, { once: true })
       let seenPlaying = false

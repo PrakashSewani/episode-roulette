@@ -70,7 +70,11 @@ const CSS = `
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 12px 12px 12px 20px;
   background: #333;
   color: #fff;
   border-radius: 8px;
@@ -78,6 +82,49 @@ const CSS = `
   font-size: 14px;
   z-index: 9999;
   animation: ep-roulette-toast-in 0.3s ease;
+}
+
+.ep-roulette-toast-text {
+  flex: 1 1 auto;
+}
+
+.ep-roulette-toast-action {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.ep-roulette-toast-action:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.ep-roulette-toast-close {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.ep-roulette-toast-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
 }
 
 .ep-roulette-toast[data-kind="status"] {

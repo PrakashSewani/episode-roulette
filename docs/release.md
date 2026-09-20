@@ -23,6 +23,20 @@ Pushing a `v*` tag publishes live, so everything the release depends on must alr
 
 The onboarding hooks in `src/background.ts` open `https://episode-roulette.prakashsewani.com/thanks` on install and register `https://episode-roulette.prakashsewani.com/uninstalled` for uninstall. Both routes must be live before the tag is pushed, or new users land on an error page.
 
+The failure-report snackbar opens `https://episode-roulette.prakashsewani.com/report`, and that page posts to `/api/submit`. Both must be live and accepting the extended error payload before the tag is pushed, or every report link in the shipped build dead-ends.
+
+```bash
+# Website first, from the episode-roulette-website repository
+npm run deploy
+
+# Verify the routes the release depends on
+curl -s -o /dev/null -w '%{http_code}\n' 'https://episode-roulette.prakashsewani.com/report?code=discovery&provider=netflix'
+```
+
+### Refresh token before tagging
+
+The OAuth consent screen is in **Testing**, so `CHROME_REFRESH_TOKEN` expires roughly seven days after it is issued and the `Release` workflow then fails at the token exchange. Regenerate it per the `CHROME_REFRESH_TOKEN` section above and replace the repository secret before pushing a release tag if the stored secret is older than about a week. `gh secret list` shows when each secret was last updated.
+
 ---
 
 ## Chrome Web Store Publishing

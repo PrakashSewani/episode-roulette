@@ -2,7 +2,9 @@ import { logError, logInfo, logWarning } from '../debug'
 import {
   DiscoveryIncompleteError,
   NoEpisodesError,
+  SeasonControllerError,
   type Episode,
+  type SeasonControllerFailureReason,
   type SeasonDescriptor,
   type SeriesInfo,
 } from '../types'
@@ -25,6 +27,10 @@ function assertNotAborted(signal: AbortSignal): void {
   if (signal.aborted) {
     throw new DOMException('The operation was aborted.', 'AbortError')
   }
+}
+
+function failureReason(error: unknown): SeasonControllerFailureReason | undefined {
+  return error instanceof SeasonControllerError ? error.reason : undefined
 }
 
 async function resolveEpisodeSelector(
@@ -78,7 +84,9 @@ async function initialize(
   }
 
   logError('Season enumeration failed after retry', lastError)
-  throw new DiscoveryIncompleteError('Could not enumerate all seasons')
+  throw new DiscoveryIncompleteError('Could not enumerate all seasons', {
+    reason: failureReason(lastError),
+  })
 }
 
 async function collectSeason(
@@ -146,7 +154,10 @@ async function collectSeason(
   }
 
   logError(`Season collection failed: ${season.label}`, lastError)
-  throw new DiscoveryIncompleteError(`Could not collect ${season.label}`)
+  throw new DiscoveryIncompleteError(`Could not collect ${season.label}`, {
+    seasonLabel: season.label,
+    reason: failureReason(lastError),
+  })
 }
 
 export async function discoverEpisodes(

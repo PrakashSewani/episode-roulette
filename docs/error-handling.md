@@ -199,23 +199,71 @@ function logInfo(message: string, details?: unknown): void {
 }
 ```
 
-**Ship gate:** verbose development `logInfo` coverage across lifecycle, discovery, playback, button, and restart is **intentionally kept** while pre-publish debugging continues. Before store release, remove or silence non-essential development logs (tracked in `docs/project-todos.md` as Temporary development logs). Keep concise error/warning logs for real failures.
+**Shipping state:** `logInfo` is silenced (a no-op) in production because verbose pre-publish tracing is no longer needed. `logWarning` and `logError` remain for real operational failures and are the only diagnostics written to the console. The popup's local `log` helper is silenced the same way.
+
+Unhandled failures are not left to the console alone: every user-facing error also carries the report link described under Failure Reporting, which is the supported channel for users to report a broken selector.
 
 ---
 
 ## User-Facing Errors
 
-| Scenario | Button State | Toast Message |
-|----------|-------------|---------------|
-| Episodic UI not confirmed | Not injected | (none — treated as a non-series title) |
-| Season failed after retry | Error | "Could not load all seasons. Try again." |
-| No episodes found | Error | "No episodes found" |
-| Selected episode cannot be resolved | Error | "Could not open the selected episode. Try again." |
-| Playback did not start | Error | "Could not start playback. Try again." |
-| Play button not found | Not injected | (none — button doesn't appear) |
-| General failure | Error | "Something went wrong. Try again." |
+| Scenario | Button State | Toast Message | Report link |
+|----------|-------------|---------------|-------------|
+| Episodic UI not confirmed | Not injected | (none — treated as a non-series title) | no |
+| Season failed after retry | Error | "Could not load all seasons. Try again." | yes |
+| No episodes found | Error | "No episodes found" | yes |
+| Selected episode cannot be resolved | Error | "Could not open the selected episode. Try again." | yes |
+| Playback did not start | Error | "Could not start playback. Try again." | yes |
+| Play button not found | Not injected | (none — button doesn't appear) | no |
+| General failure | Error | "Something went wrong. Try again." | yes |
 
 Immediately after a guarded random selection, show a polite five-second status toast with the selected season, episode number or one-based position, and title when available. Any later failure replaces that status with the corresponding assertive error toast.
+
+An error toast that carries a report link persists until the user dismisses it, clicks the link, or navigation cleanup removes it. It never auto-dismisses. Status toasts and error toasts without an action keep the five-second default.
+
+---
+
+## Failure Reporting
+
+Every user-facing error offers the user a way to report it. This is the product's feedback loop for provider DOM changes: when Netflix or Prime updates their markup, the report identifies which selector class broke.
+
+### Contract ownership
+
+`src/report.ts` is the only module that knows the report URL, the error-code vocabulary, and how a caught error maps to report parameters. `content.ts` supplies the active provider and title identity; `feedback.ts` only renders the link it is handed.
+
+### Report codes
+
+| `code` | Thrown by | Typical cause |
+|--------|-----------|---------------|
+| `discovery` | `DiscoveryIncompleteError` | Season enumeration, activation, expansion, or validation failed after its retry |
+| `no-episodes` | `NoEpisodesError` | Complete discovery produced zero eligible episodes |
+| `playback-resolution` | `PlaybackResolutionError`, `CacheValidationMismatchError` | The selected season or episode row could not be re-resolved uniquely after the one cache refresh |
+| `playback-timeout` | `PlaybackTimeoutError` | The episode row was clicked but provider playback was not confirmed in time |
+| `unknown` | anything else | Unexpected failure |
+
+`playback-timeout` is a typed subclass of `PlaybackResolutionError`. Message-string matching must never be used to distinguish it.
+
+### Failure reason
+
+When the failure was caused by a season-controller error, the report carries the exact `SeasonControllerFailureReason` as `reason`: `unsupported-layout`, `season-missing`, `strategy-mismatch`, `active-season-mismatch`, `count-mismatch`, `render-timeout`, `transition-timeout`, or `expansion-failed`. The failed season's display label is carried separately as `season` and is read from the error's structured `seasonLabel`; it is never parsed out of an error message. Prime discovery failures carry the season label but no reason.
+
+### Report URL
+
+```text
+https://episode-roulette.prakashsewani.com/report
+  ?code=discovery            # always present
+  &provider=netflix          # always present: netflix | prime-video
+  &titleId=81234567          # always present: provider-local title identity
+  &reason=render-timeout     # only when a season-controller reason is known
+  &season=Season%204         # only when the failed season label is known
+  &v=1.6.0                   # only when the extension version is readable
+```
+
+The link opens in a new tab with `rel="noopener noreferrer"`. It requires no extension permission and does not involve the background worker.
+
+### Data boundary
+
+The URL contains only local diagnostic identifiers. It is opened only after an explicit user click, and nothing is transmitted until the user submits the form on the website. The report form discloses the exact payload before submission. No episode data, catalog contents, watch history, credentials, or browsing history is ever included. See `PRIVACY.md`.
 
 ---
 

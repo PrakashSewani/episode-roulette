@@ -233,6 +233,22 @@ Version source: `package.json` is the sole canonical version. The manifest reads
 
 Chrome Web Store publishing is automated via `.github/workflows/release.yml` on `v*` tag pushes. See `docs/release.md` for the four required repository secrets (`CHROME_EXTENSION_ID`, `CHROME_CLIENT_ID`, `CHROME_CLIENT_SECRET`, `CHROME_REFRESH_TOKEN`) and step-by-step setup instructions.
 
-The `npm run publish:chrome` script zips `dist/webextension/`, exchanges the refresh token for an access token, uploads the package, and publishes to the `trusted` channel. It requires all four environment variables.
+The `npm run publish:chrome` script zips `dist/webextension/`, exchanges the refresh token for an access token, uploads the package, and publishes to the public target using the required case-sensitive URL parameter `?publishTarget=default`. It requires all four environment variables.
+
+### Website Dependency
+
+The shipped extension opens website routes, so the website must be deployed before the release tag is pushed:
+
+| Route | Opened by |
+|---|---|
+| `/thanks` | `background.ts` on a fresh install |
+| `/uninstalled` | The registered uninstall survey URL |
+| `/report` | The failure snackbar's Report link (built by `src/report.ts`), which posts to `/api/submit` |
+
+Deploy the website first and confirm the routes respond, then tag. A release tagged before the website carries a dead report link for every user who hits a failure.
+
+### Refresh Token Expiry
+
+The OAuth consent screen is in **Testing**, so `CHROME_REFRESH_TOKEN` expires roughly seven days after it is issued and the tag-triggered release then fails at the token exchange. Check `gh secret list` for the secret's update timestamp before tagging; regenerate it per `docs/release.md` when it is older than about a week.
 
 Safari publishing is manual via Xcode signing and App Store submission. See `docs/safari.md`.
